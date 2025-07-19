@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme colors -->
+    <color name="bubble_background">#80FFFFFF</color>
+    <color name="bubble_border">#000000</color>
+    <color name="service_running">#66BB6A</color>
+    <color name="service_stopped">#EF5350</color>
+    <color name="encrypted_indicator">#42A5F5</color>
+</resources>

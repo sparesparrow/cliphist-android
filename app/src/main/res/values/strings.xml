@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Clipboard History</string>
+    
+    <!-- Service notifications -->
+    <string name="clipboard_service_title">Clipboard History</string>
+    <string name="clipboard_service_description">Monitoring clipboard changes</string>
+    <string name="floating_bubble_service_title">Floating Bubbles</string>
+    <string name="floating_bubble_service_description">Clipboard bubbles active</string>
+    
+    <!-- Permissions -->
+    <string name="permission_overlay_title">Overlay Permission Required</string>
+    <string name="permission_overlay_description">This app needs permission to display floating bubbles over other apps.</string>
+    <string name="permission_notification_title">Notification Permission Required</string>
+    <string name="permission_notification_description">This app needs permission to show notifications for the clipboard service.</string>
+    
+    <!-- Main screen -->
+    <string name="main_screen_title">Clipboard History</string>
+    <string name="start_service">Start Service</string>
+    <string name="stop_service">Stop Service</string>
+    <string name="settings">Settings</string>
+    <string name="add_item">Add Item</string>
+    <string name="empty_state_title">No clipboard items yet</string>
+    <string name="empty_state_description">Start the clipboard service to begin capturing clipboard history</string>
+    <string name="service_running">Clipboard service is running</string>
+    <string name="service_stopped">Clipboard service is stopped</string>
+    
+    <!-- Clipboard items -->
+    <string name="copy_to_clipboard">Copy to Clipboard</string>
+    <string name="delete_item">Delete Item</string>
+    <string name="content_copied">Content copied to clipboard</string>
+    <string name="item_deleted">Item deleted</string>
+    <string name="just_now">Just now</string>
+    <string name="minutes_ago">%dm ago</string>
+    <string name="hours_ago">%dh ago</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="max_history_size">Max History Size</string>
+    <string name="auto_delete_hours">Auto-delete After</string>
+    <string name="enable_encryption">Enable Encryption</string>
+    <string name="bubble_size">Bubble Size</string>
+    <string name="bubble_opacity">Bubble Opacity</string>
+    <string name="clipboard_mode">Clipboard Mode</string>
+    <string name="mode_replace">Replace</string>
+    <string name="mode_extend">Extend</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    
+    <!-- Dialogs -->
+    <string name="add_clipboard_item">Add Clipboard Item</string>
+    <string name="content_label">Content</string>
+    <string name="add">Add</string>
+    <string name="delete_confirmation">Are you sure you want to delete this item?</string>
+    <string name="delete">Delete</string>
+    <string name="clear_all_confirmation">Are you sure you want to clear all clipboard items?</string>
+    <string name="clear_all">Clear All</string>
+    
+    <!-- Errors -->
+    <string name="error_permission_denied">Permission denied</string>
+    <string name="error_service_not_available">Service not available</string>
+    <string name="error_clipboard_empty">Clipboard is empty</string>
+    <string name="error_encryption_failed">Encryption failed</string>
+    <string name="error_decryption_failed">Decryption failed</string>
+    <string name="error_unknown">An unknown error occurred</string>
+    
+    <!-- Bubble modes -->
+    <string name="replace_mode">Replace mode</string>
+    <string name="extend_mode">Extend mode</string>
+    
+    <!-- Content types -->
+    <string name="content_type_text">TEXT</string>
+    <string name="content_type_image">IMAGE</string>
+    <string name="content_type_url">URL</string>
+    <string name="content_type_file">FILE</string>
+    <string name="content_type_other">OTHER</string>
+    
+    <!-- Size formats -->
+    <string name="size_bytes">%dB</string>
+    <string name="size_kilobytes">%dKB</string>
+    <string name="size_megabytes">%dMB</string>
+    
+    <!-- Accessibility -->
+    <string name="accessibility_copy_button">Copy button</string>
+    <string name="accessibility_delete_button">Delete button</string>
+    <string name="accessibility_floating_bubble">Floating clipboard bubble</string>
+    <string name="accessibility_empty_bubble">Empty clipboard bubble</string>
+    <string name="accessibility_mode_bubble">Mode toggle bubble</string>
+</resources>
