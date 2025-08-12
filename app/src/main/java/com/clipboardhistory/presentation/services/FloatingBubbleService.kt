@@ -59,12 +59,14 @@ class FloatingBubbleService : Service() {
     private var emptyBubble: BubbleView? = null
     private var modeBubble: BubbleView? = null
     private var currentMode = ClipboardMode.REPLACE
+    private var currentBubbleOpacity: Float = 0.8f
+    private var currentBubbleSizeDp: Int = DEFAULT_BUBBLE_SIZE_DP
     
     companion object {
         private const val NOTIFICATION_ID = 1002
         private const val CHANNEL_ID = "floating_bubble_channel"
         private const val CHANNEL_NAME = "Floating Bubbles"
-        private const val BUBBLE_SIZE_DP = 60
+        private const val DEFAULT_BUBBLE_SIZE_DP = 60
         private const val BUBBLE_MARGIN_DP = 16
     }
     
@@ -105,6 +107,8 @@ class FloatingBubbleService : Service() {
         serviceScope.launch {
             val settings = getClipboardSettingsUseCase()
             currentMode = settings.clipboardMode
+            currentBubbleOpacity = settings.bubbleOpacity.coerceIn(0.1f, 1.0f)
+            currentBubbleSizeDp = mapSizeToDp(settings.bubbleSize)
             initializeBubbles()
         }
     }
@@ -179,7 +183,7 @@ class FloatingBubbleService : Service() {
         val bubble = BubbleView(bubbleView, createLayoutParams(), content, BubbleType.FULL)
         
         // Position relative to empty bubble
-        bubble.params.x = 100 + (index + 1) * (BUBBLE_SIZE_DP + BUBBLE_MARGIN_DP)
+        bubble.params.x = 100 + (index + 1) * (currentBubbleSizeDp + BUBBLE_MARGIN_DP)
         bubble.params.y = 100
         
         // Set click listener
@@ -243,6 +247,7 @@ class FloatingBubbleService : Service() {
         
         imageView.setImageResource(resourceId)
         imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+        imageView.alpha = currentBubbleOpacity
         
         return imageView
     }
@@ -259,10 +264,10 @@ class FloatingBubbleService : Service() {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
-        
+        val bubbleSizePx = dpToPx(currentBubbleSizeDp)
         val params = WindowManager.LayoutParams(
-            dpToPx(BUBBLE_SIZE_DP),
-            dpToPx(BUBBLE_SIZE_DP),
+            bubbleSizePx,
+            bubbleSizePx,
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -323,18 +328,19 @@ class FloatingBubbleService : Service() {
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
         
-        val centerX = bubble.params.x + dpToPx(BUBBLE_SIZE_DP) / 2
-        val centerY = bubble.params.y + dpToPx(BUBBLE_SIZE_DP) / 2
+        val bubbleSizePx = dpToPx(currentBubbleSizeDp)
+        val centerX = bubble.params.x + bubbleSizePx / 2
+        val centerY = bubble.params.y + bubbleSizePx / 2
         
         // Snap to left or right edge
         bubble.params.x = if (centerX < screenWidth / 2) {
             0
         } else {
-            screenWidth - dpToPx(BUBBLE_SIZE_DP)
+            screenWidth - bubbleSizePx
         }
         
         // Ensure bubble stays within screen bounds
-        bubble.params.y = bubble.params.y.coerceIn(0, screenHeight - dpToPx(BUBBLE_SIZE_DP))
+        bubble.params.y = bubble.params.y.coerceIn(0, screenHeight - bubbleSizePx)
         
         try {
             windowManager.updateViewLayout(bubble.view, bubble.params)
@@ -441,6 +447,20 @@ class FloatingBubbleService : Service() {
      */
     private fun dpToPx(dp: Int): Int {
         return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    /**
+     * Returns bubble size in dp based on settings.bubbleSize (1..5).
+     */
+    private fun mapSizeToDp(sizeIndex: Int): Int {
+        // Accepted values 1..5
+        return when (sizeIndex.coerceIn(1, 5)) {
+            1 -> 40
+            2 -> 50
+            3 -> 60
+            4 -> 70
+            else -> 80
+        }
     }
     
     /**

@@ -10,6 +10,10 @@ android {
     namespace 'com.clipboardhistory'
     compileSdk 34
 
+    // Determine if a release keystore is available
+    def keystorePath = System.getenv("KEYSTORE_PATH") ?: "keystore.jks"
+    def hasKeystore = file(keystorePath).exists()
+
     defaultConfig {
         applicationId "com.clipboardhistory"
         minSdk 24
@@ -23,24 +27,29 @@ android {
         }
     }
 
+    // Define signing configs only if keystore exists
+    if (hasKeystore) {
+        signingConfigs {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "password"
+                keyAlias System.getenv("KEY_ALIAS") ?: "key"
+                keyPassword System.getenv("KEY_PASSWORD") ?: "password"
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (hasKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
         debug {
             applicationIdSuffix '.debug'
             versionNameSuffix '-debug'
-        }
-    }
-    
-    signingConfigs {
-        release {
-            storeFile file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "password"
-            keyAlias System.getenv("KEY_ALIAS") ?: "key"
-            keyPassword System.getenv("KEY_PASSWORD") ?: "password"
         }
     }
 
@@ -68,11 +77,13 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'androidx.activity:activity-compose:1.8.2'
-    implementation platform('androidx.compose:compose-bom:2024.02.00')
+    implementation platform('androidx.compose:compose-bom:2024.04.01')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
-    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material3:material3:1.2.1'
+        implementation 'com.google.android.material:material:1.12.0'
+        implementation 'androidx.compose.material:material-icons-extended'
     
     // Architecture Components
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'

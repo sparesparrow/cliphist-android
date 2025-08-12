@@ -25,12 +25,14 @@ class AddClipboardItemUseCase @Inject constructor(
      * @return The created clipboard item
      */
     suspend operator fun invoke(content: String, contentType: ContentType = ContentType.TEXT): ClipboardItem {
+        // Respect current encryption setting from repository
+        val settings = repository.getSettings()
         val item = ClipboardItem(
             id = UUID.randomUUID().toString(),
             content = content,
             timestamp = System.currentTimeMillis(),
             contentType = contentType,
-            isEncrypted = true,
+            isEncrypted = settings.enableEncryption,
             size = content.toByteArray().size
         )
         

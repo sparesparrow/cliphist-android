@@ -133,7 +133,7 @@ class ClipboardService : Service() {
         return when {
             text.startsWith("http://") || text.startsWith("https://") -> ContentType.URL
             text.startsWith("file://") -> ContentType.FILE
-            text.matches(Regex(".*\.(jpg|jpeg|png|gif|bmp|webp)$", RegexOption.IGNORE_CASE)) -> ContentType.IMAGE
+            text.matches(Regex(".*\\.(jpg|jpeg|png|gif|bmp|webp)$", RegexOption.IGNORE_CASE)) -> ContentType.IMAGE
             else -> ContentType.TEXT
         }
     }
