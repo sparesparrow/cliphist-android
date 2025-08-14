@@ -63,16 +63,6 @@ class MainViewModelTest {
         
         // Setup default mock behaviors
         whenever(getAllClipboardItemsUseCase()).thenReturn(flowOf(emptyList()))
-        whenever(getClipboardSettingsUseCase()).thenReturn(ClipboardSettings())
-        
-        viewModel = MainViewModel(
-            getAllClipboardItemsUseCase,
-            addClipboardItemUseCase,
-            deleteClipboardItemUseCase,
-            getClipboardSettingsUseCase,
-            updateClipboardSettingsUseCase,
-            cleanupOldItemsUseCase
-        )
     }
     
     @After
@@ -81,7 +71,16 @@ class MainViewModelTest {
     }
     
     @Test
-    fun `initial state is correct`() {
+    fun `initial state is correct`() = runTest {
+        whenever(getClipboardSettingsUseCase()).thenReturn(ClipboardSettings())
+        viewModel = MainViewModel(
+            getAllClipboardItemsUseCase,
+            addClipboardItemUseCase,
+            deleteClipboardItemUseCase,
+            getClipboardSettingsUseCase,
+            updateClipboardSettingsUseCase,
+            cleanupOldItemsUseCase
+        )
         val uiState = viewModel.uiState.value
         
         assertEquals(emptyList(), uiState.clipboardItems)
@@ -93,6 +92,15 @@ class MainViewModelTest {
     
     @Test
     fun `addClipboardItem calls use case correctly`() = runTest {
+        whenever(getClipboardSettingsUseCase()).thenReturn(ClipboardSettings())
+        viewModel = MainViewModel(
+            getAllClipboardItemsUseCase,
+            addClipboardItemUseCase,
+            deleteClipboardItemUseCase,
+            getClipboardSettingsUseCase,
+            updateClipboardSettingsUseCase,
+            cleanupOldItemsUseCase
+        )
         val testContent = "Test clipboard content"
         
         viewModel.addClipboardItem(testContent)
@@ -102,6 +110,15 @@ class MainViewModelTest {
     
     @Test
     fun `deleteClipboardItem calls use case correctly`() = runTest {
+        whenever(getClipboardSettingsUseCase()).thenReturn(ClipboardSettings())
+        viewModel = MainViewModel(
+            getAllClipboardItemsUseCase,
+            addClipboardItemUseCase,
+            deleteClipboardItemUseCase,
+            getClipboardSettingsUseCase,
+            updateClipboardSettingsUseCase,
+            cleanupOldItemsUseCase
+        )
         val testItem = createTestClipboardItem("Test content")
         
         viewModel.deleteClipboardItem(testItem)
@@ -111,6 +128,15 @@ class MainViewModelTest {
     
     @Test
     fun `updateSettings calls use case and updates state`() = runTest {
+        whenever(getClipboardSettingsUseCase()).thenReturn(ClipboardSettings())
+        viewModel = MainViewModel(
+            getAllClipboardItemsUseCase,
+            addClipboardItemUseCase,
+            deleteClipboardItemUseCase,
+            getClipboardSettingsUseCase,
+            updateClipboardSettingsUseCase,
+            cleanupOldItemsUseCase
+        )
         val newSettings = ClipboardSettings(
             maxHistorySize = 200,
             clipboardMode = ClipboardMode.EXTEND
@@ -123,7 +149,16 @@ class MainViewModelTest {
     }
     
     @Test
-    fun `updateServiceRunningState updates state correctly`() {
+    fun `updateServiceRunningState updates state correctly`() = runTest {
+        whenever(getClipboardSettingsUseCase()).thenReturn(ClipboardSettings())
+        viewModel = MainViewModel(
+            getAllClipboardItemsUseCase,
+            addClipboardItemUseCase,
+            deleteClipboardItemUseCase,
+            getClipboardSettingsUseCase,
+            updateClipboardSettingsUseCase,
+            cleanupOldItemsUseCase
+        )
         viewModel.updateServiceRunningState(true)
         
         assertTrue(viewModel.uiState.value.isServiceRunning)
@@ -135,6 +170,15 @@ class MainViewModelTest {
     
     @Test
     fun `clearError clears error state`() = runTest {
+        whenever(getClipboardSettingsUseCase()).thenReturn(ClipboardSettings())
+        viewModel = MainViewModel(
+            getAllClipboardItemsUseCase,
+            addClipboardItemUseCase,
+            deleteClipboardItemUseCase,
+            getClipboardSettingsUseCase,
+            updateClipboardSettingsUseCase,
+            cleanupOldItemsUseCase
+        )
         viewModel.clearError()
         
         assertNull(viewModel.uiState.value.error)

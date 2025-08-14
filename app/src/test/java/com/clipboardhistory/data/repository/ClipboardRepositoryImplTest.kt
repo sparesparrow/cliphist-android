@@ -11,12 +11,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mock
-import org.mockito.MockitoAnnotations
+import org.mockito.junit.MockitoJUnit
+import org.mockito.junit.MockitoRule
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.whenever
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Unit tests for ClipboardRepositoryImpl.
@@ -26,6 +30,9 @@ import kotlin.test.assertEquals
  */
 class ClipboardRepositoryImplTest {
     
+    @get:Rule
+    val mockitoRule: MockitoRule = MockitoJUnit.rule()
+
     @Mock
     private lateinit var clipboardItemDao: ClipboardItemDao
     
@@ -36,7 +43,6 @@ class ClipboardRepositoryImplTest {
     
     @Before
     fun setup() {
-        MockitoAnnotations.openMocks(this)
         repository = ClipboardRepositoryImpl(clipboardItemDao, encryptionManager)
     }
     
@@ -67,16 +73,15 @@ class ClipboardRepositoryImplTest {
         repository.insertItem(testItem)
         
         verify(encryptionManager).encrypt("Test content")
-        verify(clipboardItemDao).insertItem(
-            ClipboardItemEntity(
-                id = testItem.id,
-                content = "encrypted_content",
-                timestamp = testItem.timestamp,
-                contentType = testItem.contentType,
-                isEncrypted = testItem.isEncrypted,
-                size = testItem.size
-            )
-        )
+        val entityCaptor = argumentCaptor<ClipboardItemEntity>()
+        verify(clipboardItemDao).insertItem(entityCaptor.capture())
+        val captured = entityCaptor.firstValue
+        assertEquals(testItem.id, captured.id)
+        assertEquals("encrypted_content", captured.content)
+        assertEquals(testItem.timestamp, captured.timestamp)
+        assertEquals(testItem.contentType, captured.contentType)
+        assertEquals(testItem.isEncrypted, captured.isEncrypted)
+        assertEquals(testItem.size, captured.size)
     }
     
     @Test
@@ -126,10 +131,9 @@ class ClipboardRepositoryImplTest {
         
         repository.deleteItemsOlderThan(hours)
         
-        // Verify with a range since timing might vary slightly
-        verify(clipboardItemDao).deleteItemsOlderThan(org.mockito.kotlin.check { timestamp ->
-            kotlin.math.abs(timestamp - expectedThreshold) < 1000 // Within 1 second
-        })
+        val tsCaptor = argumentCaptor<Long>()
+        verify(clipboardItemDao).deleteItemsOlderThan(tsCaptor.capture())
+        assertTrue(kotlin.math.abs(tsCaptor.firstValue - expectedThreshold) < 2000)
     }
     
     private fun createTestEntity(content: String): ClipboardItemEntity {

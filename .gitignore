@@ -4,6 +4,11 @@
 /.idea/
 .DS_Store
 /build
+# Ignore all module-specific build directories
+**/build/
+
+# VS Code settings
+.vscode/
 /captures
 .externalNativeBuild
 .cxx
