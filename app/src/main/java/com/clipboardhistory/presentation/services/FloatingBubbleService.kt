@@ -12,6 +12,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -31,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -54,6 +56,7 @@ class FloatingBubbleService : Service() {
     
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+    private val mainScope = CoroutineScope(Dispatchers.Main + serviceJob)
     
     private val bubbles = mutableListOf<BubbleView>()
     private var emptyBubble: BubbleView? = null
@@ -102,6 +105,13 @@ class FloatingBubbleService : Service() {
         
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
+
+        // Guard: require overlay permission to draw bubbles
+        if (!Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, getString(R.string.permission_overlay_description), Toast.LENGTH_LONG).show()
+            stopSelf()
+            return
+        }
         
         // Load settings and initialize bubbles
         serviceScope.launch {
@@ -109,7 +119,9 @@ class FloatingBubbleService : Service() {
             currentMode = settings.clipboardMode
             currentBubbleOpacity = settings.bubbleOpacity.coerceIn(0.1f, 1.0f)
             currentBubbleSizeDp = mapSizeToDp(settings.bubbleSize)
-            initializeBubbles()
+            withContext(Dispatchers.Main) {
+                initializeBubbles()
+            }
         }
     }
     
@@ -140,8 +152,10 @@ class FloatingBubbleService : Service() {
         // Load existing clipboard items and create bubbles
         serviceScope.launch {
             val items = getAllClipboardItemsUseCase().first()
-            items.take(5).forEachIndexed { index, item ->
-                createFullBubble(item.content, index)
+            withContext(Dispatchers.Main) {
+                items.take(5).forEachIndexed { index, item ->
+                    createFullBubble(item.content, index)
+                }
             }
         }
     }

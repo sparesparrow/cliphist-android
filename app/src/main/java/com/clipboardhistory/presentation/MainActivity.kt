@@ -23,6 +23,7 @@ import com.clipboardhistory.presentation.ui.screens.MainScreen
 import com.clipboardhistory.presentation.ui.theme.ClipboardHistoryTheme
 import com.clipboardhistory.presentation.viewmodels.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.clipboardhistory.utils.PermissionUtils
 
 /**
  * Main Activity for the Clipboard History application.
@@ -35,18 +36,32 @@ class MainActivity : ComponentActivity() {
     
     private val overlayPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (Settings.canDrawOverlays(this)) {
-            startServices()
-        }
+    ) { _ ->
+        continuePermissionFlow()
     }
     
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            requestOverlayPermission()
-        }
+    ) { _ ->
+        continuePermissionFlow()
+    }
+
+    private val usageAccessLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        continuePermissionFlow()
+    }
+
+    private val batteryOptimizationLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        continuePermissionFlow()
+    }
+
+    private val foregroundServicePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        continuePermissionFlow()
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,37 +94,58 @@ class MainActivity : ComponentActivity() {
      * Requests necessary permissions for the application.
      */
     private fun requestPermissions() {
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                if (ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.POST_NOTIFICATIONS
-                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-                ) {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else {
-                    requestOverlayPermission()
-                }
-            }
-            else -> {
-                requestOverlayPermission()
+        continuePermissionFlow()
+    }
+
+    private fun continuePermissionFlow() {
+        // 1) Foreground Service Data Sync (Android 14+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.FOREGROUND_SERVICE_DATA_SYNC
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                foregroundServicePermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_DATA_SYNC)
+                return
             }
         }
-    }
-    
-    /**
-     * Requests overlay permission for floating bubbles.
-     */
-    private fun requestOverlayPermission() {
+
+        // 2) Notifications (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return
+            }
+        }
+
+        // 3) Overlay
         if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
             )
             overlayPermissionLauncher.launch(intent)
-        } else {
-            startServices()
+            return
         }
+
+        // 4) Usage Access
+        if (!PermissionUtils.hasUsageAccess(this)) {
+            usageAccessLauncher.launch(PermissionUtils.usageAccessSettingsIntent())
+            return
+        }
+
+        // 5) Ignore Battery Optimizations
+        if (!PermissionUtils.isIgnoringBatteryOptimizations(this)) {
+            batteryOptimizationLauncher.launch(PermissionUtils.batteryOptimizationIntent(this))
+            return
+        }
+
+        // All permissions granted
+        startServices()
     }
     
     /**

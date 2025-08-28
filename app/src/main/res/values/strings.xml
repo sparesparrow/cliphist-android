@@ -13,6 +13,9 @@
     <string name="permission_overlay_description">This app needs permission to display floating bubbles over other apps.</string>
     <string name="permission_notification_title">Notification Permission Required</string>
     <string name="permission_notification_description">This app needs permission to show notifications for the clipboard service.</string>
+    <string name="permission_accessibility_description">Enable the app accessibility service to allow enhanced automation and reliability.</string>
+    <string name="permission_usage_access_description">Grant usage access so the app can remain active and respond reliably.</string>
+    <string name="permission_battery_description">Disable battery optimizations to prevent the service from being killed.</string>
     
     <!-- Main screen -->
     <string name="main_screen_title">Clipboard History</string>
@@ -67,6 +70,11 @@
     <!-- Bubble modes -->
     <string name="replace_mode">Replace mode</string>
     <string name="extend_mode">Extend mode</string>
+    
+    <!-- Share/Process Text -->
+    <string name="save_to_clipboard_history">Save to Clipboard History</string>
+    <string name="saved_to_history">Saved to clipboard history</string>
+    <string name="nothing_to_save">Nothing to save</string>
     
     <!-- Content types -->
     <string name="content_type_text">TEXT</string>

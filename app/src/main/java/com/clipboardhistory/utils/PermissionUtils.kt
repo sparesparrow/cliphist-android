@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.app.AppOpsManager
+import android.content.Intent
+import android.os.PowerManager
 import androidx.core.app.ActivityCompat
 
 /**
@@ -60,7 +63,10 @@ object PermissionUtils {
      * @return True if all permissions are granted, false otherwise
      */
     fun hasAllRequiredPermissions(context: Context): Boolean {
-        return hasOverlayPermission(context) && hasNotificationPermission(context)
+        return hasOverlayPermission(context) &&
+               hasNotificationPermission(context) &&
+               hasUsageAccess(context) &&
+               isIgnoringBatteryOptimizations(context)
     }
     
     /**
@@ -79,7 +85,42 @@ object PermissionUtils {
         if (!hasNotificationPermission(context)) {
             missingPermissions.add("Notifications")
         }
+        if (!hasUsageAccess(context)) {
+            missingPermissions.add("Usage Access")
+        }
+        if (!isIgnoringBatteryOptimizations(context)) {
+            missingPermissions.add("Ignore Battery Optimizations")
+        }
         
         return missingPermissions
+    }
+
+    /** Checks if the app has Usage Access (PACKAGE_USAGE_STATS). */
+    fun hasUsageAccess(context: Context): Boolean {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.unsafeCheckOpNoThrow(
+            "android:get_usage_stats",
+            android.os.Process.myUid(),
+            context.packageName
+        )
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    /** Intent for Usage Access settings screen. */
+    fun usageAccessSettingsIntent(): Intent {
+        return Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+    }
+
+    /** Checks if app is ignoring battery optimizations. */
+    fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+        val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        return pm.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    /** Intent for Ignore Battery Optimizations screen. */
+    fun batteryOptimizationIntent(context: Context): Intent {
+        return Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
     }
 }
