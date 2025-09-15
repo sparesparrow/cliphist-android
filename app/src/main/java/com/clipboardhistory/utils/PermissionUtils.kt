@@ -98,12 +98,24 @@ object PermissionUtils {
     /** Checks if the app has Usage Access (PACKAGE_USAGE_STATS). */
     fun hasUsageAccess(context: Context): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        val mode = appOps.unsafeCheckOpNoThrow(
-            "android:get_usage_stats",
-            android.os.Process.myUid(),
-            context.packageName
-        )
-        return mode == AppOpsManager.MODE_ALLOWED
+        val uid = android.os.Process.myUid()
+        val packageName = context.packageName
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val mode = appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                uid,
+                packageName
+            )
+            mode == AppOpsManager.MODE_ALLOWED
+        } else {
+            @Suppress("DEPRECATION")
+            val mode = appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                uid,
+                packageName
+            )
+            mode == AppOpsManager.MODE_ALLOWED
+        }
     }
 
     /** Intent for Usage Access settings screen. */

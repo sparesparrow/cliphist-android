@@ -155,8 +155,13 @@ class MainActivity : ComponentActivity() {
         val clipboardIntent = Intent(this, ClipboardService::class.java)
         val bubbleIntent = Intent(this, FloatingBubbleService::class.java)
         
-        startForegroundService(clipboardIntent)
-        startForegroundService(bubbleIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(clipboardIntent)
+            startForegroundService(bubbleIntent)
+        } else {
+            startService(clipboardIntent)
+            startService(bubbleIntent)
+        }
     }
     
     /**
