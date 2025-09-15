@@ -197,7 +197,15 @@ app/src/testRelease/    # Release-specific tests
 ## 🔄 CI/CD Pipeline
 
 ### GitHub Actions Workflows
-- **Android CI**: Automated build and testing
+- **Android CI**: Automated build, lint, tests
+- **Release on tag v***: Builds APK and attaches it to GitHub Release
+
+### Download latest APK
+
+You can download the latest tagged build from GitHub Releases:
+
+- Latest release: https://github.com/sparesparrow/cliphist-android/releases/latest
+- This build: https://github.com/sparesparrow/cliphist-android/releases/tag/v1.0.0-ci1
 - **Security Scan**: Dependency vulnerability scanning
 - **Code Quality**: Linting and code analysis
 - **Release Management**: Automated versioning and deployment
