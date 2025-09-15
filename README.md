@@ -1,150 +1,113 @@
-# 📱 Android Extended Clipboard History
+# Clipboard History - Android Extended Clipboard Manager
 
-[![Android CI](https://github.com/yourusername/clipboard-history/workflows/Android%20CI/badge.svg)](https://github.com/yourusername/clipboard-history/actions)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-blue.svg)](https://kotlinlang.org/)
-[![Compose](https://img.shields.io/badge/Compose-1.5.0-blue.svg)](https://developer.android.com/jetpack/compose)
-
-A **production-ready** Android application that provides an extended clipboard history with floating bubble interface and enterprise-grade security encryption. Built with modern Android development practices and Clean Architecture principles.
+A comprehensive Android clipboard management application with floating bubbles, encryption, and advanced features.
 
 ## ✨ Features
 
-- 🔒 **Enterprise Security**: AES-256 encryption with Android Keystore hardware backing
-- 📱 **Floating Interface**: Intuitive floating bubble system for instant clipboard access
-- 📋 **Smart History**: Intelligent clipboard management with configurable limits (10-500 items)
-- 🎨 **Modern UI**: Material Design 3 with Jetpack Compose for beautiful, responsive design
-- ⚡ **High Performance**: Optimized with MVVM architecture and Room database
-- 🔧 **Fully Customizable**: Adjustable bubble size, opacity, and behavior modes
-- 🧪 **Comprehensive Testing**: 100% test coverage with unit, integration, and UI tests
-- 🚀 **Production Ready**: No TODOs, fully implemented, ready for app store deployment
+### Core Functionality
+- **Clipboard Monitoring**: Automatic capture of copied text and content
+- **Floating Bubbles**: Quick access to clipboard history with customizable bubbles
+- **Encryption**: Secure storage of clipboard data with AES encryption
+- **History Management**: Configurable history size with automatic cleanup
+- **Multiple Content Types**: Support for text, images, URLs, and files
+
+### Floating Bubble System
+- **Multiple Bubble Types**: Choose from Circle, Cube, Hexagon, and Square shapes
+- **Cube Flash Feature**: Cube bubbles flash content preview when tapped
+- **Drag-and-Drop Actions**: Drag bubbles to highlighted areas for content editing
+- **Theme Support**: Multiple color themes with Material Design 3
+- **Drag & Drop**: Reposition bubbles anywhere on screen
+- **Opacity Control**: Adjustable transparency levels
+
+### Bubble Types
+| Type | Description | Special Features |
+|------|-------------|------------------|
+| **Circle** | Classic circular bubbles | Default shape, smooth animations |
+| **Cube** | 3D cube with flash preview | Flashes content when tapped, 3D effect |
+| **Hexagon** | Hexagonal bubbles | Geometric design, modern look |
+| **Square** | Rounded square bubbles | Clean, minimalist appearance |
+
+### Advanced Features
+- **Service Persistence**: Automatic restart and recovery mechanisms
+- **Battery Optimization**: Smart power management
+- **Permission Management**: Guided setup for required permissions
+- **Error Handling**: Graceful degradation and user feedback
+- **Accessibility**: Full accessibility compliance
+
+## 🎨 Bubble Types & Drag-and-Drop Actions
+
+### Cube Bubble Flash Feature
+The cube bubble type includes a special flash functionality:
+- **Content Preview**: When tapped, cube bubbles flash the clipboard content for 1 second
+- **3D Effect**: Visual depth with lighter top face and darker side face
+- **Smooth Animation**: Alpha-based flash effect with easing
+- **Content Display**: Shows up to 20 characters of content during flash
+
+### Enhanced Drag-and-Drop Action Areas
+When dragging bubbles to screen edges, smart action areas appear with context-aware suggestions:
+
+**Edge-Based Activation:**
+- **Left Edge**: Horizontal action bar with smart suggestions
+- **Right Edge**: Horizontal action bar with smart suggestions  
+- **Top Edge**: Vertical action bar with smart suggestions
+- **Bottom Edge**: Vertical action bar with smart suggestions
+
+**Smart Action Suggestions:**
+- **URLs**: Open Link, Share Link, Bookmark, Copy URL
+- **Phone Numbers**: Call Number, Send SMS, Add Contact, Copy Number
+- **Email Addresses**: Send Email, Add Contact, Copy Email
+- **Addresses**: Open Maps, Get Directions, Share Location, Copy Address
+- **Code**: Run Code, Share Code, Format Code, Copy Code
+- **Text**: Copy Text, Share Text, Search Text, Translate
+
+**Visual Features:**
+- **Edge Glow**: Blue glow animation when approaching edges
+- **Smart Positioning**: Action areas positioned based on drag direction
+- **One-Handed Operation**: Thumb-friendly positioning and gestures
+- **Context Awareness**: Actions change based on content type
+
+### Bubble Type Selection
+Users can select their preferred bubble type in Settings:
+1. Open the app settings
+2. Navigate to "Bubble Type" section
+3. Choose from Circle, Cube, Hexagon, or Square
+4. Changes apply immediately to all floating bubbles
+
+### Enhanced Content Editing Workflow
+1. **Start Dragging**: Drag any bubble with content
+2. **Approach Edge**: Drag the bubble toward any screen edge
+3. **Edge Glow**: Blue glow appears when approaching edge threshold
+4. **Smart Actions Appear**: Context-aware action areas appear with relevant suggestions
+5. **Drop on Action**: Drop the bubble on the desired smart action
+6. **Smart Processing**: Content is processed according to the action (e.g., open link, call number)
+7. **Areas Hide**: Action areas automatically disappear after use
+
+**Example Workflows:**
+- **URL**: Drag to edge → "Open Link" → Browser opens automatically
+- **Phone Number**: Drag to edge → "Call Number" → Dialer opens with number
+- **Email**: Drag to edge → "Send Email" → Email app opens with address
+- **Address**: Drag to edge → "Open Maps" → Maps app opens with location
+
+### Visual Customization
+Each bubble type supports:
+- **Theme Colors**: Different colors for empty, storing, replace, append, and prepend states
+- **Opacity Control**: Adjustable transparency (10-100%)
+- **Size Options**: 5 different size levels
+- **Action Areas**: Highlighted areas for drag-and-drop content editing
 
 ## 🏗️ Architecture
-[]()
-The application follows **Clean Architecture** principles with **MVVM** pattern and **SOLID** design principles:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Presentation Layer                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ MainActivity│  │ MainViewModel│  │  Compose Screens    │  │
-│  │             │  │              │  │  • MainScreen       │  │
-│  │             │  │              │  │  • SettingsDialog   │  │
-│  │             │  │              │  │  • AddItemDialog    │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│                      Domain Layer                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   Models    │  │ Use Cases   │  │   Repositories      │  │
-│  │ • Clipboard │  │ • Add Item  │  │   • ClipboardRepo   │  │
-│  │ • Settings  │  │ • Get Items │  │   • SettingsRepo    │  │
-│  │ • Content   │  │ • Delete    │  │   • SecurityRepo    │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│                       Data Layer                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  Database   │  │ Encryption  │  │   Services          │  │
-│  │   (Room)    │  │ (SQLCipher) │  │  • ClipboardService │  │
-│  │ • Entities  │  │ • AES-256   │  │  • FloatingBubble   │  │
-│  │ • DAOs      │  │ • Keystore  │  │  • Foreground       │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
+### Clean Architecture
+- **Domain Layer**: Business logic and use cases
+- **Data Layer**: Repository pattern with Room database
+- **Presentation Layer**: MVVM with Jetpack Compose
+- **Service Layer**: Foreground services for clipboard monitoring
 
-## 🛠️ Tech Stack
-
-| Category | Technology | Version |
-|----------|------------|---------|
-| **Language** | Kotlin | 1.9.0+ |
-| **UI Framework** | Jetpack Compose | 1.5.0+ |
-| **Architecture** | MVVM + Clean Architecture | - |
-| **Database** | Room + SQLCipher | 2.6.0+ |
-| **Dependency Injection** | Dagger Hilt | 2.48+ |
-| **Security** | Android Keystore + EncryptedSharedPreferences | - |
-| **Testing** | JUnit 5 + Espresso + Mockito | - |
-| **Build System** | Gradle + Kotlin DSL | 8.2+ |
-| **CI/CD** | GitHub Actions | - |
-| **Min SDK** | Android 7.0 (API 24) | - |
-| **Target SDK** | Android 14 (API 34) | - |
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- **Android Studio** Hedgehog (2023.1.1) or later
-- **Android SDK** 24 or later
-- **JDK** 17 or later
-- **Git** for version control
-
-### Quick Start
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/clipboard-history.git
-   cd clipboard-history
-   ```
-
-2. **Open in Android Studio**:
-   - Launch Android Studio
-   - Select "Open an existing project"
-   - Navigate to the cloned directory
-   - Wait for Gradle sync to complete
-
-3. **Build and Run**:
-   ```bash
-   # Build debug APK
-   ./gradlew assembleDebug
-   
-   # Install and run on device/emulator
-   ./gradlew installDebug
-   ```
-
-### Building
-
-| Command | Description |
-|---------|-------------|
-| `./gradlew assembleDebug` | Build debug APK |
-| `./gradlew assembleRelease` | Build release APK |
-| `./gradlew bundleRelease` | Build AAB for Play Store |
-| `./gradlew clean` | Clean build artifacts |
-
-### Testing
-
-| Command | Description |
-|---------|-------------|
-| `./gradlew test` | Run unit tests |
-| `./gradlew connectedAndroidTest` | Run instrumentation tests |
-| `./gradlew testDebugUnitTest` | Run debug unit tests |
-| `./gradlew testReleaseUnitTest` | Run release unit tests |
-
-## 🔐 Security Features
-
-### Encryption Implementation
-- **AES-256 Encryption**: Military-grade encryption for all clipboard data
-- **Android Keystore**: Hardware-backed key storage for maximum security
-- **SQLCipher Database**: Encrypted database with transparent encryption/decryption
-- **Encrypted Preferences**: Secure storage for sensitive configuration data
-
-### Security Best Practices
-- No sensitive data logging
-- Secure key generation and rotation
-- Hardware-backed cryptographic operations
-- Encrypted data transmission (if applicable)
-
-## 📱 User Interface
-
-### Main Components
-- **MainScreen**: Primary interface with clipboard history
-- **Floating Bubbles**: Quick access floating interface
-- **Settings Dialog**: Comprehensive configuration options
-- **Service Status**: Real-time service monitoring
-
-### Material Design 3
-- **Dynamic Color**: Adaptive theming based on wallpaper
-- **Dark/Light Themes**: Automatic theme switching
-- **Responsive Layout**: Support for all screen sizes
-- **Accessibility**: Full accessibility compliance
+### Key Components
+- **FloatingBubbleService**: Manages floating bubble lifecycle
+- **ClipboardService**: Monitors clipboard changes
+- **BubbleView**: Custom view with multiple shape support
+- **EncryptionManager**: Handles data encryption/decryption
 
 ## ⚙️ Configuration
 
@@ -155,6 +118,7 @@ The application follows **Clean Architecture** principles with **MVVM** pattern 
 | **Auto-delete After** | 1-168h | 24h | Automatic cleanup timing |
 | **Bubble Size** | 5 sizes | Medium | Floating bubble dimensions |
 | **Bubble Opacity** | 10-100% | 80% | Bubble transparency level |
+| **Bubble Type** | 4 types | Circle | Bubble shape selection |
 | **Clipboard Mode** | Replace/Extend | Replace | Content handling behavior |
 | **Encryption** | On/Off | On | Security feature toggle |
 
@@ -202,96 +166,64 @@ app/src/testRelease/    # Release-specific tests
 - **Code Quality**: Linting and code analysis
 - **Release Management**: Automated versioning and deployment
 
-### Build Matrix
-- **Android Versions**: API 24, 28, 30, 34
-- **Java Versions**: JDK 17, 21
-- **Gradle Versions**: 8.2, 8.4
+## 📱 Screenshots
 
-## 📊 Performance
+### Main Features
+- Floating bubbles with different shapes
+- Settings dialog with bubble type selection
+- Clipboard history with encryption indicators
+- Service status monitoring
 
-### Optimization Features
-- **Lazy Loading**: Efficient data loading and pagination
-- **Background Processing**: Non-blocking clipboard operations
-- **Memory Management**: Optimized for low-memory devices
-- **Battery Optimization**: Minimal battery impact
+### Bubble Types
+- **Circle**: Classic circular design
+- **Cube**: 3D cube with flash preview
+- **Hexagon**: Geometric hexagonal shape
+- **Square**: Rounded square design
 
-### Benchmarks
-- **App Launch**: < 2 seconds
-- **Clipboard Capture**: < 100ms
-- **Database Operations**: < 50ms
-- **Memory Usage**: < 50MB average
+## 🔧 Development
 
-## 🤝 Contributing
+### Prerequisites
+- Android Studio Arctic Fox or later
+- Android SDK 34+
+- Kotlin 1.9+
+- Gradle 8.0+
 
-We welcome contributions! Please follow these steps:
+### Setup
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/cliphist-android.git
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
+# Open in Android Studio
+cd cliphist-android
+./gradlew build
+```
 
-### Development Guidelines
-- Follow Kotlin coding conventions
-- Write comprehensive tests for new features
-- Update documentation for API changes
-- Ensure all tests pass before submitting PR
-
-### Code Style
-- Use KtLint for code formatting
-- Follow Clean Architecture principles
-- Implement proper error handling
-- Add meaningful commit messages
+### Key Dependencies
+- **Jetpack Compose**: Modern UI toolkit
+- **Room**: Database persistence
+- **Hilt**: Dependency injection
+- **Coroutines**: Asynchronous programming
+- **Material Design 3**: Design system
 
 ## 📄 License
 
-This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🤝 Contributing
 
-- **Material Design 3** for modern UI components
-- **Room Database** for efficient local persistence
-- **SQLCipher** for database encryption
-- **Jetpack Compose** for declarative UI development
-- **Android Keystore** for secure key management
-- **Dagger Hilt** for dependency injection
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
 
-## 🆘 Support
+## 📞 Support
 
-### Getting Help
-- 📖 **Documentation**: Check the [API.md](API.md) for detailed API reference
-- 🐛 **Issues**: [Open an issue](https://github.com/yourusername/clipboard-history/issues) for bugs
-- 💬 **Discussions**: Use [GitHub Discussions](https://github.com/yourusername/clipboard-history/discussions) for questions
-- 📧 **Email**: Contact the maintainers directly
-
-### Common Issues
-- **Permission Denied**: Ensure overlay and notification permissions are granted
-- **Service Not Starting**: Check if battery optimization is disabled for the app
-- **Encryption Errors**: Verify device supports Android Keystore
-
-## 🚀 Roadmap
-
-### Upcoming Features
-- [ ] **Cloud Sync**: Cross-device clipboard synchronization
-- [ ] **Advanced Filters**: Content-based filtering and search
-- [ ] **Widgets**: Home screen widgets for quick access
-- [ ] **Backup/Restore**: Data export and import functionality
-- [ ] **Multi-language**: Internationalization support
-
-### Version History
-- **v1.0.0**: Initial release with core functionality
-- **v1.1.0**: Enhanced security and performance improvements
-- **v1.2.0**: Advanced customization options
-- **v2.0.0**: Complete UI redesign with Material Design 3
+For support and questions:
+- Create an issue on GitHub
+- Check the documentation
+- Review the API documentation
 
 ---
 
-<div align="center">
-
-**Made with ❤️ for the Android community**
-
-[![GitHub stars](https://img.shields.io/github/stars/yourusername/clipboard-history?style=social)](https://github.com/yourusername/clipboard-history/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/yourusername/clipboard-history?style=social)](https://github.com/yourusername/clipboard-history/network)
-[![GitHub issues](https://img.shields.io/github/issues/yourusername/clipboard-history)](https://github.com/yourusername/clipboard-history/issues)
-
-</div>
+**Note**: This app requires overlay permissions to display floating bubbles. Please grant the necessary permissions when prompted.

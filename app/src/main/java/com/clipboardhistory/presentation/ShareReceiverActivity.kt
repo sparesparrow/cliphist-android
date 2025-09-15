@@ -6,27 +6,54 @@ import android.os.Bundle
 import android.text.TextUtils
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import com.clipboardhistory.domain.usecase.AddClipboardItemUseCase
+import com.clipboardhistory.domain.model.BubbleState
+import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.ContentType
+import com.clipboardhistory.domain.usecase.AddClipboardItemUseCase
+import com.clipboardhistory.domain.usecase.GetAllClipboardItemsUseCase
+import com.clipboardhistory.domain.usecase.UpdateClipboardItemUseCase
+import com.clipboardhistory.presentation.ui.components.BubbleSelectionScreen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
  * Activity to handle text shared from other apps (SEND) and the text selection context menu (PROCESS_TEXT).
- * Finishes immediately after saving the shared text to clipboard history.
+ * Shows bubble selection screen for replace/append operations.
  */
 @AndroidEntryPoint
 class ShareReceiverActivity : ComponentActivity() {
 
     @Inject
     lateinit var addClipboardItemUseCase: AddClipboardItemUseCase
+    
+    @Inject
+    lateinit var getAllClipboardItemsUseCase: GetAllClipboardItemsUseCase
+    
+    @Inject
+    lateinit var updateClipboardItemUseCase: UpdateClipboardItemUseCase
 
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.IO + job)
+    
+    private var sharedText: String? = null
+    private var contentType: ContentType = ContentType.TEXT
+    private var clipboardItems: List<ClipboardItem> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,29 +71,131 @@ class ShareReceiverActivity : ComponentActivity() {
     }
 
     private fun handleSendText(intent: Intent) {
-        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-        if (!sharedText.isNullOrBlank()) {
-            saveToHistory(sharedText)
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        if (!text.isNullOrBlank()) {
+            sharedText = text
+            contentType = detectContentType(text)
+            showBubbleSelectionScreen()
         } else {
             finishWithMessage(false)
         }
     }
 
     private fun handleProcessText(intent: Intent) {
-        val processedText = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-        if (!processedText.isNullOrBlank()) {
-            saveToHistory(processedText)
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+        if (!text.isNullOrBlank()) {
+            sharedText = text
+            contentType = detectContentType(text)
+            showBubbleSelectionScreen()
         } else {
             finishWithMessage(false)
         }
     }
-
-    private fun saveToHistory(text: String) {
+    
+    private fun showBubbleSelectionScreen() {
+        // Load clipboard items first
         scope.launch {
             try {
-                addClipboardItemUseCase(text, detectContentType(text))
+                val items = getAllClipboardItemsUseCase().first()
+                runOnUiThread {
+                    clipboardItems = items
+                    setContent {
+                        MaterialTheme {
+                                            BubbleSelectionScreen(
+                    sharedText = sharedText ?: "",
+                    onReplaceBubble = { bubbleItem ->
+                        handleReplaceBubble(bubbleItem)
+                    },
+                    onAppendBubble = { bubbleItem ->
+                        handleAppendBubble(bubbleItem)
+                    },
+                    onPrependBubble = { bubbleItem ->
+                        handlePrependBubble(bubbleItem)
+                    },
+                    onAddNewBubble = {
+                        handleAddNewBubble()
+                    },
+                    onCancel = {
+                        finishWithMessage(false)
+                    },
+                    clipboardItems = clipboardItems
+                )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    finishWithMessage(false)
+                }
+            }
+        }
+    }
+    
+    private fun handleReplaceBubble(bubbleItem: ClipboardItem) {
+        scope.launch {
+            try {
+                // Replace the content of the selected bubble
+                val updatedItem = bubbleItem.copy(
+                    content = sharedText ?: "",
+                    timestamp = System.currentTimeMillis()
+                )
+                updateClipboardItemUseCase(updatedItem)
                 runOnUiThread { finishWithMessage(true) }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                runOnUiThread { finishWithMessage(false) }
+            }
+        }
+    }
+    
+    private fun handleAppendBubble(bubbleItem: ClipboardItem) {
+        scope.launch {
+            try {
+                // Append the new content to the selected bubble
+                val newContent = "${bubbleItem.content}\n${sharedText ?: ""}"
+                val updatedItem = bubbleItem.copy(
+                    content = newContent,
+                    timestamp = System.currentTimeMillis()
+                )
+                updateClipboardItemUseCase(updatedItem)
+                runOnUiThread { finishWithMessage(true) }
+            } catch (e: Exception) {
+                runOnUiThread { finishWithMessage(false) }
+            }
+        }
+    }
+    
+    private fun handlePrependBubble(bubbleItem: ClipboardItem) {
+        scope.launch {
+            try {
+                // Prepend the new content to the selected bubble
+                val newContent = "${sharedText ?: ""}\n${bubbleItem.content}"
+                val updatedItem = bubbleItem.copy(
+                    content = newContent,
+                    timestamp = System.currentTimeMillis()
+                )
+                updateClipboardItemUseCase(updatedItem)
+                runOnUiThread { finishWithMessage(true) }
+            } catch (e: Exception) {
+                runOnUiThread { finishWithMessage(false) }
+            }
+        }
+    }
+    
+    private fun handleAddNewBubble() {
+        scope.launch {
+            try {
+                val result = addClipboardItemUseCase(sharedText ?: "", contentType)
+                runOnUiThread { 
+                    if (result != null) {
+                        finishWithMessage(true)
+                    } else {
+                        // Content already exists
+                        Toast.makeText(this@ShareReceiverActivity, "Content already exists in clipboard history", Toast.LENGTH_SHORT).show()
+                        setResult(Activity.RESULT_CANCELED)
+                        finish()
+                    }
+                }
+            } catch (e: Exception) {
                 runOnUiThread { finishWithMessage(false) }
             }
         }

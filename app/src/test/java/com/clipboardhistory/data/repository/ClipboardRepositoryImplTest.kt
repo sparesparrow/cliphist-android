@@ -4,7 +4,7 @@ import com.clipboardhistory.data.database.ClipboardItemDao
 import com.clipboardhistory.data.database.ClipboardItemEntity
 import com.clipboardhistory.data.encryption.EncryptionManager
 import com.clipboardhistory.domain.model.ClipboardItem
-import com.clipboardhistory.domain.model.ClipboardMode
+
 import com.clipboardhistory.domain.model.ClipboardSettings
 import com.clipboardhistory.domain.model.ContentType
 import kotlinx.coroutines.flow.first
@@ -91,7 +91,7 @@ class ClipboardRepositoryImplTest {
         whenever(encryptionManager.getSecureString("enable_encryption", "true")).thenReturn("true")
         whenever(encryptionManager.getSecureString("bubble_size", "3")).thenReturn("4")
         whenever(encryptionManager.getSecureString("bubble_opacity", "0.8")).thenReturn("0.9")
-        whenever(encryptionManager.getSecureString("clipboard_mode", "REPLACE")).thenReturn("EXTEND")
+
         
         val result = repository.getSettings()
         
@@ -100,7 +100,6 @@ class ClipboardRepositoryImplTest {
         assertEquals(true, result.enableEncryption)
         assertEquals(4, result.bubbleSize)
         assertEquals(0.9f, result.bubbleOpacity)
-        assertEquals(ClipboardMode.EXTEND, result.clipboardMode)
     }
     
     @Test
@@ -110,8 +109,7 @@ class ClipboardRepositoryImplTest {
             autoDeleteAfterHours = 72,
             enableEncryption = false,
             bubbleSize = 5,
-            bubbleOpacity = 0.5f,
-            clipboardMode = ClipboardMode.EXTEND
+            bubbleOpacity = 0.5f
         )
         
         repository.updateSettings(testSettings)

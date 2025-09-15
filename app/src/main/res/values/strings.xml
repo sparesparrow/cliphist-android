@@ -71,6 +71,19 @@
     <string name="replace_mode">Replace mode</string>
     <string name="extend_mode">Extend mode</string>
     
+    <!-- Bubble types -->
+    <string name="bubble_type">Bubble Type</string>
+    <string name="bubble_type_circle">Circle</string>
+    <string name="bubble_type_cube">Cube</string>
+    <string name="bubble_type_hexagon">Hexagon</string>
+    <string name="bubble_type_square">Square</string>
+    
+    <!-- Action areas -->
+    <string name="action_prepend">Prepend</string>
+    <string name="action_replace">Replace</string>
+    <string name="action_append">Append</string>
+    <string name="content_updated">Content updated</string>
+    
     <!-- Share/Process Text -->
     <string name="save_to_clipboard_history">Save to Clipboard History</string>
     <string name="saved_to_history">Saved to clipboard history</string>

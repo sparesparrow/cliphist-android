@@ -87,7 +87,11 @@ class MainViewModel @Inject constructor(
     fun addClipboardItem(content: String) {
         viewModelScope.launch {
             try {
-                addClipboardItemUseCase(content)
+                val result = addClipboardItemUseCase(content)
+                if (result == null) {
+                    // Content already exists, show a message
+                    _uiState.value = _uiState.value.copy(error = "Content already exists in clipboard history")
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }

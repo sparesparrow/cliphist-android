@@ -106,11 +106,13 @@ class ClipboardService : Service() {
                         // Determine content type
                         val contentType = determineContentType(clipText)
                         
-                        // Add to database
-                        addClipboardItemUseCase(clipText, contentType)
+                        // Add to database (only if not duplicate)
+                        val result = addClipboardItemUseCase(clipText, contentType)
                         
-                        // Update notification
-                        updateNotification(clipText)
+                        // Update notification only if content was added
+                        if (result != null) {
+                            updateNotification(clipText)
+                        }
                         
                         // Cleanup old items periodically
                         val settings = getClipboardSettingsUseCase()

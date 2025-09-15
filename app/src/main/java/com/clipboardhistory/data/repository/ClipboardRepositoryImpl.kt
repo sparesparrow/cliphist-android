@@ -5,6 +5,7 @@ import com.clipboardhistory.data.database.ClipboardItemEntity
 import com.clipboardhistory.data.encryption.EncryptionManager
 import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.ClipboardSettings
+import com.clipboardhistory.domain.model.BubbleType
 import com.clipboardhistory.domain.repository.ClipboardRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -72,12 +73,11 @@ class ClipboardRepositoryImpl @Inject constructor(
         val enableEncryption = encryptionManager.getSecureString("enable_encryption", "true").toBoolean()
         val bubbleSize = encryptionManager.getSecureString("bubble_size", "3").toIntOrNull() ?: 3
         val bubbleOpacity = encryptionManager.getSecureString("bubble_opacity", "0.8").toFloatOrNull() ?: 0.8f
-        val clipboardMode = encryptionManager.getSecureString("clipboard_mode", "REPLACE").let {
-            try {
-                com.clipboardhistory.domain.model.ClipboardMode.valueOf(it)
-            } catch (e: IllegalArgumentException) {
-                com.clipboardhistory.domain.model.ClipboardMode.REPLACE
-            }
+        val selectedTheme = encryptionManager.getSecureString("selected_theme", "Default")
+        val bubbleType = try {
+            BubbleType.valueOf(encryptionManager.getSecureString("bubble_type", "CIRCLE"))
+        } catch (e: IllegalArgumentException) {
+            BubbleType.CIRCLE
         }
         
         return ClipboardSettings(
@@ -86,7 +86,8 @@ class ClipboardRepositoryImpl @Inject constructor(
             enableEncryption = enableEncryption,
             bubbleSize = bubbleSize,
             bubbleOpacity = bubbleOpacity,
-            clipboardMode = clipboardMode
+            selectedTheme = selectedTheme,
+            bubbleType = bubbleType
         )
     }
     
@@ -97,7 +98,8 @@ class ClipboardRepositoryImpl @Inject constructor(
         encryptionManager.storeSecureString("enable_encryption", settings.enableEncryption.toString())
         encryptionManager.storeSecureString("bubble_size", settings.bubbleSize.toString())
         encryptionManager.storeSecureString("bubble_opacity", settings.bubbleOpacity.toString())
-        encryptionManager.storeSecureString("clipboard_mode", settings.clipboardMode.name)
+        encryptionManager.storeSecureString("selected_theme", settings.selectedTheme)
+        encryptionManager.storeSecureString("bubble_type", settings.bubbleType.name)
     }
     
     override suspend fun getItemsWithPagination(limit: Int, offset: Int): List<ClipboardItem> {

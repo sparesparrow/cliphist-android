@@ -1,13 +1,23 @@
 package com.clipboardhistory.presentation.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.clipboardhistory.domain.model.ClipboardMode
+import com.clipboardhistory.domain.model.BubbleThemes
+import com.clipboardhistory.domain.model.BubbleType
 import com.clipboardhistory.domain.model.ClipboardSettings
 
 /**
@@ -30,7 +40,8 @@ fun SettingsDialog(
     var enableEncryption by remember { mutableStateOf(settings.enableEncryption) }
     var bubbleSize by remember { mutableStateOf(settings.bubbleSize) }
     var bubbleOpacity by remember { mutableStateOf(settings.bubbleOpacity) }
-    var clipboardMode by remember { mutableStateOf(settings.clipboardMode) }
+    var selectedTheme by remember { mutableStateOf(settings.selectedTheme) }
+    var selectedBubbleType by remember { mutableStateOf(settings.bubbleType) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -86,6 +97,26 @@ fun SettingsDialog(
                     valueFormatter = { "${(it * 10).toInt()}%" }
                 )
                 
+                // Theme selection
+                Column {
+                    Text(
+                        text = "Bubble Theme",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(BubbleThemes.ALL_THEMES) { theme ->
+                            ThemeChip(
+                                theme = theme,
+                                isSelected = selectedTheme == theme.name,
+                                onClick = { selectedTheme = theme.name }
+                            )
+                        }
+                    }
+                }
+                
                 // Encryption toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -102,29 +133,29 @@ fun SettingsDialog(
                     )
                 }
                 
-                // Clipboard mode selection
+
+                
+                // Bubble type selection
                 Column {
                     Text(
-                        text = "Clipboard Mode",
+                        text = "Bubble Type",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
+                    LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        FilterChip(
-                            selected = clipboardMode == ClipboardMode.REPLACE,
-                            onClick = { clipboardMode = ClipboardMode.REPLACE },
-                            label = { Text("Replace") }
-                        )
-                        FilterChip(
-                            selected = clipboardMode == ClipboardMode.EXTEND,
-                            onClick = { clipboardMode = ClipboardMode.EXTEND },
-                            label = { Text("Extend") }
-                        )
+                        items(BubbleType.values()) { bubbleType ->
+                            BubbleTypeChip(
+                                bubbleType = bubbleType,
+                                isSelected = selectedBubbleType == bubbleType,
+                                onClick = { selectedBubbleType = bubbleType }
+                            )
+                        }
                     }
                 }
+                
+
             }
         },
         confirmButton = {
@@ -136,7 +167,8 @@ fun SettingsDialog(
                         enableEncryption = enableEncryption,
                         bubbleSize = bubbleSize,
                         bubbleOpacity = bubbleOpacity,
-                        clipboardMode = clipboardMode
+                        selectedTheme = selectedTheme,
+                        bubbleType = selectedBubbleType
                     )
                     onSave(newSettings)
                 }
@@ -150,6 +182,150 @@ fun SettingsDialog(
             }
         }
     )
+}
+
+/**
+ * Bubble type chip composable for bubble type selection.
+ * 
+ * @param bubbleType The bubble type
+ * @param isSelected Whether this type is selected
+ * @param onClick Callback when type is clicked
+ */
+@Composable
+fun BubbleTypeChip(
+    bubbleType: BubbleType,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .clickable { onClick() }
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(16.dp)
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) 
+                MaterialTheme.colorScheme.primaryContainer 
+            else 
+                MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Bubble type icon/preview
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        shape = when (bubbleType) {
+                            BubbleType.CIRCLE -> CircleShape
+                            BubbleType.CUBE -> RoundedCornerShape(4.dp)
+                            BubbleType.HEXAGON -> RoundedCornerShape(8.dp)
+                            BubbleType.SQUARE -> RoundedCornerShape(8.dp)
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = when (bubbleType) {
+                        BubbleType.CIRCLE -> "●"
+                        BubbleType.CUBE -> "■"
+                        BubbleType.HEXAGON -> "⬡"
+                        BubbleType.SQUARE -> "□"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = bubbleType.name.lowercase().replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isSelected) 
+                    MaterialTheme.colorScheme.onPrimaryContainer 
+                else 
+                    MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+/**
+ * Theme chip composable for theme selection.
+ * 
+ * @param theme The bubble theme
+ * @param isSelected Whether this theme is selected
+ * @param onClick Callback when theme is clicked
+ */
+@Composable
+fun ThemeChip(
+    theme: com.clipboardhistory.domain.model.BubbleTheme,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = theme.colors
+    
+    Card(
+        modifier = Modifier
+            .clickable { onClick() }
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(16.dp)
+            ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Theme preview with color samples
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(colors.empty))
+                )
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(colors.storing))
+                )
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(colors.replace))
+                )
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(colors.append))
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = theme.name,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+        }
+    }
 }
 
 /**

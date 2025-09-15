@@ -5,6 +5,7 @@ import com.clipboardhistory.domain.model.ClipboardSettings
 import com.clipboardhistory.domain.model.ContentType
 import com.clipboardhistory.domain.repository.ClipboardRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,9 +23,17 @@ class AddClipboardItemUseCase @Inject constructor(
      * 
      * @param content The content to add
      * @param contentType The type of content
-     * @return The created clipboard item
+     * @return The created clipboard item, or null if content already exists
      */
-    suspend operator fun invoke(content: String, contentType: ContentType = ContentType.TEXT): ClipboardItem {
+    suspend operator fun invoke(content: String, contentType: ContentType = ContentType.TEXT): ClipboardItem? {
+        // Check if content already exists
+        val existingItems = repository.getAllItems().first()
+        val isDuplicate = existingItems.any { it.content == content }
+        
+        if (isDuplicate) {
+            return null // Don't add duplicate content
+        }
+        
         // Respect current encryption setting from repository
         val settings = repository.getSettings()
         val item = ClipboardItem(
@@ -74,6 +83,24 @@ class DeleteClipboardItemUseCase @Inject constructor(
      */
     suspend operator fun invoke(item: ClipboardItem) {
         repository.deleteItem(item)
+    }
+}
+
+/**
+ * Use case for updating a clipboard item.
+ * 
+ * @property repository The clipboard repository
+ */
+class UpdateClipboardItemUseCase @Inject constructor(
+    private val repository: ClipboardRepository
+) {
+    /**
+     * Updates a clipboard item in the repository.
+     * 
+     * @param item The clipboard item to update
+     */
+    suspend operator fun invoke(item: ClipboardItem) {
+        repository.updateItem(item)
     }
 }
 

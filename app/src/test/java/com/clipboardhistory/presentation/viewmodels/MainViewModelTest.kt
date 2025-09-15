@@ -2,7 +2,7 @@ package com.clipboardhistory.presentation.viewmodels
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.clipboardhistory.domain.model.ClipboardItem
-import com.clipboardhistory.domain.model.ClipboardMode
+
 import com.clipboardhistory.domain.model.ClipboardSettings
 import com.clipboardhistory.domain.model.ContentType
 import com.clipboardhistory.domain.usecase.*
@@ -138,8 +138,7 @@ class MainViewModelTest {
             cleanupOldItemsUseCase
         )
         val newSettings = ClipboardSettings(
-            maxHistorySize = 200,
-            clipboardMode = ClipboardMode.EXTEND
+            maxHistorySize = 200
         )
         
         viewModel.updateSettings(newSettings)
