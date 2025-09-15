@@ -47,15 +47,15 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run Lint (debug)
-        run: ./gradlew --no-daemon lintDebug
+        run: ./gradlew --no-daemon --stacktrace --info lintDebug
         continue-on-error: true
 
       - name: Run Unit Tests (debug)
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: ./gradlew --no-daemon --stacktrace --info testDebugUnitTest
         continue-on-error: true
 
       - name: Build Debug APK
-        run: ./gradlew --no-daemon assembleDebug
+        run: ./gradlew --no-daemon --stacktrace --info assembleDebug
 
       - name: Upload Lint report
         if: always()
