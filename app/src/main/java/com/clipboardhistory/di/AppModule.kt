@@ -5,6 +5,8 @@ import com.clipboardhistory.data.database.ClipboardDatabase
 import com.clipboardhistory.data.database.ClipboardItemDao
 import com.clipboardhistory.data.repository.ClipboardRepositoryImpl
 import com.clipboardhistory.domain.repository.ClipboardRepository
+import com.clipboardhistory.domain.repository.SettingsRepository
+import com.clipboardhistory.data.repository.SettingsRepositoryImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -67,4 +69,10 @@ object RepositoryModule {
     ): ClipboardRepository {
         return repositoryImpl
     }
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepository(
+        impl: SettingsRepositoryImpl
+    ): SettingsRepository = impl
 }

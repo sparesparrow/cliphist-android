@@ -302,19 +302,27 @@ class FloatingBubbleService : Service() {
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
+        var isClick = false
+        val clickSlop = dpToPx(4) // threshold for distinguishing click vs drag
         
-        bubble.view.setOnTouchListener { _, event ->
+        bubble.view.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = bubble.params.x
                     initialY = bubble.params.y
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
+                    isClick = true
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    bubble.params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    bubble.params.y = initialY + (event.rawY - initialTouchY).toInt()
+                    val dx = (event.rawX - initialTouchX).toInt()
+                    val dy = (event.rawY - initialTouchY).toInt()
+                    if (kotlin.math.abs(dx) > clickSlop || kotlin.math.abs(dy) > clickSlop) {
+                        isClick = false
+                    }
+                    bubble.params.x = initialX + dx
+                    bubble.params.y = initialY + dy
                     try {
                         windowManager.updateViewLayout(bubble.view, bubble.params)
                     } catch (e: Exception) {
@@ -323,7 +331,11 @@ class FloatingBubbleService : Service() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    // Snap to edge
+                    // If it was a click, forward to performClick to support accessibility
+                    if (isClick) {
+                        v.performClick()
+                    }
+                    // Snap to edge after interaction
                     snapToEdge(bubble)
                     true
                 }
