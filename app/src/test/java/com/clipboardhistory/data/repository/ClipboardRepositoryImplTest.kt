@@ -6,6 +6,7 @@ import com.clipboardhistory.data.encryption.EncryptionManager
 import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.ClipboardMode
 import com.clipboardhistory.domain.model.ClipboardSettings
+import com.clipboardhistory.domain.repository.SettingsRepository
 import com.clipboardhistory.domain.model.ContentType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -39,11 +40,14 @@ class ClipboardRepositoryImplTest {
     @Mock
     private lateinit var encryptionManager: EncryptionManager
     
+    @Mock
+    private lateinit var settingsRepository: SettingsRepository
+    
     private lateinit var repository: ClipboardRepositoryImpl
     
     @Before
     fun setup() {
-        repository = ClipboardRepositoryImpl(clipboardItemDao, encryptionManager)
+        repository = ClipboardRepositoryImpl(clipboardItemDao, encryptionManager, settingsRepository)
     }
     
     @Test
@@ -86,21 +90,20 @@ class ClipboardRepositoryImplTest {
     
     @Test
     fun `getSettings returns correct settings`() = runTest {
-        whenever(encryptionManager.getSecureString("max_history_size", "100")).thenReturn("200")
-        whenever(encryptionManager.getSecureString("auto_delete_hours", "24")).thenReturn("48")
-        whenever(encryptionManager.getSecureString("enable_encryption", "true")).thenReturn("true")
-        whenever(encryptionManager.getSecureString("bubble_size", "3")).thenReturn("4")
-        whenever(encryptionManager.getSecureString("bubble_opacity", "0.8")).thenReturn("0.9")
-        whenever(encryptionManager.getSecureString("clipboard_mode", "REPLACE")).thenReturn("EXTEND")
+        val expected = ClipboardSettings(
+            maxHistorySize = 200,
+            autoDeleteAfterHours = 48,
+            enableEncryption = true,
+            bubbleSize = 4,
+            bubbleOpacity = 0.9f,
+            clipboardMode = ClipboardMode.EXTEND
+        )
+        whenever(settingsRepository.getSettings()).thenReturn(expected)
         
         val result = repository.getSettings()
         
-        assertEquals(200, result.maxHistorySize)
-        assertEquals(48, result.autoDeleteAfterHours)
-        assertEquals(true, result.enableEncryption)
-        assertEquals(4, result.bubbleSize)
-        assertEquals(0.9f, result.bubbleOpacity)
-        assertEquals(ClipboardMode.EXTEND, result.clipboardMode)
+        assertEquals(expected, result)
+        verify(settingsRepository).getSettings()
     }
     
     @Test
@@ -116,12 +119,7 @@ class ClipboardRepositoryImplTest {
         
         repository.updateSettings(testSettings)
         
-        verify(encryptionManager).storeSecureString("max_history_size", "150")
-        verify(encryptionManager).storeSecureString("auto_delete_hours", "72")
-        verify(encryptionManager).storeSecureString("enable_encryption", "false")
-        verify(encryptionManager).storeSecureString("bubble_size", "5")
-        verify(encryptionManager).storeSecureString("bubble_opacity", "0.5")
-        verify(encryptionManager).storeSecureString("clipboard_mode", "EXTEND")
+        verify(settingsRepository).updateSettings(testSettings)
     }
     
     @Test
