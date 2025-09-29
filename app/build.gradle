@@ -14,12 +14,20 @@ android {
     def keystorePath = System.getenv("KEYSTORE_PATH") ?: "keystore.jks"
     def hasKeystore = file(keystorePath).exists()
 
+	// CI-driven versioning
+	def githubRunNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+	def githubSha = (System.getenv("GITHUB_SHA") ?: "dev").take(7)
+	def githubRefType = System.getenv("GITHUB_REF_TYPE") ?: "branch"
+	def githubRefName = System.getenv("GITHUB_REF_NAME") ?: "local"
+	def isTagBuild = githubRefType == 'tag' && githubRefName?.startsWith('v')
+	def computedVersionName = isTagBuild ? githubRefName.replaceFirst('v','') : "0.0.0-ci.${githubRunNumber}+${githubSha}"
+
     defaultConfig {
         applicationId "com.clipboardhistory"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
+		versionCode githubRunNumber
+		versionName computedVersionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -69,11 +77,11 @@ android {
     testOptions {
         unitTests.includeAndroidResources = true
     }
-    packagingOptions {
-        resources {
-            excludes += '/META-INF/{AL2.0,LGPL2.1}'
-        }
-    }
+	packaging {
+		resources {
+			excludes += '/META-INF/{AL2.0,LGPL2.1}'
+		}
+	}
 }
 
 kapt {
@@ -133,7 +141,7 @@ dependencies {
     
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation platform('androidx.compose:compose-bom:2024.02.00')
+	androidTestImplementation platform('androidx.compose:compose-bom:2024.04.01')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test:rules:1.5.0'
