@@ -4,6 +4,9 @@ plugins {
     id 'kotlin-kapt'
     id 'dagger.hilt.android.plugin'
     id 'kotlin-parcelize'
+    id 'org.jlleitschuh.gradle.ktlint'
+    id 'io.gitlab.arturbosch.detekt'
+    id 'jacoco'
 }
 
 android {
@@ -68,11 +71,33 @@ android {
     }
     testOptions {
         unitTests.includeAndroidResources = true
+        unitTests.returnDefaultValues = true
+        animationsDisabled = true
     }
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
+    }
+    
+    // Enable test coverage
+    buildTypes.debug {
+        testCoverageEnabled true
+    }
+    
+    // Lint configuration
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        ignoreWarnings false
+        checkAllWarnings true
+        warningsAsErrors false
+        disable 'InvalidPackage'
+        xmlReport true
+        htmlReport true
+        textReport false
+        xmlOutput file("$project.buildDir/reports/lint/lint-report.xml")
+        htmlOutput file("$project.buildDir/reports/lint/lint-report.html")
     }
 }
 
@@ -142,4 +167,101 @@ dependencies {
     
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    
+    // Code quality tools
+    detektPlugins 'io.gitlab.arturbosch.detekt:detekt-formatting:1.23.4'
+    detektPlugins 'io.gitlab.arturbosch.detekt:detekt-rules-libraries:1.23.4'
+}
+
+// ====================================
+// Code Quality Configuration
+// ====================================
+
+// KtLint Configuration
+ktlint {
+    version = "0.50.0"
+    debug = false
+    verbose = true
+    android = true
+    outputToConsole = true
+    outputColorName = "RED"
+    ignoreFailures = false
+    enableExperimentalRules = true
+    disabledRules = ["no-wildcard-imports", "max-line-length"]
+    reporters {
+        reporter "plain"
+        reporter "checkstyle"
+        reporter "sarif"
+    }
+    filter {
+        exclude("**/generated/**")
+        include("**/kotlin/**")
+    }
+}
+
+// Detekt Configuration
+detekt {
+    toolVersion = "1.23.4"
+    config = files("$projectDir/detekt.yml")
+    buildUponDefaultConfig = true
+    allRules = false
+    baseline = file("$projectDir/detekt-baseline.xml")
+    
+    reports {
+        html.enabled = true
+        xml.enabled = true
+        txt.enabled = true
+        sarif.enabled = true
+        md.enabled = false
+    }
+}
+
+// Jacoco Test Coverage Configuration
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+tasks.register('testDebugUnitTestCoverage', JacocoReport) {
+    dependsOn 'testDebugUnitTest'
+    group = "Reporting"
+    description = "Generate Jacoco coverage reports for the debug build"
+
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+
+    def fileFilter = [
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Test*.*',
+        'android/**/*.*',
+        '**/*$WhenMappings.*',
+        '**/*$serializer.*',
+        '**/*$$serializer.*',
+        '**/*Hilt*.*',
+        '**/*_Factory.*',
+        '**/*_MembersInjector.*',
+        '**/*Module.*',
+        '**/*Component.*'
+    ]
+    def debugTree = fileTree(dir: "$project.buildDir/tmp/kotlin-classes/debug", excludes: fileFilter)
+    def mainSrc = "$project.projectDir/src/main/java"
+
+    sourceDirectories.setFrom(files([mainSrc]))
+    classDirectories.setFrom(files([debugTree]))
+    executionData.setFrom(fileTree(dir: project.buildDir, includes: [
+        'jacoco/testDebugUnitTest.exec',
+        'outputs/code_coverage/debugAndroidTest/connected/**/*.ec'
+    ]))
+}
+
+// Custom task to run all quality checks
+tasks.register('qualityCheck') {
+    group = "verification"
+    description = "Runs all quality checks: ktlint, detekt, lint, and tests"
+    dependsOn 'ktlintCheck', 'detekt', 'lintDebug', 'testDebugUnitTest', 'testDebugUnitTestCoverage'
 }

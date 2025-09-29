@@ -14,16 +14,16 @@ import javax.inject.Singleton
 
 /**
  * Dependency injection module for database-related components.
- * 
+ *
  * This module provides the database instance and DAO for dependency injection.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-    
+
     /**
      * Provides the clipboard database instance.
-     * 
+     *
      * @param context The application context
      * @return The clipboard database instance
      */
@@ -32,10 +32,10 @@ object DatabaseModule {
     fun provideClipboardDatabase(@ApplicationContext context: Context): ClipboardDatabase {
         return ClipboardDatabase.create(context)
     }
-    
+
     /**
      * Provides the clipboard item DAO.
-     * 
+     *
      * @param database The clipboard database instance
      * @return The clipboard item DAO
      */
@@ -47,23 +47,23 @@ object DatabaseModule {
 
 /**
  * Dependency injection module for repository-related components.
- * 
+ *
  * This module provides repository implementations for dependency injection.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
-    
+
     /**
      * Provides the clipboard repository implementation.
-     * 
+     *
      * @param repositoryImpl The repository implementation
      * @return The clipboard repository interface
      */
     @Provides
     @Singleton
     fun provideClipboardRepository(
-        repositoryImpl: ClipboardRepositoryImpl
+        repositoryImpl: ClipboardRepositoryImpl,
     ): ClipboardRepository {
         return repositoryImpl
     }

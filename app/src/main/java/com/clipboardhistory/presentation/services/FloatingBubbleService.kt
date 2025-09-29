@@ -16,13 +16,14 @@ import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.clipboardhistory.R
 import com.clipboardhistory.domain.model.BubbleState
 import com.clipboardhistory.domain.model.BubbleType
+import com.clipboardhistory.domain.model.ContentAnalyzer
+import com.clipboardhistory.domain.model.SmartAction
 import com.clipboardhistory.domain.usecase.AddClipboardItemUseCase
 import com.clipboardhistory.domain.usecase.GetAllClipboardItemsUseCase
 import com.clipboardhistory.domain.usecase.GetClipboardSettingsUseCase
@@ -30,8 +31,6 @@ import com.clipboardhistory.presentation.MainActivity
 import com.clipboardhistory.presentation.ui.components.BubbleView
 import com.clipboardhistory.presentation.ui.components.BubbleViewFactory
 import com.clipboardhistory.presentation.ui.components.HighlightedAreaView
-import com.clipboardhistory.domain.model.ContentAnalyzer
-import com.clipboardhistory.domain.model.SmartAction
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,41 +42,41 @@ import javax.inject.Inject
 
 /**
  * Foreground service for managing floating clipboard bubbles.
- * 
+ *
  * This service creates and manages floating bubbles that provide
  * quick access to clipboard functionality with theme support and state management.
  */
 @AndroidEntryPoint
 class FloatingBubbleService : Service() {
-    
+
     @Inject
     lateinit var getAllClipboardItemsUseCase: GetAllClipboardItemsUseCase
-    
+
     @Inject
     lateinit var getClipboardSettingsUseCase: GetClipboardSettingsUseCase
-    
+
     @Inject
     lateinit var addClipboardItemUseCase: AddClipboardItemUseCase
-    
+
     private lateinit var windowManager: WindowManager
     private lateinit var clipboardManager: ClipboardManager
     private lateinit var notificationManager: NotificationManager
-    
+
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val mainScope = CoroutineScope(Dispatchers.Main + serviceJob)
-    
+
     // Service monitoring
     private var isServiceRunning = false
     private var lastActivityTime = System.currentTimeMillis()
-    
+
     private val bubbles = mutableListOf<BubbleData>()
     private var emptyBubble: BubbleData? = null
     private var currentBubbleOpacity: Float = 0.8f
     private var currentBubbleSizeDp: Int = DEFAULT_BUBBLE_SIZE_DP
     private var currentThemeName: String = "Default"
     private var currentBubbleType: BubbleType = BubbleType.CIRCLE
-    
+
     // Enhanced drag-and-drop system
     private var highlightedAreaView: HighlightedAreaView? = null
     private var isDragging = false
@@ -85,11 +84,11 @@ class FloatingBubbleService : Service() {
     private var edgeThreshold = 100 // Distance from edge to trigger activation
     private var isEdgeActivated = false
     private var currentDragEdge: HighlightedAreaView.ActivationEdge = HighlightedAreaView.ActivationEdge.NONE
-    
+
     // 2-second append window variables
     private var lastCopyTime: Long = 0
     private var appendWindowActive: Boolean = false
-    
+
     companion object {
         private const val NOTIFICATION_ID = 1002
         private const val CHANNEL_ID = "floating_bubble_channel"
@@ -97,10 +96,10 @@ class FloatingBubbleService : Service() {
         private const val DEFAULT_BUBBLE_SIZE_DP = 60
         private const val BUBBLE_MARGIN_DP = 16
     }
-    
+
     /**
      * Data class representing a floating bubble with its data and state.
-     * 
+     *
      * @property view The bubble view
      * @property params The window layout parameters
      * @property content The clipboard content (null for empty bubble)
@@ -114,17 +113,17 @@ class FloatingBubbleService : Service() {
         var content: String? = null,
         var state: BubbleState,
         var originalState: BubbleState = state,
-        val bubbleType: BubbleType = BubbleType.CIRCLE
+        val bubbleType: BubbleType = BubbleType.CIRCLE,
     )
-    
+
     override fun onCreate() {
         super.onCreate()
-        
+
         try {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            
+
             createNotificationChannel()
             startForeground(NOTIFICATION_ID, createNotification())
 
@@ -134,13 +133,12 @@ class FloatingBubbleService : Service() {
                 stopSelf()
                 return
             }
-            
+
             // Load settings and initialize bubbles with retry mechanism
             initializeServiceWithRetry()
-            
+
             // Start service monitoring
             startServiceMonitoring()
-            
         } catch (e: Exception) {
             e.printStackTrace()
             // Attempt to restart service after delay
@@ -151,16 +149,16 @@ class FloatingBubbleService : Service() {
             }
         }
     }
-    
+
     override fun onBind(intent: Intent?): IBinder? {
         return null
     }
-    
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Ensure service stays alive and restarts if killed
         return START_STICKY
     }
-    
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         // Restart service if app is removed from recent tasks
@@ -168,7 +166,7 @@ class FloatingBubbleService : Service() {
         restartServiceIntent.setPackage(packageName)
         startService(restartServiceIntent)
     }
-    
+
     override fun onLowMemory() {
         super.onLowMemory()
         // Handle low memory gracefully
@@ -181,20 +179,20 @@ class FloatingBubbleService : Service() {
             }
         }
     }
-    
+
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
         removeAllBubbles()
         serviceJob.cancel()
-        
+
         // Attempt to restart service if it was killed unexpectedly
         if (System.currentTimeMillis() - lastActivityTime < 30000) { // 30 seconds
             val intent = Intent(applicationContext, this::class.java)
             startService(intent)
         }
     }
-    
+
     /**
      * Starts service monitoring to ensure it stays alive.
      */
@@ -204,7 +202,7 @@ class FloatingBubbleService : Service() {
             while (isServiceRunning) {
                 try {
                     lastActivityTime = System.currentTimeMillis()
-                    
+
                     // Check if bubbles are still visible
                     if (emptyBubble == null && bubbles.isEmpty()) {
                         // Reinitialize if all bubbles are gone
@@ -212,10 +210,10 @@ class FloatingBubbleService : Service() {
                             initializeBubbles()
                         }
                     }
-                    
+
                     // Update notification to keep service alive
                     notificationManager.notify(NOTIFICATION_ID, createNotification())
-                    
+
                     kotlinx.coroutines.delay(30000) // Check every 30 seconds
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -224,7 +222,7 @@ class FloatingBubbleService : Service() {
             }
         }
     }
-    
+
     /**
      * Initializes the service with retry mechanism.
      */
@@ -247,7 +245,7 @@ class FloatingBubbleService : Service() {
             }
         }
     }
-    
+
     /**
      * Initializes the floating bubbles.
      */
@@ -255,7 +253,7 @@ class FloatingBubbleService : Service() {
         try {
             // Create empty bubble
             createEmptyBubble()
-            
+
             // Load existing clipboard items and create bubbles
             serviceScope.launch {
                 try {
@@ -274,7 +272,7 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Creates the empty bubble.
      */
@@ -286,45 +284,45 @@ class FloatingBubbleService : Service() {
                 state = BubbleState.EMPTY,
                 bubbleType = currentBubbleType,
                 content = null,
-                opacity = currentBubbleOpacity
+                opacity = currentBubbleOpacity,
             )
-            
+
             val bubble = BubbleData(
                 view = bubbleView,
                 params = createLayoutParams(),
                 content = null,
                 state = BubbleState.EMPTY,
-                bubbleType = currentBubbleType
+                bubbleType = currentBubbleType,
             )
-            
+
             // Position at top-right
             bubble.params.x = 100
             bubble.params.y = 100
-            
-                    // Set click listener
-        bubbleView.setOnClickListener {
-            if (currentBubbleType == BubbleType.CUBE) {
-                // For cube bubbles, flash the content if available
-                val clipData = clipboardManager.primaryClip
-                if (clipData != null && clipData.itemCount > 0) {
-                    val clipText = clipData.getItemAt(0).text?.toString()
-                    if (!clipText.isNullOrEmpty()) {
-                        bubbleView.flashContent(clipText)
-                        // Also copy to clipboard as normal behavior
-                        handleEmptyBubbleClick()
+
+            // Set click listener
+            bubbleView.setOnClickListener {
+                if (currentBubbleType == BubbleType.CUBE) {
+                    // For cube bubbles, flash the content if available
+                    val clipData = clipboardManager.primaryClip
+                    if (clipData != null && clipData.itemCount > 0) {
+                        val clipText = clipData.getItemAt(0).text?.toString()
+                        if (!clipText.isNullOrEmpty()) {
+                            bubbleView.flashContent(clipText)
+                            // Also copy to clipboard as normal behavior
+                            handleEmptyBubbleClick()
+                        } else {
+                            handleEmptyBubbleClick()
+                        }
                     } else {
                         handleEmptyBubbleClick()
                     }
                 } else {
                     handleEmptyBubbleClick()
                 }
-            } else {
-                handleEmptyBubbleClick()
             }
-        }
-            
+
             setupDragBehavior(bubble)
-            
+
             try {
                 windowManager.addView(bubbleView, bubble.params)
                 emptyBubble = bubble
@@ -342,10 +340,10 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Creates a full bubble with content.
-     * 
+     *
      * @param content The clipboard content
      * @param index The index for positioning
      */
@@ -356,21 +354,21 @@ class FloatingBubbleService : Service() {
             state = BubbleState.STORING,
             bubbleType = currentBubbleType,
             content = content,
-            opacity = currentBubbleOpacity
+            opacity = currentBubbleOpacity,
         )
-        
+
         val bubble = BubbleData(
             view = bubbleView,
             params = createLayoutParams(),
             content = content,
             state = BubbleState.STORING,
-            bubbleType = currentBubbleType
+            bubbleType = currentBubbleType,
         )
-        
+
         // Position relative to empty bubble
         bubble.params.x = 100 + (index + 1) * (currentBubbleSizeDp + BUBBLE_MARGIN_DP)
         bubble.params.y = 100
-        
+
         // Set click listener
         bubbleView.setOnClickListener {
             if (currentBubbleType == BubbleType.CUBE) {
@@ -382,9 +380,9 @@ class FloatingBubbleService : Service() {
                 handleFullBubbleClick(content)
             }
         }
-        
+
         setupDragBehavior(bubble)
-        
+
         try {
             windowManager.addView(bubbleView, bubble.params)
             bubbles.add(bubble)
@@ -392,12 +390,10 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
 
-    
     /**
      * Creates layout parameters for a bubble.
-     * 
+     *
      * @return The layout parameters
      */
     private fun createLayoutParams(): WindowManager.LayoutParams {
@@ -413,17 +409,17 @@ class FloatingBubbleService : Service() {
             bubbleSizePx,
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
         )
-        
+
         params.gravity = Gravity.TOP or Gravity.START
         return params
     }
-    
+
     /**
      * Sets up enhanced drag behavior with edge-based activation and smart actions.
-     * 
+     *
      * @param bubble The bubble to setup
      */
     private fun setupDragBehavior(bubble: BubbleData) {
@@ -432,7 +428,7 @@ class FloatingBubbleService : Service() {
         var initialTouchX = 0f
         var initialTouchY = 0f
         var dragStarted = false
-        
+
         bubble.view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -449,21 +445,21 @@ class FloatingBubbleService : Service() {
                     val deltaX = event.rawX - initialTouchX
                     val deltaY = event.rawY - initialTouchY
                     val distance = kotlin.math.sqrt(deltaX * deltaX + deltaY * deltaY)
-                    
+
                     // Start drag if moved enough distance
                     if (!dragStarted && distance > 20) {
                         dragStarted = true
                         isDragging = true
                         draggedBubble = bubble
                     }
-                    
+
                     if (dragStarted) {
                         bubble.params.x = initialX + deltaX.toInt()
                         bubble.params.y = initialY + deltaY.toInt()
-                        
+
                         // Check for edge activation
                         checkEdgeActivation(event.rawX, event.rawY)
-                        
+
                         try {
                             windowManager.updateViewLayout(bubble.view, bubble.params)
                         } catch (e: Exception) {
@@ -477,9 +473,9 @@ class FloatingBubbleService : Service() {
                         // Check if bubble was dropped on an action area
                         val smartAction = highlightedAreaView?.getSmartActionForPosition(
                             event.rawX,
-                            event.rawY - (highlightedAreaView?.y?.toFloat() ?: 0f)
+                            event.rawY - (highlightedAreaView?.y?.toFloat() ?: 0f),
                         )
-                        
+
                         if (smartAction != null) {
                             // Handle the smart action
                             handleSmartAction(bubble, smartAction)
@@ -487,23 +483,23 @@ class FloatingBubbleService : Service() {
                             // Fallback to basic action
                             val action = highlightedAreaView?.getActionForPosition(
                                 event.rawX,
-                                event.rawY - (highlightedAreaView?.y?.toFloat() ?: 0f)
+                                event.rawY - (highlightedAreaView?.y?.toFloat() ?: 0f),
                             )
                             if (action != null) {
                                 handleDropAction(bubble, action)
                             }
                         }
-                        
+
                         // Hide highlighted areas
                         hideHighlightedAreas()
                     }
-                    
+
                     // Reset states
                     isDragging = false
                     draggedBubble = null
                     isEdgeActivated = false
                     currentDragEdge = HighlightedAreaView.ActivationEdge.NONE
-                    
+
                     // Snap to edge
                     snapToEdge(bubble)
                     true
@@ -512,7 +508,7 @@ class FloatingBubbleService : Service() {
             }
         }
     }
-    
+
     /**
      * Checks for edge activation and shows action areas accordingly.
      */
@@ -520,7 +516,7 @@ class FloatingBubbleService : Service() {
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
-        
+
         val edge = when {
             x <= edgeThreshold -> HighlightedAreaView.ActivationEdge.LEFT
             x >= screenWidth - edgeThreshold -> HighlightedAreaView.ActivationEdge.RIGHT
@@ -528,12 +524,12 @@ class FloatingBubbleService : Service() {
             y >= screenHeight - edgeThreshold -> HighlightedAreaView.ActivationEdge.BOTTOM
             else -> HighlightedAreaView.ActivationEdge.NONE
         }
-        
+
         if (edge != HighlightedAreaView.ActivationEdge.NONE && !isEdgeActivated) {
             isEdgeActivated = true
             currentDragEdge = edge
             showHighlightedAreas()
-            
+
             // Update edge glow
             val glowAlpha = when (edge) {
                 HighlightedAreaView.ActivationEdge.LEFT -> 1f - (x / edgeThreshold)
@@ -560,12 +556,10 @@ class FloatingBubbleService : Service() {
             highlightedAreaView?.updateEdgeGlow(glowAlpha.coerceIn(0f, 1f))
         }
     }
-    
 
-    
     /**
      * Updates the bubble state and updates the view colors.
-     * 
+     *
      * @param bubble The bubble to update
      * @param newState The new state
      */
@@ -573,52 +567,52 @@ class FloatingBubbleService : Service() {
         bubble.state = newState
         bubble.view.updateState(newState)
     }
-    
+
     /**
      * Snaps a bubble to the nearest screen edge.
-     * 
+     *
      * @param bubble The bubble to snap
      */
     private fun snapToEdge(bubble: BubbleData) {
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
-        
+
         val bubbleSizePx = dpToPx(currentBubbleSizeDp)
         val centerX = bubble.params.x + bubbleSizePx / 2
         val centerY = bubble.params.y + bubbleSizePx / 2
-        
+
         // Snap to left or right edge
         bubble.params.x = if (centerX < screenWidth / 2) {
             0
         } else {
             screenWidth - bubbleSizePx
         }
-        
+
         // Ensure bubble stays within screen bounds
         bubble.params.y = bubble.params.y.coerceIn(0, screenHeight - bubbleSizePx)
-        
+
         try {
             windowManager.updateViewLayout(bubble.view, bubble.params)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Creates and shows the highlighted action areas with smart positioning.
      */
     private fun showHighlightedAreas() {
         if (highlightedAreaView != null) return
-        
+
         try {
             val displayMetrics = resources.displayMetrics
             val screenWidth = displayMetrics.widthPixels
             val screenHeight = displayMetrics.heightPixels
-            
+
             // Create highlighted area view
             highlightedAreaView = HighlightedAreaView(this, currentThemeName)
-            
+
             // Determine positioning based on activation edge
             val positionData = when (currentDragEdge) {
                 HighlightedAreaView.ActivationEdge.LEFT, HighlightedAreaView.ActivationEdge.RIGHT -> {
@@ -631,12 +625,12 @@ class FloatingBubbleService : Service() {
                 }
                 else -> screenWidth to 200 to 0 to (screenHeight / 2 - 100)
             }
-            
+
             val viewWidth = positionData.first.first.first
             val viewHeight = positionData.first.first.second
             val x = positionData.first.second
             val y = positionData.second
-            
+
             // Create layout parameters for the highlighted areas
             val params = WindowManager.LayoutParams(
                 viewWidth,
@@ -648,17 +642,17 @@ class FloatingBubbleService : Service() {
                     WindowManager.LayoutParams.TYPE_PHONE
                 },
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT,
             )
-            
+
             params.gravity = Gravity.TOP or Gravity.START
             params.x = x
             params.y = y
-            
+
             try {
                 windowManager.addView(highlightedAreaView, params)
-                
+
                 // Show with smart actions if available
                 val bubble = draggedBubble
                 val bubbleContent = bubble?.content
@@ -676,7 +670,7 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Hides and removes the highlighted action areas.
      */
@@ -698,10 +692,10 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Handles drop action when a bubble is dropped on an action area.
-     * 
+     *
      * @param bubble The bubble being dropped
      * @param action The action to perform
      */
@@ -718,18 +712,18 @@ class FloatingBubbleService : Service() {
                         BubbleState.APPEND -> currentContent + clipText
                         else -> currentContent
                     }
-                    
+
                     // Update bubble content
                     bubble.content = newContent
-                    
+
                     // Update the bubble view
                     bubble.view.updateState(BubbleState.STORING)
-                    
+
                     // Add to clipboard history
                     serviceScope.launch {
                         addClipboardItemUseCase(newContent)
                     }
-                    
+
                     // Show feedback
                     Toast.makeText(this, "Content updated", Toast.LENGTH_SHORT).show()
                 }
@@ -738,10 +732,10 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Handles smart action when a bubble is dropped on a smart action area.
-     * 
+     *
      * @param bubble The bubble being dropped
      * @param smartAction The smart action to perform
      */
@@ -758,21 +752,21 @@ class FloatingBubbleService : Service() {
                         BubbleState.APPEND -> currentContent + clipText
                         else -> currentContent
                     }
-                    
+
                     // Update bubble content
                     bubble.content = newContent
-                    
+
                     // Update the bubble view
                     bubble.view.updateState(BubbleState.STORING)
-                    
+
                     // Add to clipboard history
                     serviceScope.launch {
                         addClipboardItemUseCase(newContent)
                     }
-                    
+
                     // Show smart action feedback
                     Toast.makeText(this, smartAction.label, Toast.LENGTH_SHORT).show()
-                    
+
                     // Handle specific smart actions
                     handleSpecificSmartAction(smartAction, clipText)
                 }
@@ -781,10 +775,10 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Handles specific smart actions based on content type.
-     * 
+     *
      * @param smartAction The smart action
      * @param content The content to process
      */
@@ -841,7 +835,7 @@ class FloatingBubbleService : Service() {
             }
         }
     }
-    
+
     /**
      * Handles empty bubble click.
      */
@@ -876,16 +870,16 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Handles full bubble click.
-     * 
+     *
      * @param content The clipboard content
      */
     private fun handleFullBubbleClick(content: String) {
         try {
             val currentTime = System.currentTimeMillis()
-            
+
             // Check if we're in the 2-second append window
             if (appendWindowActive && (currentTime - lastCopyTime) <= 2000) {
                 // Append mode: append bubble content to current clipboard
@@ -893,18 +887,18 @@ class FloatingBubbleService : Service() {
                 val newContent = if (currentClip.isBlank()) content else "$currentClip\n$content"
                 clipboardManager.setPrimaryClip(ClipData.newPlainText("clipboard", newContent))
                 Toast.makeText(this, "Content appended to clipboard", Toast.LENGTH_SHORT).show()
-                
+
                 // End append window
                 appendWindowActive = false
             } else {
                 // Normal mode: replace clipboard with bubble content
                 clipboardManager.setPrimaryClip(ClipData.newPlainText("clipboard", content))
                 Toast.makeText(this, "Content copied to clipboard", Toast.LENGTH_SHORT).show()
-                
+
                 // Start 2-second append window
                 lastCopyTime = currentTime
                 appendWindowActive = true
-                
+
                 // Auto-disable append window after 2 seconds
                 mainScope.launch {
                     kotlinx.coroutines.delay(2000)
@@ -915,9 +909,7 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
 
-    
     /**
      * Removes all bubbles from the window.
      */
@@ -925,14 +917,14 @@ class FloatingBubbleService : Service() {
         try {
             emptyBubble?.let { windowManager.removeView(it.view) }
             bubbles.forEach { windowManager.removeView(it.view) }
-            
+
             emptyBubble = null
             bubbles.clear()
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Removes excess bubbles to free memory.
      */
@@ -952,10 +944,10 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     /**
      * Converts dp to pixels.
-     * 
+     *
      * @param dp The dp value
      * @return The pixel value
      */
@@ -976,7 +968,7 @@ class FloatingBubbleService : Service() {
             else -> 80
         }
     }
-    
+
     /**
      * Creates the notification channel for the service.
      */
@@ -985,7 +977,7 @@ class FloatingBubbleService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 description = "Channel for floating bubble service"
                 setShowBadge(false)
@@ -993,10 +985,10 @@ class FloatingBubbleService : Service() {
             notificationManager.createNotificationChannel(channel)
         }
     }
-    
+
     /**
      * Creates the notification for the foreground service.
-     * 
+     *
      * @return The notification
      */
     private fun createNotification(): Notification {
@@ -1005,9 +997,9 @@ class FloatingBubbleService : Service() {
             this,
             0,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Floating Bubbles")
             .setContentText("Clipboard bubbles active")

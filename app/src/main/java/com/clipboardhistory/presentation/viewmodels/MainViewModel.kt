@@ -12,7 +12,7 @@ import javax.inject.Inject
 
 /**
  * Main ViewModel for the clipboard history application.
- * 
+ *
  * This ViewModel manages the state and business logic for the main screen,
  * including clipboard items, settings, and user interactions.
  */
@@ -23,15 +23,15 @@ class MainViewModel @Inject constructor(
     private val deleteClipboardItemUseCase: DeleteClipboardItemUseCase,
     private val getClipboardSettingsUseCase: GetClipboardSettingsUseCase,
     private val updateClipboardSettingsUseCase: UpdateClipboardSettingsUseCase,
-    private val cleanupOldItemsUseCase: CleanupOldItemsUseCase
+    private val cleanupOldItemsUseCase: CleanupOldItemsUseCase,
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
-    
+
     /**
      * Data class representing the UI state for the main screen.
-     * 
+     *
      * @property clipboardItems List of clipboard items
      * @property settings Current clipboard settings
      * @property isLoading Whether the screen is loading
@@ -43,14 +43,14 @@ class MainViewModel @Inject constructor(
         val settings: ClipboardSettings = ClipboardSettings(),
         val isLoading: Boolean = false,
         val error: String? = null,
-        val isServiceRunning: Boolean = false
+        val isServiceRunning: Boolean = false,
     )
-    
+
     init {
         loadClipboardItems()
         loadSettings()
     }
-    
+
     /**
      * Loads clipboard items from the repository.
      */
@@ -59,12 +59,12 @@ class MainViewModel @Inject constructor(
             getAllClipboardItemsUseCase().collect { items ->
                 _uiState.value = _uiState.value.copy(
                     clipboardItems = items,
-                    isLoading = false
+                    isLoading = false,
                 )
             }
         }
     }
-    
+
     /**
      * Loads settings from the repository.
      */
@@ -78,10 +78,10 @@ class MainViewModel @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Adds a new clipboard item.
-     * 
+     *
      * @param content The content to add
      */
     fun addClipboardItem(content: String) {
@@ -97,10 +97,10 @@ class MainViewModel @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Deletes a clipboard item.
-     * 
+     *
      * @param item The item to delete
      */
     fun deleteClipboardItem(item: ClipboardItem) {
@@ -112,10 +112,10 @@ class MainViewModel @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Updates the clipboard settings.
-     * 
+     *
      * @param settings The new settings
      */
     fun updateSettings(settings: ClipboardSettings) {
@@ -128,23 +128,23 @@ class MainViewModel @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Updates the service running state.
-     * 
+     *
      * @param isRunning Whether the service is running
      */
     fun updateServiceRunningState(isRunning: Boolean) {
         _uiState.value = _uiState.value.copy(isServiceRunning = isRunning)
     }
-    
+
     /**
      * Clears the current error.
      */
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
-    
+
     /**
      * Triggers cleanup of old clipboard items.
      */
