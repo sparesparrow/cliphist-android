@@ -22,9 +22,9 @@ import com.clipboardhistory.domain.model.ClipboardSettings
 
 /**
  * Settings dialog composable.
- * 
+ *
  * This dialog allows users to configure clipboard settings.
- * 
+ *
  * @param settings Current clipboard settings
  * @param onDismiss Callback when dialog is dismissed
  * @param onSave Callback when settings are saved
@@ -33,7 +33,7 @@ import com.clipboardhistory.domain.model.ClipboardSettings
 fun SettingsDialog(
     settings: ClipboardSettings,
     onDismiss: () -> Unit,
-    onSave: (ClipboardSettings) -> Unit
+    onSave: (ClipboardSettings) -> Unit,
 ) {
     var maxHistorySize by remember { mutableStateOf(settings.maxHistorySize) }
     var autoDeleteHours by remember { mutableStateOf(settings.autoDeleteAfterHours) }
@@ -42,20 +42,20 @@ fun SettingsDialog(
     var bubbleOpacity by remember { mutableStateOf(settings.bubbleOpacity) }
     var selectedTheme by remember { mutableStateOf(settings.selectedTheme) }
     var selectedBubbleType by remember { mutableStateOf(settings.bubbleType) }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
                 text = "Settings",
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 // Max history size setting
                 SettingsSlider(
@@ -64,9 +64,9 @@ fun SettingsDialog(
                     onValueChange = { maxHistorySize = it },
                     valueRange = 10f..500f,
                     steps = 48,
-                    valueFormatter = { "${it.toInt()} items" }
+                    valueFormatter = { "${it.toInt()} items" },
                 )
-                
+
                 // Auto-delete hours setting
                 SettingsSlider(
                     label = "Auto-delete After",
@@ -74,9 +74,9 @@ fun SettingsDialog(
                     onValueChange = { autoDeleteHours = it },
                     valueRange = 1f..168f,
                     steps = 166,
-                    valueFormatter = { "${it.toInt()} hours" }
+                    valueFormatter = { "${it.toInt()} hours" },
                 )
-                
+
                 // Bubble size setting
                 SettingsSlider(
                     label = "Bubble Size",
@@ -84,9 +84,9 @@ fun SettingsDialog(
                     onValueChange = { bubbleSize = it },
                     valueRange = 1f..5f,
                     steps = 3,
-                    valueFormatter = { "Size ${it.toInt()}" }
+                    valueFormatter = { "Size ${it.toInt()}" },
                 )
-                
+
                 // Bubble opacity setting
                 SettingsSlider(
                     label = "Bubble Opacity",
@@ -94,68 +94,64 @@ fun SettingsDialog(
                     onValueChange = { bubbleOpacity = it / 10f },
                     valueRange = 1f..10f,
                     steps = 8,
-                    valueFormatter = { "${(it * 10).toInt()}%" }
+                    valueFormatter = { "${(it * 10).toInt()}%" },
                 )
-                
+
                 // Theme selection
                 Column {
                     Text(
                         text = "Bubble Theme",
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(BubbleThemes.ALL_THEMES) { theme ->
                             ThemeChip(
                                 theme = theme,
                                 isSelected = selectedTheme == theme.name,
-                                onClick = { selectedTheme = theme.name }
+                                onClick = { selectedTheme = theme.name },
                             )
                         }
                     }
                 }
-                
+
                 // Encryption toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "Enable Encryption",
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                     Switch(
                         checked = enableEncryption,
-                        onCheckedChange = { enableEncryption = it }
+                        onCheckedChange = { enableEncryption = it },
                     )
                 }
-                
 
-                
                 // Bubble type selection
                 Column {
                     Text(
                         text = "Bubble Type",
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(BubbleType.values()) { bubbleType ->
                             BubbleTypeChip(
                                 bubbleType = bubbleType,
                                 isSelected = selectedBubbleType == bubbleType,
-                                onClick = { selectedBubbleType = bubbleType }
+                                onClick = { selectedBubbleType = bubbleType },
                             )
                         }
                     }
                 }
-                
-
             }
         },
         confirmButton = {
@@ -168,10 +164,10 @@ fun SettingsDialog(
                         bubbleSize = bubbleSize,
                         bubbleOpacity = bubbleOpacity,
                         selectedTheme = selectedTheme,
-                        bubbleType = selectedBubbleType
+                        bubbleType = selectedBubbleType,
                     )
                     onSave(newSettings)
-                }
+                },
             ) {
                 Text("Save")
             }
@@ -180,13 +176,13 @@ fun SettingsDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
 /**
  * Bubble type chip composable for bubble type selection.
- * 
+ *
  * @param bubbleType The bubble type
  * @param isSelected Whether this type is selected
  * @param onClick Callback when type is clicked
@@ -195,7 +191,7 @@ fun SettingsDialog(
 fun BubbleTypeChip(
     bubbleType: BubbleType,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -203,19 +199,20 @@ fun BubbleTypeChip(
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
                 MaterialTheme.colorScheme.surface
-        )
+            },
+        ),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Bubble type icon/preview
             Box(
@@ -228,9 +225,9 @@ fun BubbleTypeChip(
                             BubbleType.CUBE -> RoundedCornerShape(4.dp)
                             BubbleType.HEXAGON -> RoundedCornerShape(8.dp)
                             BubbleType.SQUARE -> RoundedCornerShape(8.dp)
-                        }
+                        },
                     ),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = when (bubbleType) {
@@ -240,19 +237,20 @@ fun BubbleTypeChip(
                         BubbleType.SQUARE -> "□"
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Text(
                 text = bubbleType.name.lowercase().replaceFirstChar { it.uppercase() },
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isSelected) 
-                    MaterialTheme.colorScheme.onPrimaryContainer 
-                else 
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
                     MaterialTheme.colorScheme.onSurface
+                },
             )
         }
     }
@@ -260,7 +258,7 @@ fun BubbleTypeChip(
 
 /**
  * Theme chip composable for theme selection.
- * 
+ *
  * @param theme The bubble theme
  * @param isSelected Whether this theme is selected
  * @param onClick Callback when theme is clicked
@@ -269,60 +267,60 @@ fun BubbleTypeChip(
 fun ThemeChip(
     theme: com.clipboardhistory.domain.model.BubbleTheme,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val colors = theme.colors
-    
+
     Card(
         modifier = Modifier
             .clickable { onClick() }
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
             ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Theme preview with color samples
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Box(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(Color(colors.empty))
+                        .background(Color(colors.empty)),
                 )
                 Box(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(Color(colors.storing))
+                        .background(Color(colors.storing)),
                 )
                 Box(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(Color(colors.replace))
+                        .background(Color(colors.replace)),
                 )
                 Box(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(Color(colors.append))
+                        .background(Color(colors.append)),
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Text(
                 text = theme.name,
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
             )
         }
     }
@@ -330,7 +328,7 @@ fun ThemeChip(
 
 /**
  * Settings slider composable.
- * 
+ *
  * @param label The label for the slider
  * @param value The current value
  * @param onValueChange Callback when value changes
@@ -345,30 +343,30 @@ fun SettingsSlider(
     onValueChange: (Int) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
-    valueFormatter: (Float) -> String
+    valueFormatter: (Float) -> String,
 ) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyLarge,
             )
             Text(
                 text = valueFormatter(value.toFloat()),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        
+
         Slider(
             value = value.toFloat(),
             onValueChange = { onValueChange(it.toInt()) },
             valueRange = valueRange,
-            steps = steps
+            steps = steps,
         )
     }
 }

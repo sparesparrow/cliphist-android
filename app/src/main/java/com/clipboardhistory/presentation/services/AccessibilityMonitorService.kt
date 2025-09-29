@@ -17,5 +17,3 @@ class AccessibilityMonitorService : AccessibilityService() {
         // No-op
     }
 }
-
-

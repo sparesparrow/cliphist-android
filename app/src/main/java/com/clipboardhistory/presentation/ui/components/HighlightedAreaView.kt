@@ -13,7 +13,7 @@ class HighlightedAreaView @JvmOverloads constructor(
     context: Context,
     private val themeName: String,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
     enum class ActivationEdge { NONE, LEFT, RIGHT, TOP, BOTTOM }
@@ -46,4 +46,3 @@ class HighlightedAreaView @JvmOverloads constructor(
         return null
     }
 }
-
