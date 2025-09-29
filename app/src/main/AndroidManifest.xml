@@ -55,7 +55,7 @@
         <!-- Accessibility service to allow advanced automation features (user must enable) -->
         <service
             android:name=".presentation.services.AccessibilityMonitorService"
-            android:exported="false"
+            android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -69,9 +69,10 @@
         <receiver
             android:name=".presentation.receivers.BootReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_UNLOCKED" />
             </intent-filter>
         </receiver>
 

@@ -375,7 +375,7 @@ class FloatingBubbleService : Service() {
         bubbleView.setOnClickListener {
             if (currentBubbleType == BubbleType.CUBE) {
                 // For cube bubbles, flash the content first
-                bubbleView.flashContent(content ?: "")
+                bubbleView.flashContent(content)
                 // Then handle the normal click behavior
                 handleFullBubbleClick(content)
             } else {
