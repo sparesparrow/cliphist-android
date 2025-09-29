@@ -22,60 +22,64 @@ import com.clipboardhistory.presentation.services.FloatingBubbleService
 import com.clipboardhistory.presentation.ui.screens.MainScreen
 import com.clipboardhistory.presentation.ui.theme.ClipboardHistoryTheme
 import com.clipboardhistory.presentation.viewmodels.MainViewModel
-import dagger.hilt.android.AndroidEntryPoint
 import com.clipboardhistory.utils.PermissionUtils
+import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * Main Activity for the Clipboard History application.
- * 
+ *
  * This activity serves as the entry point for the application and manages
  * the overall UI and service lifecycle.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    
-    private val overlayPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { _ ->
-        continuePermissionFlow()
-    }
-    
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        continuePermissionFlow()
-    }
+    private val overlayPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
-    private val usageAccessLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { _ ->
-        continuePermissionFlow()
-    }
+    private val notificationPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
-    private val batteryOptimizationLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { _ ->
-        continuePermissionFlow()
-    }
+    private val usageAccessLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
-    private val foregroundServicePermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        continuePermissionFlow()
-    }
-    
+    private val batteryOptimizationLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
+
+    private val foregroundServicePermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         setContent {
             ClipboardHistoryTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     val viewModel: MainViewModel = hiltViewModel()
                     val context = LocalContext.current
-                    
+
                     MainScreen(
                         viewModel = viewModel,
                         onStartServices = {
@@ -83,13 +87,13 @@ class MainActivity : ComponentActivity() {
                         },
                         onStopServices = {
                             stopServices()
-                        }
+                        },
                     )
                 }
             }
         }
     }
-    
+
     /**
      * Requests necessary permissions for the application.
      */
@@ -102,7 +106,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             if (ActivityCompat.checkSelfPermission(
                     this,
-                    Manifest.permission.FOREGROUND_SERVICE_DATA_SYNC
+                    Manifest.permission.FOREGROUND_SERVICE_DATA_SYNC,
                 ) != android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
                 foregroundServicePermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_DATA_SYNC)
@@ -114,7 +118,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(
                     this,
-                    Manifest.permission.POST_NOTIFICATIONS
+                    Manifest.permission.POST_NOTIFICATIONS,
                 ) != android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -124,10 +128,11 @@ class MainActivity : ComponentActivity() {
 
         // 3) Overlay
         if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            )
+            val intent =
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName"),
+                )
             overlayPermissionLauncher.launch(intent)
             return
         }
@@ -147,14 +152,14 @@ class MainActivity : ComponentActivity() {
         // All permissions granted
         startServices()
     }
-    
+
     /**
      * Starts the clipboard and floating bubble services.
      */
     private fun startServices() {
         val clipboardIntent = Intent(this, ClipboardService::class.java)
         val bubbleIntent = Intent(this, FloatingBubbleService::class.java)
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(clipboardIntent)
             startForegroundService(bubbleIntent)
@@ -163,14 +168,14 @@ class MainActivity : ComponentActivity() {
             startService(bubbleIntent)
         }
     }
-    
+
     /**
      * Stops the clipboard and floating bubble services.
      */
     private fun stopServices() {
         val clipboardIntent = Intent(this, ClipboardService::class.java)
         val bubbleIntent = Intent(this, FloatingBubbleService::class.java)
-        
+
         stopService(clipboardIntent)
         stopService(bubbleIntent)
     }

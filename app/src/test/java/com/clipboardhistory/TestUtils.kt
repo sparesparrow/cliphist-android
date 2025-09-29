@@ -14,14 +14,13 @@ import org.junit.runner.Description
  */
 @ExperimentalCoroutinesApi
 class MainDispatcherRule(
-    private val testDispatcher: TestDispatcher = StandardTestDispatcher()
+    private val testDispatcher: TestDispatcher = StandardTestDispatcher(),
 ) : TestWatcher() {
-    
     override fun starting(description: Description) {
         super.starting(description)
         Dispatchers.setMain(testDispatcher)
     }
-    
+
     override fun finished(description: Description) {
         super.finished(description)
         Dispatchers.resetMain()
@@ -32,26 +31,25 @@ class MainDispatcherRule(
  * Test data generators
  */
 object TestDataGenerator {
-    
     fun generateClipboardItem(
         id: Long = 1L,
         content: String = "Test content",
         timestamp: Long = System.currentTimeMillis(),
-        isEncrypted: Boolean = false
+        isEncrypted: Boolean = false,
     ) = com.clipboardhistory.domain.model.ClipboardItem(
         id = id,
         content = content,
         timestamp = timestamp,
-        isEncrypted = isEncrypted
+        isEncrypted = isEncrypted,
     )
-    
+
     fun generateSmartAction(
         type: String = "copy",
         label: String = "Copy",
-        icon: String = "content_copy"
+        icon: String = "content_copy",
     ) = com.clipboardhistory.domain.model.SmartAction(
         type = type,
         label = label,
-        icon = icon
+        icon = icon,
     )
 }
