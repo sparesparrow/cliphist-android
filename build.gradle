@@ -1,9 +1,11 @@
 buildscript {
     ext {
         compose_version = '1.5.8'
+        jacoco_version = '0.8.8'
     }
     dependencies {
         classpath 'com.google.dagger:hilt-android-gradle-plugin:2.48.1'
+        classpath 'com.github.ben-manes:gradle-versions-plugin:0.50.0'
     }
 }
 

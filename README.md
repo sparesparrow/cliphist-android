@@ -160,9 +160,19 @@ app/src/testRelease/    # Release-specific tests
 
 ## 🔄 CI/CD Pipeline
 
+### Modern CI/CD Features
+- **🚀 Automated Builds**: Multi-stage builds with containerized environments
+- **🧪 Quality Assurance**: Comprehensive testing with 100% coverage target
+- **🔒 Security Scanning**: CodeQL analysis and dependency vulnerability checks
+- **📦 Release Management**: Automated versioning and GitHub releases
+- **📊 Monitoring**: Build health tracking and performance metrics
+- **🐳 Containerized Builds**: Docker-based Android SDK environment
+
 ### GitHub Actions Workflows
-- **Android CI**: Automated build, lint, tests
-- **Release on tag v***: Builds APK and attaches it to GitHub Release
+- **Main CI/CD Pipeline**: Complete build, test, and release automation
+- **Pull Request Checks**: Code quality and formatting validation
+- **Build Monitoring**: Health tracking and automated alerting
+- **Security Monitoring**: Vulnerability scanning and dependency updates
 
 ### Download latest APK
 
@@ -170,9 +180,19 @@ You can download the latest tagged build from GitHub Releases:
 
 - Latest release: https://github.com/sparesparrow/cliphist-android/releases/latest
 - This build: https://github.com/sparesparrow/cliphist-android/releases/tag/v1.0.0-ci1
-- **Security Scan**: Dependency vulnerability scanning
-- **Code Quality**: Linting and code analysis
-- **Release Management**: Automated versioning and deployment
+
+### Local Development
+
+```bash
+# Quick setup
+./build.sh setup
+
+# Run full CI pipeline locally
+./build.sh ci
+
+# Build with Docker (recommended)
+./build.sh docker-build
+```
 
 ## 📱 Screenshots
 
@@ -191,27 +211,81 @@ You can download the latest tagged build from GitHub Releases:
 ## 🔧 Development
 
 ### Prerequisites
-- Android Studio Arctic Fox or later
-- Android SDK 34+
-- Kotlin 1.9+
-- Gradle 8.0+
+- **Java 17+**: Required for building
+- **Docker & Docker Compose**: For containerized builds (recommended)
+- **Git**: For version control
+- **Android Studio**: For local development (optional)
 
-### Setup
+### Quick Setup
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/cliphist-android.git
-
-# Open in Android Studio
 cd cliphist-android
-./gradlew build
+
+# Setup and build
+./build.sh setup
+./build.sh build
+```
+
+### Development Commands
+```bash
+# Run tests
+./build.sh test
+
+# Generate coverage
+./build.sh coverage
+
+# Code quality checks
+./build.sh quality
+
+# Build with Docker
+./build.sh docker-build
+
+# Full CI pipeline
+./build.sh ci
 ```
 
 ### Key Dependencies
 - **Jetpack Compose**: Modern UI toolkit
-- **Room**: Database persistence
+- **Room**: Database persistence with SQLCipher encryption
 - **Hilt**: Dependency injection
 - **Coroutines**: Asynchronous programming
 - **Material Design 3**: Design system
+- **Security**: Encrypted storage and biometric authentication
+
+## 🆕 Recent Improvements
+
+### CI/CD Enhancements
+- **✅ Consolidated Workflows**: Streamlined GitHub Actions with modern practices
+- **✅ Containerized Builds**: Docker-based Android SDK environment
+- **✅ Dynamic Versioning**: Git-based automatic version management
+- **✅ Security Scanning**: CodeQL and dependency vulnerability checks
+- **✅ Build Monitoring**: Health tracking and automated alerting
+- **✅ Performance Optimization**: Caching and parallel execution
+
+### Testing & Quality
+- **✅ Comprehensive Test Suite**: 100% coverage target with unit and integration tests
+- **✅ Performance Tests**: Memory and execution time validation
+- **✅ Code Quality**: ktlint, detekt, and Android lint integration
+- **✅ Security Tests**: Encryption and authentication validation
+
+### Developer Experience
+- **✅ Build Scripts**: Comprehensive local development tools
+- **✅ Documentation**: Detailed CI/CD and deployment guides
+- **✅ Monitoring**: Real-time build health and performance metrics
+- **✅ Automation**: Zero-maintenance deployment pipeline
+
+### Security & Performance
+- **✅ Encrypted Storage**: SQLCipher database encryption
+- **✅ Biometric Authentication**: Secure access control
+- **✅ Code Obfuscation**: ProGuard/R8 optimization
+- **✅ Resource Optimization**: Shrinking and minification
+
+## 📚 Documentation
+
+- **[CI/CD Guide](CI-CD.md)**: Complete pipeline documentation
+- **[Deployment Guide](DEPLOYMENT.md)**: Production deployment instructions
+- **[API Documentation](docs/API.md)**: Technical API reference
 
 ## 📄 License
 

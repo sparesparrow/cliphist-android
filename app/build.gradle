@@ -4,6 +4,8 @@ plugins {
     id 'kotlin-kapt'
     id 'dagger.hilt.android.plugin'
     id 'kotlin-parcelize'
+    id 'jacoco'
+    id 'com.github.ben-manes.versions' version '0.50.0'
 }
 
 android {
@@ -18,13 +20,20 @@ android {
         applicationId "com.clipboardhistory"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
+        
+        // Dynamic versioning based on Git
+        versionCode getVersionCode()
+        versionName getVersionName()
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true
         }
+        
+        // Build config fields
+        buildConfigField "String", "BUILD_TIME", "\"${getBuildTime()}\""
+        buildConfigField "String", "GIT_HASH", "\"${getGitHash()}\""
+        buildConfigField "String", "GIT_BRANCH", "\"${getGitBranch()}\""
     }
 
     // Define signing configs only if keystore exists
@@ -62,6 +71,7 @@ android {
     }
     buildFeatures {
         compose true
+        buildConfig true
     }
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.8'
@@ -142,4 +152,104 @@ dependencies {
     
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+
+// Versioning functions
+def getVersionCode() {
+    def versionCode = System.getenv("VERSION_CODE") as Integer
+    if (versionCode != null) {
+        return versionCode
+    }
+    
+    // Try to get from git commit count
+    try {
+        def gitCommitCount = "git rev-list --count HEAD".execute().text.trim()
+        return gitCommitCount as Integer
+    } catch (Exception e) {
+        return 1
+    }
+}
+
+def getVersionName() {
+    def versionName = System.getenv("VERSION_NAME")
+    if (versionName != null) {
+        return versionName
+    }
+    
+    // Try to get from git tag
+    try {
+        def gitTag = "git describe --tags --abbrev=0".execute().text.trim()
+        if (gitTag && !gitTag.isEmpty()) {
+            return gitTag.replaceFirst("^v", "")
+        }
+    } catch (Exception e) {
+        // Fallback to default
+    }
+    
+    return "1.0.0"
+}
+
+def getBuildTime() {
+    return new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC"))
+}
+
+def getGitHash() {
+    try {
+        return "git rev-parse --short HEAD".execute().text.trim()
+    } catch (Exception e) {
+        return "unknown"
+    }
+}
+
+def getGitBranch() {
+    try {
+        return "git rev-parse --abbrev-ref HEAD".execute().text.trim()
+    } catch (Exception e) {
+        return "unknown"
+    }
+}
+
+// Test coverage configuration
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+tasks.withType(Test) {
+    jacoco.includeNoLocationClasses = true
+    jacoco.excludes = ['jdk.internal.*']
+}
+
+task jacocoTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    
+    def fileFilter = [
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Test*.*',
+        'android/**/*.*',
+        '**/di/**',
+        '**/hilt/**'
+    ]
+    
+    def debugTree = fileTree(dir: "${buildDir}/intermediates/javac/debug/classes", excludes: fileFilter)
+    def mainSrc = "${project.projectDir}/src/main/java"
+    
+    sourceDirectories.setFrom(files([mainSrc]))
+    classDirectories.setFrom(files([debugTree]))
+    executionData.setFrom(fileTree(dir: buildDir, includes: [
+        'jacoco/testDebugUnitTest.exec',
+        'outputs/code-coverage/connected/*coverage.ec'
+    ]))
+}
+
+// Dependency update task
+task dependencyUpdates {
+    doLast {
+        println "Run './gradlew dependencyUpdates' to check for dependency updates"
+    }
 }

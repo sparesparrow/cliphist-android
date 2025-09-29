@@ -1,0 +1,58 @@
+// Security configuration for the Android app
+
+android {
+    // Enable security features
+    buildFeatures {
+        buildConfig true
+    }
+    
+    // ProGuard configuration for release builds
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // Security-related build config fields
+            buildConfigField "boolean", "DEBUG_MODE", "false"
+            buildConfigField "boolean", "LOG_ENABLED", "false"
+            buildConfigField "String", "ENCRYPTION_ALGORITHM", "\"AES/GCM/NoPadding\""
+        }
+        
+        debug {
+            buildConfigField "boolean", "DEBUG_MODE", "true"
+            buildConfigField "boolean", "LOG_ENABLED", "true"
+            buildConfigField "String", "ENCRYPTION_ALGORITHM", "\"AES/GCM/NoPadding\""
+        }
+    }
+    
+    // Security-related packaging options
+    packagingOptions {
+        resources {
+            excludes += [
+                'META-INF/DEPENDENCIES',
+                'META-INF/LICENSE',
+                'META-INF/LICENSE.txt',
+                'META-INF/NOTICE',
+                'META-INF/NOTICE.txt',
+                'META-INF/ASL2.0',
+                'META-INF/AL2.0',
+                'META-INF/LGPL2.1',
+                'META-INF/*.kotlin_module'
+            ]
+        }
+    }
+}
+
+// Security-related dependencies
+dependencies {
+    // Security libraries
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+    implementation 'net.zetetic:android-database-sqlcipher:4.5.4'
+    
+    // Certificate pinning (if needed)
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // Biometric authentication
+    implementation 'androidx.biometric:biometric:1.1.0'
+}

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  android-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+    environment:
+      - ANDROID_HOME=/opt/android-sdk
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+    working_dir: /app
+    command: ./gradlew assembleDebug --no-daemon
+
+  android-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+    environment:
+      - ANDROID_HOME=/opt/android-sdk
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+    working_dir: /app
+    command: ./gradlew testDebugUnitTest --no-daemon
+
+  android-lint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+    environment:
+      - ANDROID_HOME=/opt/android-sdk
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+    working_dir: /app
+    command: ./gradlew lintDebug --no-daemon
+
+volumes:
+  gradle-cache:
