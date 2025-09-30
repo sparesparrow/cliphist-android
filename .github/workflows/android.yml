@@ -10,10 +10,10 @@ on:
       - '**/*.jpeg'
       - '**/*.gif'
       - '**/*.svg'
+    tags: [ 'v*' ]
   pull_request:
     branches: [ '**' ]
   workflow_dispatch:
-    tags: [ 'v*' ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
