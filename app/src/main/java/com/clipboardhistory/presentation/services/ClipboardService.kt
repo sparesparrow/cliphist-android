@@ -32,7 +32,6 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class ClipboardService : Service() {
-
     @Inject
     lateinit var addClipboardItemUseCase: AddClipboardItemUseCase
 
@@ -49,9 +48,10 @@ class ClipboardService : Service() {
 
     private var lastClipboardText = ""
 
-    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
-        handleClipboardChange()
-    }
+    private val clipboardListener =
+        ClipboardManager.OnPrimaryClipChangedListener {
+            handleClipboardChange()
+        }
 
     companion object {
         private const val NOTIFICATION_ID = 1001
@@ -78,7 +78,11 @@ class ClipboardService : Service() {
         return null
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         return START_STICKY
     }
 
@@ -144,14 +148,15 @@ class ClipboardService : Service() {
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply {
-                description = "Channel for clipboard monitoring service"
-                setShowBadge(false)
-            }
+            val channel =
+                NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = "Channel for clipboard monitoring service"
+                    setShowBadge(false)
+                }
             notificationManager.createNotificationChannel(channel)
         }
     }
@@ -164,18 +169,20 @@ class ClipboardService : Service() {
      */
     private fun createNotification(lastContent: String = ""): Notification {
         val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val pendingIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
-        val contentText = if (lastContent.isBlank()) {
-            "Monitoring clipboard changes"
-        } else {
-            "Last: ${lastContent.take(30)}${if (lastContent.length > 30) "..." else ""}"
-        }
+        val contentText =
+            if (lastContent.isBlank()) {
+                "Monitoring clipboard changes"
+            } else {
+                "Last: ${lastContent.take(30)}${if (lastContent.length > 30) "..." else ""}"
+            }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Clipboard History")

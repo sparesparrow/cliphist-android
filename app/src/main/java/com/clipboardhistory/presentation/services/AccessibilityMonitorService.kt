@@ -8,7 +8,6 @@ import android.view.accessibility.AccessibilityEvent
  * similar to Tasker/AutoApps when the user explicitly enables it.
  */
 class AccessibilityMonitorService : AccessibilityService() {
-
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // No-op for now. We only need the service enabled to grant capabilities.
     }

@@ -20,7 +20,6 @@ import net.sqlcipher.database.SupportFactory
 )
 @TypeConverters(Converters::class)
 abstract class ClipboardDatabase : RoomDatabase() {
-
     /**
      * Provides access to the clipboard items DAO.
      *

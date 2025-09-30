@@ -79,53 +79,61 @@ data class BubbleColors(
  * Predefined bubble themes.
  */
 object BubbleThemes {
-    val DEFAULT = BubbleTheme(
-        name = "Default",
-        description = "Material Design colors",
-        colors = BubbleColors(
-            empty = 0xFFE0E0E0.toInt(), // Light gray
-            storing = 0xFF2196F3.toInt(), // Blue
-            replace = 0xFFFF5722.toInt(), // Red-orange
-            append = 0xFF4CAF50.toInt(), // Green
-            prepend = 0xFF9C27B0.toInt(), // Purple
-        ),
-    )
+    val DEFAULT =
+        BubbleTheme(
+            name = "Default",
+            description = "Material Design colors",
+            colors =
+                BubbleColors(
+                    empty = 0xFFE0E0E0.toInt(), // Light gray
+                    storing = 0xFF2196F3.toInt(), // Blue
+                    replace = 0xFFFF5722.toInt(), // Red-orange
+                    append = 0xFF4CAF50.toInt(), // Green
+                    prepend = 0xFF9C27B0.toInt(), // Purple
+                ),
+        )
 
-    val DARK = BubbleTheme(
-        name = "Dark",
-        description = "Dark theme with vibrant colors",
-        colors = BubbleColors(
-            empty = 0xFF424242.toInt(), // Dark gray
-            storing = 0xFF1976D2.toInt(), // Dark blue
-            replace = 0xFFD32F2F.toInt(), // Dark red
-            append = 0xFF388E3C.toInt(), // Dark green
-            prepend = 0xFF7B1FA2.toInt(), // Dark purple
-        ),
-    )
+    val DARK =
+        BubbleTheme(
+            name = "Dark",
+            description = "Dark theme with vibrant colors",
+            colors =
+                BubbleColors(
+                    empty = 0xFF424242.toInt(), // Dark gray
+                    storing = 0xFF1976D2.toInt(), // Dark blue
+                    replace = 0xFFD32F2F.toInt(), // Dark red
+                    append = 0xFF388E3C.toInt(), // Dark green
+                    prepend = 0xFF7B1FA2.toInt(), // Dark purple
+                ),
+        )
 
-    val PASTEL = BubbleTheme(
-        name = "Pastel",
-        description = "Soft pastel colors",
-        colors = BubbleColors(
-            empty = 0xFFF5F5F5.toInt(), // Very light gray
-            storing = 0xFFBBDEFB.toInt(), // Light blue
-            replace = 0xFFFFCDD2.toInt(), // Light red
-            append = 0xFFC8E6C9.toInt(), // Light green
-            prepend = 0xFFE1BEE7.toInt(), // Light purple
-        ),
-    )
+    val PASTEL =
+        BubbleTheme(
+            name = "Pastel",
+            description = "Soft pastel colors",
+            colors =
+                BubbleColors(
+                    empty = 0xFFF5F5F5.toInt(), // Very light gray
+                    storing = 0xFFBBDEFB.toInt(), // Light blue
+                    replace = 0xFFFFCDD2.toInt(), // Light red
+                    append = 0xFFC8E6C9.toInt(), // Light green
+                    prepend = 0xFFE1BEE7.toInt(), // Light purple
+                ),
+        )
 
-    val NEON = BubbleTheme(
-        name = "Neon",
-        description = "Bright neon colors",
-        colors = BubbleColors(
-            empty = 0xFF2C2C2C.toInt(), // Dark background
-            storing = 0xFF00BCD4.toInt(), // Cyan
-            replace = 0xFFFF4081.toInt(), // Pink
-            append = 0xFF8BC34A.toInt(), // Light green
-            prepend = 0xFFE040FB.toInt(), // Neon purple
-        ),
-    )
+    val NEON =
+        BubbleTheme(
+            name = "Neon",
+            description = "Bright neon colors",
+            colors =
+                BubbleColors(
+                    empty = 0xFF2C2C2C.toInt(), // Dark background
+                    storing = 0xFF00BCD4.toInt(), // Cyan
+                    replace = 0xFFFF4081.toInt(), // Pink
+                    append = 0xFF8BC34A.toInt(), // Light green
+                    prepend = 0xFFE040FB.toInt(), // Neon purple
+                ),
+        )
 
     val ALL_THEMES = listOf(DEFAULT, DARK, PASTEL, NEON)
 }

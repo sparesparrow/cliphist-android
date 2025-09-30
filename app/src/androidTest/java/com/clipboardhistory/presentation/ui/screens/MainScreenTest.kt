@@ -1,7 +1,8 @@
 package com.clipboardhistory.presentation.ui.screens
 
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.ClipboardSettings
@@ -24,18 +25,18 @@ import org.mockito.kotlin.whenever
  */
 @RunWith(AndroidJUnit4::class)
 class MainScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
     @Test
     fun `main screen displays correctly when service is stopped`() {
         val mockViewModel = mock(MainViewModel::class.java)
-        val uiState = MainViewModel.MainUiState(
-            clipboardItems = emptyList(),
-            settings = ClipboardSettings(),
-            isServiceRunning = false,
-        )
+        val uiState =
+            MainViewModel.MainUiState(
+                clipboardItems = emptyList(),
+                settings = ClipboardSettings(),
+                isServiceRunning = false,
+            )
 
         whenever(mockViewModel.uiState).thenReturn(MutableStateFlow(uiState))
 
@@ -58,30 +59,32 @@ class MainScreenTest {
     @Test
     fun `main screen displays clipboard items correctly`() {
         val mockViewModel = mock(MainViewModel::class.java)
-        val testItems = listOf(
-            ClipboardItem(
-                id = "1",
-                content = "Test content 1",
-                timestamp = System.currentTimeMillis(),
-                contentType = ContentType.TEXT,
-                isEncrypted = false,
-                size = 14,
-            ),
-            ClipboardItem(
-                id = "2",
-                content = "Test content 2",
-                timestamp = System.currentTimeMillis(),
-                contentType = ContentType.TEXT,
-                isEncrypted = true,
-                size = 14,
-            ),
-        )
+        val testItems =
+            listOf(
+                ClipboardItem(
+                    id = "1",
+                    content = "Test content 1",
+                    timestamp = System.currentTimeMillis(),
+                    contentType = ContentType.TEXT,
+                    isEncrypted = false,
+                    size = 14,
+                ),
+                ClipboardItem(
+                    id = "2",
+                    content = "Test content 2",
+                    timestamp = System.currentTimeMillis(),
+                    contentType = ContentType.TEXT,
+                    isEncrypted = true,
+                    size = 14,
+                ),
+            )
 
-        val uiState = MainViewModel.MainUiState(
-            clipboardItems = testItems,
-            settings = ClipboardSettings(),
-            isServiceRunning = true,
-        )
+        val uiState =
+            MainViewModel.MainUiState(
+                clipboardItems = testItems,
+                settings = ClipboardSettings(),
+                isServiceRunning = true,
+            )
 
         whenever(mockViewModel.uiState).thenReturn(MutableStateFlow(uiState))
 
@@ -107,11 +110,12 @@ class MainScreenTest {
         var startServicesCalled = false
         var stopServicesCalled = false
 
-        val uiState = MainViewModel.MainUiState(
-            clipboardItems = emptyList(),
-            settings = ClipboardSettings(),
-            isServiceRunning = false,
-        )
+        val uiState =
+            MainViewModel.MainUiState(
+                clipboardItems = emptyList(),
+                settings = ClipboardSettings(),
+                isServiceRunning = false,
+            )
 
         whenever(mockViewModel.uiState).thenReturn(MutableStateFlow(uiState))
 
@@ -136,11 +140,12 @@ class MainScreenTest {
     @Test
     fun `settings button opens settings dialog`() {
         val mockViewModel = mock(MainViewModel::class.java)
-        val uiState = MainViewModel.MainUiState(
-            clipboardItems = emptyList(),
-            settings = ClipboardSettings(),
-            isServiceRunning = false,
-        )
+        val uiState =
+            MainViewModel.MainUiState(
+                clipboardItems = emptyList(),
+                settings = ClipboardSettings(),
+                isServiceRunning = false,
+            )
 
         whenever(mockViewModel.uiState).thenReturn(MutableStateFlow(uiState))
 
@@ -166,11 +171,12 @@ class MainScreenTest {
     @Test
     fun `add button opens add dialog`() {
         val mockViewModel = mock(MainViewModel::class.java)
-        val uiState = MainViewModel.MainUiState(
-            clipboardItems = emptyList(),
-            settings = ClipboardSettings(),
-            isServiceRunning = false,
-        )
+        val uiState =
+            MainViewModel.MainUiState(
+                clipboardItems = emptyList(),
+                settings = ClipboardSettings(),
+                isServiceRunning = false,
+            )
 
         whenever(mockViewModel.uiState).thenReturn(MutableStateFlow(uiState))
 

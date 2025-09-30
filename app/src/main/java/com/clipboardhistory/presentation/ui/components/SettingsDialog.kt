@@ -157,15 +157,16 @@ fun SettingsDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val newSettings = ClipboardSettings(
-                        maxHistorySize = maxHistorySize,
-                        autoDeleteAfterHours = autoDeleteHours,
-                        enableEncryption = enableEncryption,
-                        bubbleSize = bubbleSize,
-                        bubbleOpacity = bubbleOpacity,
-                        selectedTheme = selectedTheme,
-                        bubbleType = selectedBubbleType,
-                    )
+                    val newSettings =
+                        ClipboardSettings(
+                            maxHistorySize = maxHistorySize,
+                            autoDeleteAfterHours = autoDeleteHours,
+                            enableEncryption = enableEncryption,
+                            bubbleSize = bubbleSize,
+                            bubbleOpacity = bubbleOpacity,
+                            selectedTheme = selectedTheme,
+                            bubbleType = selectedBubbleType,
+                        )
                     onSave(newSettings)
                 },
             ) {
@@ -194,21 +195,24 @@ fun BubbleTypeChip(
     onClick: () -> Unit,
 ) {
     Card(
-        modifier = Modifier
-            .clickable { onClick() }
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(16.dp),
-            ),
+        modifier =
+            Modifier
+                .clickable { onClick() }
+                .border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    shape = RoundedCornerShape(16.dp),
+                ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+            ),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -216,26 +220,29 @@ fun BubbleTypeChip(
         ) {
             // Bubble type icon/preview
             Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                        shape = when (bubbleType) {
-                            BubbleType.CIRCLE -> CircleShape
-                            BubbleType.CUBE -> RoundedCornerShape(4.dp)
-                            BubbleType.HEXAGON -> RoundedCornerShape(8.dp)
-                            BubbleType.SQUARE -> RoundedCornerShape(8.dp)
-                        },
-                    ),
+                modifier =
+                    Modifier
+                        .size(32.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            shape =
+                                when (bubbleType) {
+                                    BubbleType.CIRCLE -> CircleShape
+                                    BubbleType.CUBE -> RoundedCornerShape(4.dp)
+                                    BubbleType.HEXAGON -> RoundedCornerShape(8.dp)
+                                    BubbleType.SQUARE -> RoundedCornerShape(8.dp)
+                                },
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = when (bubbleType) {
-                        BubbleType.CIRCLE -> "●"
-                        BubbleType.CUBE -> "■"
-                        BubbleType.HEXAGON -> "⬡"
-                        BubbleType.SQUARE -> "□"
-                    },
+                    text =
+                        when (bubbleType) {
+                            BubbleType.CIRCLE -> "●"
+                            BubbleType.CUBE -> "■"
+                            BubbleType.HEXAGON -> "⬡"
+                            BubbleType.SQUARE -> "□"
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -246,11 +253,12 @@ fun BubbleTypeChip(
             Text(
                 text = bubbleType.name.lowercase().replaceFirstChar { it.uppercase() },
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isSelected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
+                color =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
             )
         }
     }
@@ -272,13 +280,14 @@ fun ThemeChip(
     val colors = theme.colors
 
     Card(
-        modifier = Modifier
-            .clickable { onClick() }
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(16.dp),
-            ),
+        modifier =
+            Modifier
+                .clickable { onClick() }
+                .border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    shape = RoundedCornerShape(16.dp),
+                ),
         shape = RoundedCornerShape(16.dp),
     ) {
         Column(
@@ -290,28 +299,32 @@ fun ThemeChip(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(Color(colors.empty)),
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(Color(colors.empty)),
                 )
                 Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(Color(colors.storing)),
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(Color(colors.storing)),
                 )
                 Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(Color(colors.replace)),
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(Color(colors.replace)),
                 )
                 Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(Color(colors.append)),
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(Color(colors.append)),
                 )
             }
 

@@ -28,7 +28,6 @@ import kotlin.test.assertTrue
  * encryption/decryption functionality.
  */
 class ClipboardRepositoryImplTest {
-
     @get:Rule
     val mockitoRule: MockitoRule = MockitoJUnit.rule()
 
@@ -46,91 +45,98 @@ class ClipboardRepositoryImplTest {
     }
 
     @Test
-    fun `getAllItems returns mapped items correctly`() = runTest {
-        val testEntities = listOf(
-            createTestEntity("Test content 1"),
-            createTestEntity("Test content 2"),
-        )
+    fun `getAllItems returns mapped items correctly`() =
+        runTest {
+            val testEntities =
+                listOf(
+                    createTestEntity("Test content 1"),
+                    createTestEntity("Test content 2"),
+                )
 
-        whenever(clipboardItemDao.getAllItems()).thenReturn(flowOf(testEntities))
-        whenever(encryptionManager.decrypt("Test content 1")).thenReturn("Test content 1")
-        whenever(encryptionManager.decrypt("Test content 2")).thenReturn("Test content 2")
+            whenever(clipboardItemDao.getAllItems()).thenReturn(flowOf(testEntities))
+            whenever(encryptionManager.decrypt("Test content 1")).thenReturn("Test content 1")
+            whenever(encryptionManager.decrypt("Test content 2")).thenReturn("Test content 2")
 
-        val result = repository.getAllItems().first()
+            val result = repository.getAllItems().first()
 
-        assertEquals(2, result.size)
-        assertEquals("Test content 1", result[0].content)
-        assertEquals("Test content 2", result[1].content)
-    }
-
-    @Test
-    fun `insertItem encrypts and stores item correctly`() = runTest {
-        val testItem = createTestItem("Test content")
-
-        whenever(encryptionManager.encrypt("Test content")).thenReturn("encrypted_content")
-
-        repository.insertItem(testItem)
-
-        verify(encryptionManager).encrypt("Test content")
-        val entityCaptor = argumentCaptor<ClipboardItemEntity>()
-        verify(clipboardItemDao).insertItem(entityCaptor.capture())
-        val captured = entityCaptor.firstValue
-        assertEquals(testItem.id, captured.id)
-        assertEquals("encrypted_content", captured.content)
-        assertEquals(testItem.timestamp, captured.timestamp)
-        assertEquals(testItem.contentType, captured.contentType)
-        assertEquals(testItem.isEncrypted, captured.isEncrypted)
-        assertEquals(testItem.size, captured.size)
-    }
+            assertEquals(2, result.size)
+            assertEquals("Test content 1", result[0].content)
+            assertEquals("Test content 2", result[1].content)
+        }
 
     @Test
-    fun `getSettings returns correct settings`() = runTest {
-        whenever(encryptionManager.getSecureString("max_history_size", "100")).thenReturn("200")
-        whenever(encryptionManager.getSecureString("auto_delete_hours", "24")).thenReturn("48")
-        whenever(encryptionManager.getSecureString("enable_encryption", "true")).thenReturn("true")
-        whenever(encryptionManager.getSecureString("bubble_size", "3")).thenReturn("4")
-        whenever(encryptionManager.getSecureString("bubble_opacity", "0.8")).thenReturn("0.9")
+    fun `insertItem encrypts and stores item correctly`() =
+        runTest {
+            val testItem = createTestItem("Test content")
 
-        val result = repository.getSettings()
+            whenever(encryptionManager.encrypt("Test content")).thenReturn("encrypted_content")
 
-        assertEquals(200, result.maxHistorySize)
-        assertEquals(48, result.autoDeleteAfterHours)
-        assertEquals(true, result.enableEncryption)
-        assertEquals(4, result.bubbleSize)
-        assertEquals(0.9f, result.bubbleOpacity)
-    }
+            repository.insertItem(testItem)
 
-    @Test
-    fun `updateSettings stores settings correctly`() = runTest {
-        val testSettings = ClipboardSettings(
-            maxHistorySize = 150,
-            autoDeleteAfterHours = 72,
-            enableEncryption = false,
-            bubbleSize = 5,
-            bubbleOpacity = 0.5f,
-        )
-
-        repository.updateSettings(testSettings)
-
-        verify(encryptionManager).storeSecureString("max_history_size", "150")
-        verify(encryptionManager).storeSecureString("auto_delete_hours", "72")
-        verify(encryptionManager).storeSecureString("enable_encryption", "false")
-        verify(encryptionManager).storeSecureString("bubble_size", "5")
-        verify(encryptionManager).storeSecureString("bubble_opacity", "0.5")
-        verify(encryptionManager).storeSecureString("clipboard_mode", "EXTEND")
-    }
+            verify(encryptionManager).encrypt("Test content")
+            val entityCaptor = argumentCaptor<ClipboardItemEntity>()
+            verify(clipboardItemDao).insertItem(entityCaptor.capture())
+            val captured = entityCaptor.firstValue
+            assertEquals(testItem.id, captured.id)
+            assertEquals("encrypted_content", captured.content)
+            assertEquals(testItem.timestamp, captured.timestamp)
+            assertEquals(testItem.contentType, captured.contentType)
+            assertEquals(testItem.isEncrypted, captured.isEncrypted)
+            assertEquals(testItem.size, captured.size)
+        }
 
     @Test
-    fun `deleteItemsOlderThan calls dao with correct timestamp`() = runTest {
-        val hours = 24
-        val expectedThreshold = System.currentTimeMillis() - (hours * 60 * 60 * 1000)
+    fun `getSettings returns correct settings`() =
+        runTest {
+            whenever(encryptionManager.getSecureString("max_history_size", "100")).thenReturn("200")
+            whenever(encryptionManager.getSecureString("auto_delete_hours", "24")).thenReturn("48")
+            whenever(encryptionManager.getSecureString("enable_encryption", "true")).thenReturn("true")
+            whenever(encryptionManager.getSecureString("bubble_size", "3")).thenReturn("4")
+            whenever(encryptionManager.getSecureString("bubble_opacity", "0.8")).thenReturn("0.9")
 
-        repository.deleteItemsOlderThan(hours)
+            val result = repository.getSettings()
 
-        val tsCaptor = argumentCaptor<Long>()
-        verify(clipboardItemDao).deleteItemsOlderThan(tsCaptor.capture())
-        assertTrue(kotlin.math.abs(tsCaptor.firstValue - expectedThreshold) < 2000)
-    }
+            assertEquals(200, result.maxHistorySize)
+            assertEquals(48, result.autoDeleteAfterHours)
+            assertEquals(true, result.enableEncryption)
+            assertEquals(4, result.bubbleSize)
+            assertEquals(0.9f, result.bubbleOpacity)
+        }
+
+    @Test
+    fun `updateSettings stores settings correctly`() =
+        runTest {
+            val testSettings =
+                ClipboardSettings(
+                    maxHistorySize = 150,
+                    autoDeleteAfterHours = 72,
+                    enableEncryption = false,
+                    bubbleSize = 5,
+                    bubbleOpacity = 0.5f,
+                )
+
+            repository.updateSettings(testSettings)
+
+            verify(encryptionManager).storeSecureString("max_history_size", "150")
+            verify(encryptionManager).storeSecureString("auto_delete_hours", "72")
+            verify(encryptionManager).storeSecureString("enable_encryption", "false")
+            verify(encryptionManager).storeSecureString("bubble_size", "5")
+            verify(encryptionManager).storeSecureString("bubble_opacity", "0.5")
+            verify(encryptionManager).storeSecureString("clipboard_mode", "EXTEND")
+        }
+
+    @Test
+    fun `deleteItemsOlderThan calls dao with correct timestamp`() =
+        runTest {
+            val hours = 24
+            val expectedThreshold = System.currentTimeMillis() - (hours * 60 * 60 * 1000)
+
+            repository.deleteItemsOlderThan(hours)
+
+            val tsCaptor = argumentCaptor<Long>()
+            verify(clipboardItemDao).deleteItemsOlderThan(tsCaptor.capture())
+            assertTrue(kotlin.math.abs(tsCaptor.firstValue - expectedThreshold) < 2000)
+        }
 
     private fun createTestEntity(content: String): ClipboardItemEntity {
         return ClipboardItemEntity(

@@ -10,11 +10,11 @@ import kotlin.test.assertTrue
  *
  * This test class verifies the encryption and decryption functionality
  * using Robolectric for Android context.
+ *
+ * Note: This class depends on Android keystore which is unreliable on JVM.
+ * The real tests were moved to androidTest as instrumentation tests.
  */
-// This class depends on Android keystore which is unreliable on JVM.
-// The real tests were moved to androidTest as instrumentation tests.
 class EncryptionManagerTest {
-
     private lateinit var context: Context
     private lateinit var encryptionManager: EncryptionManager
 
@@ -24,7 +24,9 @@ class EncryptionManagerTest {
     }
 
     @Test
-    fun placeholder() { assertTrue(true) }
+    fun placeholder() {
+        assertTrue(true)
+    }
 
     // See androidTest/EncryptionManagerInstrumentedTest for real tests.
 

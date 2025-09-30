@@ -1,107 +1,47 @@
 version: '3.8'
 
 services:
-  # Development environment with hot reload
-  android-dev:
+  android-builder:
     build:
       context: .
-      target: android-dev
       dockerfile: Dockerfile
+      target: builder
     volumes:
-      - .:/workspace
+      - .:/app
       - gradle-cache:/root/.gradle
-      - android-sdk-cache:/opt/android-sdk
-    working_dir: /workspace
     environment:
       - ANDROID_HOME=/opt/android-sdk
       - ANDROID_SDK_ROOT=/opt/android-sdk
-      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
-    command: bash
-    stdin_open: true
-    tty: true
-    ports:
-      - "8080:8080"  # For any development servers
+    working_dir: /app
+    command: ./gradlew assembleDebug --no-daemon
 
-  # CI/CD build environment
-  android-ci:
+  android-test:
     build:
       context: .
-      target: android-ci
       dockerfile: Dockerfile
+      target: builder
     volumes:
-      - .:/workspace
+      - .:/app
       - gradle-cache:/root/.gradle
-    working_dir: /workspace
     environment:
       - ANDROID_HOME=/opt/android-sdk
       - ANDROID_SDK_ROOT=/opt/android-sdk
-      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
+    working_dir: /app
+    command: ./gradlew testDebugUnitTest --no-daemon
 
-  # Production build
-  android-build:
+  android-lint:
     build:
       context: .
-      target: android-build
       dockerfile: Dockerfile
+      target: builder
     volumes:
-      - ./build-outputs:/workspace/app/build/outputs
+      - .:/app
       - gradle-cache:/root/.gradle
     environment:
       - ANDROID_HOME=/opt/android-sdk
       - ANDROID_SDK_ROOT=/opt/android-sdk
-      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
-
-  # Code quality checks
-  code-quality:
-    build:
-      context: .
-      target: android-ci
-      dockerfile: Dockerfile
-    volumes:
-      - .:/workspace
-      - gradle-cache:/root/.gradle
-    working_dir: /workspace
-    command: ./gradlew qualityCheck
-    environment:
-      - ANDROID_HOME=/opt/android-sdk
-      - ANDROID_SDK_ROOT=/opt/android-sdk
-
-  # Test runner
-  test-runner:
-    build:
-      context: .
-      target: android-ci
-      dockerfile: Dockerfile
-    volumes:
-      - .:/workspace
-      - gradle-cache:/root/.gradle
-    working_dir: /workspace
-    command: ./gradlew testDebugUnitTest testDebugUnitTestCoverage
-    environment:
-      - ANDROID_HOME=/opt/android-sdk
-      - ANDROID_SDK_ROOT=/opt/android-sdk
+    working_dir: /app
+    command: ./gradlew lintDebug --no-daemon
 
 volumes:
   gradle-cache:
-    driver: local
-  android-sdk-cache:
-    driver: local
-
-# Usage Examples:
-# 
-# Development:
-#   docker-compose run --rm android-dev
-#   docker-compose run --rm android-dev ./gradlew assembleDebug
-#
-# CI/CD:
-#   docker-compose run --rm android-ci ./gradlew clean build
-#   docker-compose run --rm android-ci ./gradlew qualityCheck
-#
-# Code Quality:
-#   docker-compose run --rm code-quality
-#
-# Tests:
-#   docker-compose run --rm test-runner
-#
-# Production Build:
-#   docker-compose up android-build

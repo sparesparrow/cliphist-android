@@ -17,7 +17,10 @@ object ContentAnalyzer {
         }
     }
 
-    fun getSmartActions(type: Type, content: String): List<SmartAction> {
+    fun getSmartActions(
+        type: Type,
+        content: String,
+    ): List<SmartAction> {
         return when (type) {
             Type.URL -> listOf(SmartAction("Open Link", BubbleState.REPLACE))
             Type.PHONE -> listOf(SmartAction("Call Number", BubbleState.REPLACE))

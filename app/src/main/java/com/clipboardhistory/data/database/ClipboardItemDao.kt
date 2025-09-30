@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface ClipboardItemDao {
-
     /**
      * Get all clipboard items ordered by timestamp (newest first).
      *
@@ -99,5 +98,8 @@ interface ClipboardItemDao {
      * @return List of clipboard items
      */
     @Query("SELECT * FROM clipboard_items ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
-    suspend fun getItemsWithPagination(limit: Int, offset: Int): List<ClipboardItemEntity>
+    suspend fun getItemsWithPagination(
+        limit: Int,
+        offset: Int,
+    ): List<ClipboardItemEntity>
 }

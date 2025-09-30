@@ -7,7 +7,6 @@ package com.clipboardhistory.utils
  * to avoid magic numbers and strings.
  */
 object Constants {
-
     // Database constants
     const val DATABASE_NAME = "clipboard_history.db"
     const val DATABASE_VERSION = 1

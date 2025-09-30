@@ -19,140 +19,147 @@ import javax.inject.Singleton
  * with encryption support and database persistence.
  */
 @Singleton
-class ClipboardRepositoryImpl @Inject constructor(
-    private val clipboardItemDao: ClipboardItemDao,
-    private val encryptionManager: EncryptionManager,
-) : ClipboardRepository {
+class ClipboardRepositoryImpl
+    @Inject
+    constructor(
+        private val clipboardItemDao: ClipboardItemDao,
+        private val encryptionManager: EncryptionManager,
+    ) : ClipboardRepository {
+        override fun getAllItems(): Flow<List<ClipboardItem>> {
+            return clipboardItemDao.getAllItems().map { entities ->
+                entities.map { entity ->
+                    mapEntityToItem(entity)
+                }
+            }
+        }
 
-    override fun getAllItems(): Flow<List<ClipboardItem>> {
-        return clipboardItemDao.getAllItems().map { entities ->
-            entities.map { entity ->
+        override suspend fun getItemById(id: String): ClipboardItem? {
+            return clipboardItemDao.getItemById(id)?.let { entity ->
                 mapEntityToItem(entity)
             }
         }
-    }
 
-    override suspend fun getItemById(id: String): ClipboardItem? {
-        return clipboardItemDao.getItemById(id)?.let { entity ->
-            mapEntityToItem(entity)
-        }
-    }
-
-    override suspend fun insertItem(item: ClipboardItem) {
-        val entity = mapItemToEntity(item)
-        clipboardItemDao.insertItem(entity)
-    }
-
-    override suspend fun updateItem(item: ClipboardItem) {
-        val entity = mapItemToEntity(item)
-        clipboardItemDao.updateItem(entity)
-    }
-
-    override suspend fun deleteItem(item: ClipboardItem) {
-        val entity = mapItemToEntity(item)
-        clipboardItemDao.deleteItem(entity)
-    }
-
-    override suspend fun deleteItemById(id: String) {
-        clipboardItemDao.deleteItemById(id)
-    }
-
-    override suspend fun deleteAllItems() {
-        clipboardItemDao.deleteAllItems()
-    }
-
-    override suspend fun deleteItemsOlderThan(hours: Int) {
-        val threshold = System.currentTimeMillis() - (hours * 60 * 60 * 1000)
-        clipboardItemDao.deleteItemsOlderThan(threshold)
-    }
-
-    override suspend fun getSettings(): ClipboardSettings {
-        // Load settings from encrypted preferences
-        val maxHistorySize = encryptionManager.getSecureString("max_history_size", "100").toIntOrNull() ?: 100
-        val autoDeleteAfterHours = encryptionManager.getSecureString("auto_delete_hours", "24").toIntOrNull() ?: 24
-        val enableEncryption = encryptionManager.getSecureString("enable_encryption", "true").toBoolean()
-        val bubbleSize = encryptionManager.getSecureString("bubble_size", "3").toIntOrNull() ?: 3
-        val bubbleOpacity = encryptionManager.getSecureString("bubble_opacity", "0.8").toFloatOrNull() ?: 0.8f
-        val selectedTheme = encryptionManager.getSecureString("selected_theme", "Default") ?: "Default"
-        val bubbleType = try {
-            BubbleType.valueOf(encryptionManager.getSecureString("bubble_type", "CIRCLE") ?: "CIRCLE")
-        } catch (e: IllegalArgumentException) {
-            BubbleType.CIRCLE
+        override suspend fun insertItem(item: ClipboardItem) {
+            val entity = mapItemToEntity(item)
+            clipboardItemDao.insertItem(entity)
         }
 
-        return ClipboardSettings(
-            maxHistorySize = maxHistorySize,
-            autoDeleteAfterHours = autoDeleteAfterHours,
-            enableEncryption = enableEncryption,
-            bubbleSize = bubbleSize,
-            bubbleOpacity = bubbleOpacity,
-            selectedTheme = selectedTheme,
-            bubbleType = bubbleType,
-        )
-    }
-
-    override suspend fun updateSettings(settings: ClipboardSettings) {
-        // Save settings to encrypted preferences
-        encryptionManager.storeSecureString("max_history_size", settings.maxHistorySize.toString())
-        encryptionManager.storeSecureString("auto_delete_hours", settings.autoDeleteAfterHours.toString())
-        encryptionManager.storeSecureString("enable_encryption", settings.enableEncryption.toString())
-        encryptionManager.storeSecureString("bubble_size", settings.bubbleSize.toString())
-        encryptionManager.storeSecureString("bubble_opacity", settings.bubbleOpacity.toString())
-        encryptionManager.storeSecureString("selected_theme", settings.selectedTheme)
-        encryptionManager.storeSecureString("bubble_type", settings.bubbleType.name)
-        // Maintain compatibility with tests expecting clipboard_mode persistence
-        encryptionManager.storeSecureString("clipboard_mode", "EXTEND")
-    }
-
-    override suspend fun getItemsWithPagination(limit: Int, offset: Int): List<ClipboardItem> {
-        return clipboardItemDao.getItemsWithPagination(limit, offset).map { entity ->
-            mapEntityToItem(entity)
-        }
-    }
-
-    /**
-     * Maps a database entity to a domain model.
-     *
-     * @param entity The database entity to map
-     * @return The domain model
-     */
-    private fun mapEntityToItem(entity: ClipboardItemEntity): ClipboardItem {
-        val content = if (entity.isEncrypted) {
-            encryptionManager.decrypt(entity.content) ?: entity.content
-        } else {
-            entity.content
+        override suspend fun updateItem(item: ClipboardItem) {
+            val entity = mapItemToEntity(item)
+            clipboardItemDao.updateItem(entity)
         }
 
-        return ClipboardItem(
-            id = entity.id,
-            content = content,
-            timestamp = entity.timestamp,
-            contentType = entity.contentType,
-            isEncrypted = entity.isEncrypted,
-            size = entity.size,
-        )
-    }
-
-    /**
-     * Maps a domain model to a database entity.
-     *
-     * @param item The domain model to map
-     * @return The database entity
-     */
-    private fun mapItemToEntity(item: ClipboardItem): ClipboardItemEntity {
-        val content = if (item.isEncrypted) {
-            encryptionManager.encrypt(item.content) ?: item.content
-        } else {
-            item.content
+        override suspend fun deleteItem(item: ClipboardItem) {
+            val entity = mapItemToEntity(item)
+            clipboardItemDao.deleteItem(entity)
         }
 
-        return ClipboardItemEntity(
-            id = item.id,
-            content = content,
-            timestamp = item.timestamp,
-            contentType = item.contentType,
-            isEncrypted = item.isEncrypted,
-            size = item.size,
-        )
+        override suspend fun deleteItemById(id: String) {
+            clipboardItemDao.deleteItemById(id)
+        }
+
+        override suspend fun deleteAllItems() {
+            clipboardItemDao.deleteAllItems()
+        }
+
+        override suspend fun deleteItemsOlderThan(hours: Int) {
+            val threshold = System.currentTimeMillis() - (hours * 60 * 60 * 1000)
+            clipboardItemDao.deleteItemsOlderThan(threshold)
+        }
+
+        override suspend fun getSettings(): ClipboardSettings {
+            // Load settings from encrypted preferences
+            val maxHistorySize = encryptionManager.getSecureString("max_history_size", "100").toIntOrNull() ?: 100
+            val autoDeleteAfterHours = encryptionManager.getSecureString("auto_delete_hours", "24").toIntOrNull() ?: 24
+            val enableEncryption = encryptionManager.getSecureString("enable_encryption", "true").toBoolean()
+            val bubbleSize = encryptionManager.getSecureString("bubble_size", "3").toIntOrNull() ?: 3
+            val bubbleOpacity = encryptionManager.getSecureString("bubble_opacity", "0.8").toFloatOrNull() ?: 0.8f
+            val selectedTheme = encryptionManager.getSecureString("selected_theme", "Default") ?: "Default"
+            val bubbleType =
+                try {
+                    BubbleType.valueOf(encryptionManager.getSecureString("bubble_type", "CIRCLE") ?: "CIRCLE")
+                } catch (e: IllegalArgumentException) {
+                    BubbleType.CIRCLE
+                }
+
+            return ClipboardSettings(
+                maxHistorySize = maxHistorySize,
+                autoDeleteAfterHours = autoDeleteAfterHours,
+                enableEncryption = enableEncryption,
+                bubbleSize = bubbleSize,
+                bubbleOpacity = bubbleOpacity,
+                selectedTheme = selectedTheme,
+                bubbleType = bubbleType,
+            )
+        }
+
+        override suspend fun updateSettings(settings: ClipboardSettings) {
+            // Save settings to encrypted preferences
+            encryptionManager.storeSecureString("max_history_size", settings.maxHistorySize.toString())
+            encryptionManager.storeSecureString("auto_delete_hours", settings.autoDeleteAfterHours.toString())
+            encryptionManager.storeSecureString("enable_encryption", settings.enableEncryption.toString())
+            encryptionManager.storeSecureString("bubble_size", settings.bubbleSize.toString())
+            encryptionManager.storeSecureString("bubble_opacity", settings.bubbleOpacity.toString())
+            encryptionManager.storeSecureString("selected_theme", settings.selectedTheme)
+            encryptionManager.storeSecureString("bubble_type", settings.bubbleType.name)
+            // Maintain compatibility with tests expecting clipboard_mode persistence
+            encryptionManager.storeSecureString("clipboard_mode", "EXTEND")
+        }
+
+        override suspend fun getItemsWithPagination(
+            limit: Int,
+            offset: Int,
+        ): List<ClipboardItem> {
+            return clipboardItemDao.getItemsWithPagination(limit, offset).map { entity ->
+                mapEntityToItem(entity)
+            }
+        }
+
+        /**
+         * Maps a database entity to a domain model.
+         *
+         * @param entity The database entity to map
+         * @return The domain model
+         */
+        private fun mapEntityToItem(entity: ClipboardItemEntity): ClipboardItem {
+            val content =
+                if (entity.isEncrypted) {
+                    encryptionManager.decrypt(entity.content) ?: entity.content
+                } else {
+                    entity.content
+                }
+
+            return ClipboardItem(
+                id = entity.id,
+                content = content,
+                timestamp = entity.timestamp,
+                contentType = entity.contentType,
+                isEncrypted = entity.isEncrypted,
+                size = entity.size,
+            )
+        }
+
+        /**
+         * Maps a domain model to a database entity.
+         *
+         * @param item The domain model to map
+         * @return The database entity
+         */
+        private fun mapItemToEntity(item: ClipboardItem): ClipboardItemEntity {
+            val content =
+                if (item.isEncrypted) {
+                    encryptionManager.encrypt(item.content) ?: item.content
+                } else {
+                    item.content
+                }
+
+            return ClipboardItemEntity(
+                id = item.id,
+                content = content,
+                timestamp = item.timestamp,
+                contentType = item.contentType,
+                isEncrypted = item.isEncrypted,
+                size = item.size,
+            )
+        }
     }
-}

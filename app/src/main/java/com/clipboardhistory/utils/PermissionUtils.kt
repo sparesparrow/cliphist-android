@@ -18,7 +18,6 @@ import androidx.core.app.ActivityCompat
  * permissions required by the application.
  */
 object PermissionUtils {
-
     /**
      * Checks if the app has overlay permission.
      *
@@ -101,19 +100,21 @@ object PermissionUtils {
         val uid = android.os.Process.myUid()
         val packageName = context.packageName
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val mode = appOps.unsafeCheckOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                uid,
-                packageName,
-            )
+            val mode =
+                appOps.unsafeCheckOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    uid,
+                    packageName,
+                )
             mode == AppOpsManager.MODE_ALLOWED
         } else {
             @Suppress("DEPRECATION")
-            val mode = appOps.checkOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                uid,
-                packageName,
-            )
+            val mode =
+                appOps.checkOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    uid,
+                    packageName,
+                )
             mode == AppOpsManager.MODE_ALLOWED
         }
     }

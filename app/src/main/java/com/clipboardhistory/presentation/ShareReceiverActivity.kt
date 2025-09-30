@@ -30,7 +30,6 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class ShareReceiverActivity : ComponentActivity() {
-
     @Inject
     lateinit var addClipboardItemUseCase: AddClipboardItemUseCase
 
@@ -127,10 +126,11 @@ class ShareReceiverActivity : ComponentActivity() {
         scope.launch {
             try {
                 // Replace the content of the selected bubble
-                val updatedItem = bubbleItem.copy(
-                    content = sharedText ?: "",
-                    timestamp = System.currentTimeMillis(),
-                )
+                val updatedItem =
+                    bubbleItem.copy(
+                        content = sharedText ?: "",
+                        timestamp = System.currentTimeMillis(),
+                    )
                 updateClipboardItemUseCase(updatedItem)
                 runOnUiThread { finishWithMessage(true) }
             } catch (e: Exception) {
@@ -144,10 +144,11 @@ class ShareReceiverActivity : ComponentActivity() {
             try {
                 // Append the new content to the selected bubble
                 val newContent = "${bubbleItem.content}\n${sharedText ?: ""}"
-                val updatedItem = bubbleItem.copy(
-                    content = newContent,
-                    timestamp = System.currentTimeMillis(),
-                )
+                val updatedItem =
+                    bubbleItem.copy(
+                        content = newContent,
+                        timestamp = System.currentTimeMillis(),
+                    )
                 updateClipboardItemUseCase(updatedItem)
                 runOnUiThread { finishWithMessage(true) }
             } catch (e: Exception) {
@@ -161,10 +162,11 @@ class ShareReceiverActivity : ComponentActivity() {
             try {
                 // Prepend the new content to the selected bubble
                 val newContent = "${sharedText ?: ""}\n${bubbleItem.content}"
-                val updatedItem = bubbleItem.copy(
-                    content = newContent,
-                    timestamp = System.currentTimeMillis(),
-                )
+                val updatedItem =
+                    bubbleItem.copy(
+                        content = newContent,
+                        timestamp = System.currentTimeMillis(),
+                    )
                 updateClipboardItemUseCase(updatedItem)
                 runOnUiThread { finishWithMessage(true) }
             } catch (e: Exception) {

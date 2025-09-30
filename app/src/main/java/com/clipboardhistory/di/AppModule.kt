@@ -20,7 +20,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-
     /**
      * Provides the clipboard database instance.
      *
@@ -29,7 +28,9 @@ object DatabaseModule {
      */
     @Provides
     @Singleton
-    fun provideClipboardDatabase(@ApplicationContext context: Context): ClipboardDatabase {
+    fun provideClipboardDatabase(
+        @ApplicationContext context: Context,
+    ): ClipboardDatabase {
         return ClipboardDatabase.create(context)
     }
 
@@ -53,7 +54,6 @@ object DatabaseModule {
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
-
     /**
      * Provides the clipboard repository implementation.
      *
@@ -62,9 +62,7 @@ object RepositoryModule {
      */
     @Provides
     @Singleton
-    fun provideClipboardRepository(
-        repositoryImpl: ClipboardRepositoryImpl,
-    ): ClipboardRepository {
+    fun provideClipboardRepository(repositoryImpl: ClipboardRepositoryImpl): ClipboardRepository {
         return repositoryImpl
     }
 }

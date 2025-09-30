@@ -11,7 +11,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ServicesE2ETest {
-
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Test

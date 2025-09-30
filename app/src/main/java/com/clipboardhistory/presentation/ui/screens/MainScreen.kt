@@ -89,24 +89,27 @@ fun MainScreen(
                 },
             ) {
                 Icon(
-                    imageVector = if (uiState.isServiceRunning) {
-                        Icons.Default.Stop
-                    } else {
-                        Icons.Default.PlayArrow
-                    },
-                    contentDescription = if (uiState.isServiceRunning) {
-                        "Stop Service"
-                    } else {
-                        "Start Service"
-                    },
+                    imageVector =
+                        if (uiState.isServiceRunning) {
+                            Icons.Default.Stop
+                        } else {
+                            Icons.Default.PlayArrow
+                        },
+                    contentDescription =
+                        if (uiState.isServiceRunning) {
+                            "Stop Service"
+                        } else {
+                            "Start Service"
+                        },
                 )
             }
         },
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             // Service status indicator
             ServiceStatusCard(
@@ -117,9 +120,10 @@ fun MainScreen(
             // Clipboard items list
             if (uiState.clipboardItems.isEmpty()) {
                 EmptyStateCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                 )
             } else {
                 LazyColumn(
@@ -180,46 +184,53 @@ fun ServiceStatusCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isRunning) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (isRunning) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.errorContainer
+                    },
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = if (isRunning) {
-                    Icons.Default.CheckCircle
-                } else {
-                    Icons.Default.Error
-                },
+                imageVector =
+                    if (isRunning) {
+                        Icons.Default.CheckCircle
+                    } else {
+                        Icons.Default.Error
+                    },
                 contentDescription = null,
-                tint = if (isRunning) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
+                tint =
+                    if (isRunning) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = if (isRunning) {
-                    "Clipboard service is running"
-                } else {
-                    "Clipboard service is stopped"
-                },
+                text =
+                    if (isRunning) {
+                        "Clipboard service is running"
+                    } else {
+                        "Clipboard service is stopped"
+                    },
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isRunning) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onErrorContainer
-                },
+                color =
+                    if (isRunning) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    },
             )
         }
     }
@@ -231,14 +242,13 @@ fun ServiceStatusCard(
  * @param modifier Modifier for the card
  */
 @Composable
-fun EmptyStateCard(
-    modifier: Modifier = Modifier,
-) {
+fun EmptyStateCard(modifier: Modifier = Modifier) {
     Card(modifier = modifier) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Icon(

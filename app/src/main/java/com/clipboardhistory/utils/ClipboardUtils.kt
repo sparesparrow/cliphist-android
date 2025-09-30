@@ -12,7 +12,6 @@ import android.widget.Toast
  * and abstracts platform-specific clipboard management.
  */
 object ClipboardUtils {
-
     /**
      * Copies text to the system clipboard.
      *
@@ -20,7 +19,11 @@ object ClipboardUtils {
      * @param text The text to copy
      * @param label Optional label for the clip
      */
-    fun copyToClipboard(context: Context, text: String, label: String = "clipboard") {
+    fun copyToClipboard(
+        context: Context,
+        text: String,
+        label: String = "clipboard",
+    ) {
         val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clipData = ClipData.newPlainText(label, text)
         clipboardManager.setPrimaryClip(clipData)
@@ -74,7 +77,10 @@ object ClipboardUtils {
      * @param context The application context
      * @param message The message to show
      */
-    fun showClipboardToast(context: Context, message: String) {
+    fun showClipboardToast(
+        context: Context,
+        message: String,
+    ) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 }

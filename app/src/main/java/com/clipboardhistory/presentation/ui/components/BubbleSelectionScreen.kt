@@ -69,15 +69,17 @@ fun BubbleSelectionScreen(
         },
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             // Shared text preview
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -99,9 +101,10 @@ fun BubbleSelectionScreen(
 
             // Instructions
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -157,9 +160,10 @@ fun BubbleSelectionScreen(
             } else {
                 // Empty state
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(
@@ -190,9 +194,10 @@ fun BubbleSelectionScreen(
             // Add new bubble button
             Button(
                 onClick = onAddNewBubble,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -225,9 +230,10 @@ fun BubbleSelectionItem(
         shape = RoundedCornerShape(12.dp),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Bubble preview
@@ -268,10 +274,11 @@ fun BubbleSelectionItem(
                     // Replace button
                     OutlinedButton(
                         onClick = onReplace,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        ),
+                        colors =
+                            ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            ),
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("Replace", style = MaterialTheme.typography.bodySmall)
@@ -280,10 +287,11 @@ fun BubbleSelectionItem(
                     // Append button
                     OutlinedButton(
                         onClick = onAppend,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
+                        colors =
+                            ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("Append", style = MaterialTheme.typography.bodySmall)
@@ -295,10 +303,11 @@ fun BubbleSelectionItem(
                 // Prepend button
                 OutlinedButton(
                     onClick = onPrepend,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
+                    colors =
+                        ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Prepend", style = MaterialTheme.typography.bodySmall)
@@ -321,25 +330,27 @@ fun BubblePreview(
 ) {
     val theme = BubbleThemes.DEFAULT
     val state = if (content.isBlank()) BubbleState.EMPTY else BubbleState.STORING
-    val color = when (state) {
-        BubbleState.EMPTY -> Color(theme.colors.empty)
-        BubbleState.STORING -> Color(theme.colors.storing)
-        BubbleState.REPLACE -> Color(theme.colors.replace)
-        BubbleState.APPEND -> Color(theme.colors.append)
-        BubbleState.PREPEND -> Color(theme.colors.prepend)
-    }
+    val color =
+        when (state) {
+            BubbleState.EMPTY -> Color(theme.colors.empty)
+            BubbleState.STORING -> Color(theme.colors.storing)
+            BubbleState.REPLACE -> Color(theme.colors.replace)
+            BubbleState.APPEND -> Color(theme.colors.append)
+            BubbleState.PREPEND -> Color(theme.colors.prepend)
+        }
 
     val lineCount = if (content.isNotBlank()) content.count { it == '\n' } + 1 else 0
 
     Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(color)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline,
-                shape = CircleShape,
-            ),
+        modifier =
+            modifier
+                .clip(CircleShape)
+                .background(color)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline,
+                    shape = CircleShape,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         if (lineCount > 0) {

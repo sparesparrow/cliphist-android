@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
  * abstracting the data source implementation details.
  */
 interface ClipboardRepository {
-
     /**
      * Get all clipboard items as a Flow.
      *
@@ -88,5 +87,8 @@ interface ClipboardRepository {
      * @param offset The offset for pagination
      * @return List of clipboard items
      */
-    suspend fun getItemsWithPagination(limit: Int, offset: Int): List<ClipboardItem>
+    suspend fun getItemsWithPagination(
+        limit: Int,
+        offset: Int,
+    ): List<ClipboardItem>
 }

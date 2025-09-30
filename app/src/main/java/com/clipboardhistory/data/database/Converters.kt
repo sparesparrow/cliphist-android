@@ -10,7 +10,6 @@ import com.clipboardhistory.domain.model.ContentType
  * and types that Room can persist in the database.
  */
 class Converters {
-
     /**
      * Converts ContentType enum to String for database storage.
      *

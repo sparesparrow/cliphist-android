@@ -34,7 +34,6 @@ class BubbleView(
     private var content: String? = null,
     private var opacity: Float = 1.0f,
 ) : View(context) {
-
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
@@ -55,13 +54,14 @@ class BubbleView(
      * Updates the bubble colors based on current theme and state.
      */
     private fun updateColors() {
-        bubbleColor = when (state) {
-            BubbleState.EMPTY -> theme.colors.empty
-            BubbleState.STORING -> theme.colors.storing
-            BubbleState.REPLACE -> theme.colors.replace
-            BubbleState.APPEND -> theme.colors.append
-            BubbleState.PREPEND -> theme.colors.prepend
-        }
+        bubbleColor =
+            when (state) {
+                BubbleState.EMPTY -> theme.colors.empty
+                BubbleState.STORING -> theme.colors.storing
+                BubbleState.REPLACE -> theme.colors.replace
+                BubbleState.APPEND -> theme.colors.append
+                BubbleState.PREPEND -> theme.colors.prepend
+            }
 
         // Calculate text color based on background brightness
         val brightness = calculateBrightness(bubbleColor)
@@ -144,15 +144,16 @@ class BubbleView(
         flashAnimator?.cancel()
 
         isFlashing = true
-        flashAnimator = ValueAnimator.ofFloat(1.0f, 0.3f, 1.0f).apply {
-            duration = 1000
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animator ->
-                flashAlpha = animator.animatedValue as Float
-                invalidate()
+        flashAnimator =
+            ValueAnimator.ofFloat(1.0f, 0.3f, 1.0f).apply {
+                duration = 1000
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animator ->
+                    flashAlpha = animator.animatedValue as Float
+                    invalidate()
+                }
+                start()
             }
-            start()
-        }
 
         // Reset flash state after animation
         postDelayed({
@@ -179,15 +180,16 @@ class BubbleView(
         flashAnimator?.cancel()
 
         isFlashing = true
-        flashAnimator = ValueAnimator.ofFloat(1.0f, 0.3f, 1.0f).apply {
-            duration = 1000
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animator ->
-                flashAlpha = animator.animatedValue as Float
-                invalidate()
+        flashAnimator =
+            ValueAnimator.ofFloat(1.0f, 0.3f, 1.0f).apply {
+                duration = 1000
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animator ->
+                    flashAlpha = animator.animatedValue as Float
+                    invalidate()
+                }
+                start()
             }
-            start()
-        }
 
         // Reset flash state and restore original content after animation
         postDelayed({
@@ -201,7 +203,12 @@ class BubbleView(
     /**
      * Draws a circle shape.
      */
-    private fun drawCircle(canvas: Canvas, centerX: Float, centerY: Float, radius: Float) {
+    private fun drawCircle(
+        canvas: Canvas,
+        centerX: Float,
+        centerY: Float,
+        radius: Float,
+    ) {
         rect.set(
             centerX - radius,
             centerY - radius,
@@ -214,7 +221,12 @@ class BubbleView(
     /**
      * Draws a cube shape with 3D effect.
      */
-    private fun drawCube(canvas: Canvas, centerX: Float, centerY: Float, size: Float) {
+    private fun drawCube(
+        canvas: Canvas,
+        centerX: Float,
+        centerY: Float,
+        size: Float,
+    ) {
         val halfSize = size / 2
 
         // Draw main face
@@ -252,7 +264,12 @@ class BubbleView(
     /**
      * Draws a hexagon shape.
      */
-    private fun drawHexagon(canvas: Canvas, centerX: Float, centerY: Float, radius: Float) {
+    private fun drawHexagon(
+        canvas: Canvas,
+        centerX: Float,
+        centerY: Float,
+        radius: Float,
+    ) {
         path.reset()
         for (i in 0..5) {
             val angle = (i * 60 - 30) * Math.PI / 180
@@ -272,7 +289,12 @@ class BubbleView(
     /**
      * Draws a square shape with rounded corners.
      */
-    private fun drawSquare(canvas: Canvas, centerX: Float, centerY: Float, size: Float) {
+    private fun drawSquare(
+        canvas: Canvas,
+        centerX: Float,
+        centerY: Float,
+        size: Float,
+    ) {
         val halfSize = size / 2
         val cornerRadius = size * 0.15f
 
@@ -288,7 +310,10 @@ class BubbleView(
     /**
      * Lightens a color by a given factor.
      */
-    private fun lightenColor(color: Int, factor: Float): Int {
+    private fun lightenColor(
+        color: Int,
+        factor: Float,
+    ): Int {
         val red = (Color.red(color) + (255 - Color.red(color)) * factor).toInt()
         val green = (Color.green(color) + (255 - Color.green(color)) * factor).toInt()
         val blue = (Color.blue(color) + (255 - Color.blue(color)) * factor).toInt()
@@ -298,7 +323,10 @@ class BubbleView(
     /**
      * Darkens a color by a given factor.
      */
-    private fun darkenColor(color: Int, factor: Float): Int {
+    private fun darkenColor(
+        color: Int,
+        factor: Float,
+    ): Int {
         val red = (Color.red(color) * (1 - factor)).toInt()
         val green = (Color.green(color) * (1 - factor)).toInt()
         val blue = (Color.blue(color) * (1 - factor)).toInt()
@@ -340,7 +368,12 @@ class BubbleView(
     /**
      * Draws a content preview for cube bubbles during flash.
      */
-    private fun drawContentPreview(canvas: Canvas, centerX: Float, centerY: Float, size: Float) {
+    private fun drawContentPreview(
+        canvas: Canvas,
+        centerX: Float,
+        centerY: Float,
+        size: Float,
+    ) {
         val previewPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         previewPaint.color = Color.WHITE
         previewPaint.textSize = size * 0.15f
@@ -353,7 +386,10 @@ class BubbleView(
         }
     }
 
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    override fun onMeasure(
+        widthMeasureSpec: Int,
+        heightMeasureSpec: Int,
+    ) {
         val size = MeasureSpec.getSize(widthMeasureSpec)
         setMeasuredDimension(size, size)
     }
@@ -368,7 +404,6 @@ class BubbleView(
  * Factory object for creating bubble views with different configurations.
  */
 object BubbleViewFactory {
-
     /**
      * Creates a bubble view with the specified configuration.
      *
@@ -399,7 +434,10 @@ object BubbleViewFactory {
      * @param state The bubble state
      * @return The color for the state
      */
-    fun getBubbleColor(themeName: String, state: BubbleState): Int {
+    fun getBubbleColor(
+        themeName: String,
+        state: BubbleState,
+    ): Int {
         val theme = BubbleThemes.ALL_THEMES.find { it.name == themeName } ?: BubbleThemes.DEFAULT
         return when (state) {
             BubbleState.EMPTY -> theme.colors.empty

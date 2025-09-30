@@ -33,36 +33,40 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val overlayPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
-    private val overlayPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { _ ->
-        continuePermissionFlow()
-    }
+    private val notificationPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { _ ->
-        continuePermissionFlow()
-    }
+    private val usageAccessLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
-    private val usageAccessLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { _ ->
-        continuePermissionFlow()
-    }
+    private val batteryOptimizationLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
-    private val batteryOptimizationLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { _ ->
-        continuePermissionFlow()
-    }
-
-    private val foregroundServicePermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { _ ->
-        continuePermissionFlow()
-    }
+    private val foregroundServicePermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { _ ->
+            continuePermissionFlow()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -124,10 +128,11 @@ class MainActivity : ComponentActivity() {
 
         // 3) Overlay
         if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName"),
-            )
+            val intent =
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName"),
+                )
             overlayPermissionLauncher.launch(intent)
             return
         }
