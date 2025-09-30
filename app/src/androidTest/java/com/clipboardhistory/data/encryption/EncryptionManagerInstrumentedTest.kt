@@ -12,7 +12,6 @@ import kotlin.test.assertNull
 
 @RunWith(AndroidJUnit4::class)
 class EncryptionManagerInstrumentedTest {
-
     private lateinit var context: Context
     private lateinit var encryptionManager: EncryptionManager
 

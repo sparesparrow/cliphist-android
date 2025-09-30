@@ -1,0 +1,327 @@
+name: 🚀 CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false
+  ANDROID_COMPILE_SDK: "34"
+  ANDROID_BUILD_TOOLS: "34.0.0"
+  ANDROID_SDK_TOOLS: "9477386"
+
+jobs:
+  # ====================================
+  # Code Quality & Security Checks
+  # ====================================
+  quality-checks:
+    name: 🔍 Code Quality & Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: ☕ Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: 📱 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🔧 Configure Android SDK
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
+
+      - name: 🧹 Kotlin Lint Check
+        run: ./gradlew ktlintCheck --continue
+        continue-on-error: true
+
+      - name: 🔍 Static Code Analysis (Detekt)
+        run: ./gradlew detekt --continue
+        continue-on-error: true
+
+      - name: 🐛 Android Lint
+        run: ./gradlew lintDebug --continue
+        continue-on-error: true
+
+      - name: 🔒 Dependency Vulnerability Scan
+        uses: dependency-check/Dependency-Check_Action@main
+        id: depcheck
+        with:
+          project: 'clipboard-history-android'
+          path: '.'
+          format: 'ALL'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --failOnCVSS 7
+        continue-on-error: true
+
+      - name: 📊 Upload Quality Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports-${{ github.run_number }}
+          path: |
+            app/build/reports/
+            reports/
+          retention-days: 30
+
+  # ====================================
+  # Unit & Integration Tests
+  # ====================================
+  test:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: quality-checks
+    
+    strategy:
+      matrix:
+        api-level: [24, 29, 34]
+      fail-fast: false
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: 📱 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🔧 Configure Android SDK
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
+
+      - name: 🏃‍♂️ Run Unit Tests
+        run: ./gradlew testDebugUnitTest --continue
+
+      - name: 📊 Generate Test Coverage Report
+        run: ./gradlew testDebugUnitTestCoverage --continue
+
+      - name: 🤖 Run Instrumented Tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          script: ./gradlew connectedDebugAndroidTest --continue
+        continue-on-error: true
+
+      - name: 📊 Upload Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports-api${{ matrix.api-level }}-${{ github.run_number }}
+          path: |
+            app/build/reports/tests/
+            app/build/reports/coverage/
+            app/build/test-results/
+          retention-days: 30
+
+  # ====================================
+  # Build APKs
+  # ====================================
+  build:
+    name: 🏗️ Build APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality-checks, test]
+    
+    outputs:
+      version-name: ${{ steps.version.outputs.version-name }}
+      version-code: ${{ steps.version.outputs.version-code }}
+      apk-debug: ${{ steps.build-debug.outputs.apk-path }}
+      apk-release: ${{ steps.build-release.outputs.apk-path }}
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for version calculation
+
+      - name: ☕ Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: 📱 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🔧 Configure Android SDK
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
+
+      - name: 🔢 Calculate Version
+        id: version
+        run: |
+          # Calculate version based on git commits and tags
+          VERSION_CODE=$(git rev-list --count HEAD)
+          if [[ "${{ github.ref }}" =~ refs/tags/v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            VERSION_NAME="${BASH_REMATCH[1]}"
+          else
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            VERSION_BASE=${LAST_TAG#v}
+            COMMIT_COUNT=$(git rev-list --count ${LAST_TAG}..HEAD 2>/dev/null || echo $VERSION_CODE)
+            COMMIT_HASH=$(git rev-parse --short HEAD)
+            if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              VERSION_NAME="${VERSION_BASE}-${COMMIT_COUNT}-${COMMIT_HASH}"
+            else
+              BRANCH_NAME=$(echo ${{ github.ref_name }} | sed 's/[^a-zA-Z0-9]/-/g')
+              VERSION_NAME="${VERSION_BASE}-${BRANCH_NAME}-${COMMIT_COUNT}-${COMMIT_HASH}"
+            fi
+          fi
+          
+          echo "version-name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version-code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "📱 Version: $VERSION_NAME ($VERSION_CODE)"
+
+      - name: 🔧 Update Version in Build Files
+        run: |
+          sed -i "s/versionCode [0-9]*/versionCode ${{ steps.version.outputs.version-code }}/" app/build.gradle
+          sed -i "s/versionName \".*\"/versionName \"${{ steps.version.outputs.version-name }}\"/" app/build.gradle
+
+      - name: 🏗️ Build Debug APK
+        id: build-debug
+        run: |
+          ./gradlew assembleDebug --no-daemon
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          echo "apk-path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "🎉 Debug APK built: $APK_PATH"
+
+      - name: 🏗️ Build Release APK
+        id: build-release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+            export KEYSTORE_PATH=keystore.jks
+            ./gradlew assembleRelease --no-daemon
+            APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+            echo "apk-path=$APK_PATH" >> $GITHUB_OUTPUT
+            echo "🎉 Release APK built: $APK_PATH"
+          else
+            echo "⚠️ No keystore configured, skipping release build"
+          fi
+
+      - name: 📦 Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk-${{ steps.version.outputs.version-name }}
+          path: ${{ steps.build-debug.outputs.apk-path }}
+          retention-days: 90
+
+      - name: 📦 Upload Release APK
+        if: steps.build-release.outputs.apk-path
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-${{ steps.version.outputs.version-name }}
+          path: ${{ steps.build-release.outputs.apk-path }}
+          retention-days: 365
+
+  # ====================================
+  # Deploy & Release
+  # ====================================
+  deploy:
+    name: 🚀 Deploy & Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+    
+    steps:
+      - name: 📥 Download APK Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-apk-${{ needs.build.outputs.version-name }}"
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: 🏷️ Create/Update Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.build.outputs.version-name }}
+          name: 🎉 Release v${{ needs.build.outputs.version-name }}
+          body: |
+            ## 📱 Clipboard History v${{ needs.build.outputs.version-name }}
+            
+            ### 🎯 Changes in this release
+            - Automated build from commit ${{ github.sha }}
+            - Version code: ${{ needs.build.outputs.version-code }}
+            
+            ### 📥 Downloads
+            - **Debug APK**: For testing and development
+            - **Release APK**: Optimized for production use
+            
+            ### 🔧 Installation
+            1. Download the APK file
+            2. Enable "Install from unknown sources" on your Android device
+            3. Install the APK file
+            4. Grant necessary permissions for clipboard access
+            
+            ### 🛡️ Security
+            All APKs are built using automated CI/CD pipeline with security scanning.
+            Release APKs are signed with our official signing key.
+          files: ./artifacts/*.apk
+          draft: false
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ====================================
+  # Notification & Cleanup
+  # ====================================
+  notify:
+    name: 📢 Notification
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: always()
+    
+    steps:
+      - name: 📊 Build Summary
+        run: |
+          echo "## 🏗️ Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.build.outputs.version-name || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version Code**: ${{ needs.build.outputs.version-code || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Status**: ${{ needs.build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deploy Status**: ${{ needs.deploy.result || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

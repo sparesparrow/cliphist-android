@@ -12,7 +12,10 @@ import com.clipboardhistory.utils.PermissionUtils
  * Receives BOOT_COMPLETED and starts core services if permissions are granted.
  */
 class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             if (PermissionUtils.hasAllRequiredPermissions(context)) {
                 val clipboardIntent = Intent(context, ClipboardService::class.java)
@@ -28,5 +31,3 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 }
-
-

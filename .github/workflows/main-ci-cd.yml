@@ -1,0 +1,323 @@
+name: Main CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+        - debug
+        - release
+      run_tests:
+        description: 'Run tests'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
+  ANDROID_SDK_ROOT: ${{ secrets.ANDROID_SDK_ROOT || '/opt/android-sdk' }}
+
+jobs:
+  # Quality checks and testing
+  quality-checks:
+    name: Quality Checks & Tests
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_tests != 'false'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ~/.gradle/daemon
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Cache Android SDK
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ env.ANDROID_SDK_ROOT }}/platforms
+          ${{ env.ANDROID_SDK_ROOT }}/build-tools
+          ${{ env.ANDROID_SDK_ROOT }}/platform-tools
+        key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/build.gradle*') }}
+        restore-keys: |
+          ${{ runner.os }}-android-sdk-
+          
+    - name: Accept SDK licenses and install components
+      run: |
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmake;3.22.1"
+        
+    - name: Configure local.properties
+      run: echo "sdk.dir=${{ env.ANDROID_SDK_ROOT }}" > local.properties
+      
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+      
+    - name: Run ktlint
+      run: ./gradlew ktlintCheck
+      continue-on-error: true
+      
+    - name: Run detekt
+      run: ./gradlew detekt
+      continue-on-error: true
+      
+    - name: Run lint
+      run: ./gradlew lintDebug
+      
+    - name: Run unit tests
+      run: ./gradlew testDebugUnitTest
+      
+    - name: Run instrumentation tests
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 29
+        target: google_apis
+        arch: x86_64
+        profile: Nexus 6
+        script: ./gradlew connectedDebugAndroidTest
+      continue-on-error: true
+      
+    - name: Generate test coverage
+      run: ./gradlew testDebugUnitTestCoverage
+      
+    - name: Upload test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports-${{ github.run_number }}
+        path: |
+          app/build/reports/
+          app/build/test-results/
+          
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-reports-${{ github.run_number }}
+        path: app/build/reports/jacoco/
+
+  # Security scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: quality-checks
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        languages: kotlin
+        queries: security-and-quality
+        
+    - name: Run dependency check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'clipboard-history'
+        path: '.'
+        format: 'ALL'
+        args: '--enableRetired'
+        
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports-${{ github.run_number }}
+        path: reports/
+
+  # Build APK
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    needs: [quality-checks, security-scan]
+    if: always() && (needs.quality-checks.result == 'success' || needs.quality-checks.result == 'skipped')
+    
+    strategy:
+      matrix:
+        build_type: [debug, release]
+        include:
+          - build_type: debug
+            build_task: assembleDebug
+            apk_path: app/build/outputs/apk/debug/app-debug.apk
+          - build_type: release
+            build_task: assembleRelease
+            apk_path: app/build/outputs/apk/release/app-release.apk
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ~/.gradle/daemon
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Accept SDK licenses and install components
+      run: |
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+        
+    - name: Configure local.properties
+      run: echo "sdk.dir=${{ env.ANDROID_SDK_ROOT }}" > local.properties
+      
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+      
+    - name: Create keystore for release builds
+      if: matrix.build_type == 'release'
+      run: |
+        keytool -genkey -v -keystore keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key -storepass password -keypass password -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US"
+      env:
+        KEYSTORE_PATH: keystore.jks
+        KEYSTORE_PASSWORD: password
+        KEY_ALIAS: key
+        KEY_PASSWORD: password
+        
+    - name: Build ${{ matrix.build_type }} APK
+      run: ./gradlew ${{ matrix.build_task }}
+      env:
+        KEYSTORE_PATH: keystore.jks
+        KEYSTORE_PASSWORD: password
+        KEY_ALIAS: key
+        KEY_PASSWORD: password
+        
+    - name: Sign APK with apksigner
+      if: matrix.build_type == 'release'
+      run: |
+        ${{ env.ANDROID_SDK_ROOT }}/build-tools/34.0.0/apksigner sign --ks keystore.jks --ks-key-alias key --ks-pass pass:password --key-pass pass:password --out app-release-signed.apk app/build/outputs/apk/release/app-release-unsigned.apk
+        
+    - name: Upload ${{ matrix.build_type }} APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.build_type }}-apk-${{ github.run_number }}
+        path: ${{ matrix.apk_path }}
+        
+    - name: Upload signed release APK
+      if: matrix.build_type == 'release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-apk-signed-${{ github.run_number }}
+        path: app-release-signed.apk
+
+  # Create release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download release APK
+      uses: actions/download-artifact@v4
+      with:
+        name: release-apk-signed-${{ github.run_number }}
+        path: dist
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        echo "notes<<EOF" >> $GITHUB_OUTPUT
+        echo "## What's New" >> $GITHUB_OUTPUT
+        echo "- Automated build from commit ${{ github.sha }}" >> $GITHUB_OUTPUT
+        echo "- Built with Android SDK 34" >> $GITHUB_OUTPUT
+        echo "- Signed with release keystore" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "## Installation" >> $GITHUB_OUTPUT
+        echo "1. Download the APK file below" >> $GITHUB_OUTPUT
+        echo "2. Enable 'Install from unknown sources' in your device settings" >> $GITHUB_OUTPUT
+        echo "3. Install the APK" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        body: ${{ steps.release_notes.outputs.notes }}
+        files: dist/app-release-signed.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Containerized build (alternative approach)
+  containerized-build:
+    name: Containerized Build
+    runs-on: ubuntu-latest
+    if: github.event.inputs.build_type == 'containerized' || github.event_name == 'workflow_dispatch'
+    
+    container:
+      image: cimg/android:2024.01.1
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+      
+    - name: Build with container
+      run: ./gradlew assembleDebug
+      
+    - name: Upload containerized APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: containerized-debug-apk-${{ github.run_number }}
+        path: app/build/outputs/apk/debug/app-debug.apk

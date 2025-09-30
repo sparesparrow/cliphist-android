@@ -2,125 +2,125 @@ name: Android CI
 
 on:
   push:
-    branches: [ "**" ]
-    tags: [ "v*" ]
+    branches: [ main, master ]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.gif'
+      - '**/*.svg'
   pull_request:
-    branches: [ "**" ]
+    branches: [ '**' ]
+  workflow_dispatch:
+    tags: [ 'v*' ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build, Test and Package
+  validate-wrapper:
+    name: Validate Gradle Wrapper
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v2
 
-    container:
-      image: ghcr.io/reactivecircus/android-emulator-runner:34.1.0
-      options: --privileged
-
-    env:
-      ORG_GRADLE_PROJECT_javaToolchainVersion: 17
-      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
-      ANDROID_SDK_ROOT: /opt/android-sdk-linux
-      TERM: dumb
-      CI: true
-
+  build:
+    name: Build, Test, Lint
+    needs: validate-wrapper
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup JDK
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ./**/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Print environment
+      - name: Print Android SDK/Gradle info
         run: |
-          echo "GITHUB_SHA=${GITHUB_SHA}"
-          echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}"
-
-      - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew --version | cat
+          java -version
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
+        run: ./gradlew testDebugUnitTest --stacktrace
 
-      - name: Run Android Lint
-        run: ./gradlew :app:lintDebug --no-daemon --stacktrace
+      - name: Run lint
+        run: ./gradlew lint --stacktrace
 
-      - name: Build Release APK (unsigned if no keystore)
-        env:
-          KEYSTORE_PATH: ${{ secrets.ANDROID_KEYSTORE_PATH }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -n "$KEYSTORE_PATH" ]; then
-            echo "Using provided signing secrets"
-            echo "Writing keystore to local file"
-            echo "$KEYSTORE_PATH" | base64 -d > keystore.jks
-            export KEYSTORE_PATH=keystore.jks
-          fi
-          ./gradlew :app:assembleRelease --no-daemon --stacktrace
-          if [ -f app/build/outputs/mapping/release/mapping.txt ]; then
-            echo "Mapping file generated"
-          fi
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK Artifacts
+      - name: Build release APK (unsigned)
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: apk-artifacts
+          name: apk-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
           path: |
-            app/build/outputs/apk/**/**.apk
-            app/build/reports/tests/**
-            app/build/reports/lint-results*.*
-            app/build/outputs/mapping/release/mapping.txt
+            app/build/outputs/apk/**/app-*.apk
 
-  tag-release:
-    name: Build on Tag and Attach APKs
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            app/build/reports/lint/*.html
+            app/build/reports/lint-results*.xml
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            app/build/test-results/**
+            app/build/reports/tests/**
+
+  release-on-tag:
+    name: Release on tag
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
-      - name: Download APK Artifacts
+      - name: Download APKs
         uses: actions/download-artifact@v4
         with:
-          name: apk-artifacts
-          path: dist
-
-      - name: Generate release notes
-        id: notes
-        run: |
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "Automated build for $GITHUB_REF" >> $GITHUB_OUTPUT
-          echo "Commit: $GITHUB_SHA" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          name: apk-${{ github.sha }}
+          path: ./dist
 
       - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          body: ${{ steps.notes.outputs.notes }}
           files: |
-            dist/**/*.apk
+            dist/**.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
