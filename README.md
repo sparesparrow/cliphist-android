@@ -185,13 +185,22 @@ You can download the latest tagged build from GitHub Releases:
 
 ```bash
 # Quick setup
-./build.sh setup
+./build-dev.sh setup
+
+# Build debug APK
+./build-dev.sh build
+
+# Run tests
+./build-dev.sh test
+
+# Run code quality checks
+./build-dev.sh quality
 
 # Run full CI pipeline locally
-./build.sh ci
+./build-dev.sh ci
 
 # Build with Docker (recommended)
-./build.sh docker-build
+USE_DOCKER=true ./build-dev.sh docker-build
 ```
 
 ## 📱 Screenshots
@@ -223,26 +232,32 @@ git clone https://github.com/yourusername/cliphist-android.git
 cd cliphist-android
 
 # Setup and build
-./build.sh setup
-./build.sh build
+./build-dev.sh setup
+./build-dev.sh build
 ```
 
 ### Development Commands
 ```bash
 # Run tests
-./build.sh test
+./build-dev.sh test
 
 # Generate coverage
-./build.sh coverage
+./build-dev.sh coverage
 
 # Code quality checks
-./build.sh quality
+./build-dev.sh quality
+
+# Format code
+./build-dev.sh format
 
 # Build with Docker
-./build.sh docker-build
+./build-dev.sh docker-build
 
 # Full CI pipeline
-./build.sh ci
+./build-dev.sh ci
+
+# Show all available commands
+./build-dev.sh help
 ```
 
 ### Key Dependencies
@@ -253,39 +268,51 @@ cd cliphist-android
 - **Material Design 3**: Design system
 - **Security**: Encrypted storage and biometric authentication
 
-## 🆕 Recent Improvements
+## 🆕 Recent Improvements (October 2025)
 
 ### CI/CD Enhancements
-- **✅ Consolidated Workflows**: Streamlined GitHub Actions with modern practices
+- **✅ Unified Pipeline**: Consolidated 4 separate workflows into single comprehensive pipeline
+- **✅ Gradle Wrapper Validation**: Security validation of build wrapper
 - **✅ Containerized Builds**: Docker-based Android SDK environment
 - **✅ Dynamic Versioning**: Git-based automatic version management
-- **✅ Security Scanning**: CodeQL and dependency vulnerability checks
-- **✅ Build Monitoring**: Health tracking and automated alerting
+- **✅ Multi-API Testing**: Testing on API levels 24, 29, and 34
+- **✅ Security Scanning**: Dependency vulnerability checks
+- **✅ Build Monitoring**: Health tracking with daily scheduled checks
 - **✅ Performance Optimization**: Caching and parallel execution
+- **✅ Automated Releases**: Automatic GitHub release creation with APKs
 
 ### Testing & Quality
-- **✅ Comprehensive Test Suite**: 100% coverage target with unit and integration tests
-- **✅ Performance Tests**: Memory and execution time validation
+- **✅ Comprehensive Test Suite**: Unit and instrumentation tests with coverage reporting
 - **✅ Code Quality**: ktlint, detekt, and Android lint integration
-- **✅ Security Tests**: Encryption and authentication validation
+- **✅ Continuous Monitoring**: Automated quality gates in CI/CD
+- **✅ Test Matrix**: Testing across multiple Android API levels
 
 ### Developer Experience
-- **✅ Build Scripts**: Comprehensive local development tools
-- **✅ Documentation**: Detailed CI/CD and deployment guides
-- **✅ Monitoring**: Real-time build health and performance metrics
-- **✅ Automation**: Zero-maintenance deployment pipeline
+- **✅ Consolidated Build Script**: Single `build-dev.sh` for all development tasks
+- **✅ Comprehensive Commands**: Setup, build, test, quality, security, and more
+- **✅ Documentation**: Detailed guides including new IMPROVEMENTS.md
+- **✅ Docker Support**: Optional containerized development environment
+- **✅ Fast Feedback**: Quick local validation before pushing
+
+### Documentation
+- **✅ Cleaned Up Duplicates**: Removed duplicate API.md and build scripts
+- **✅ Single Source of Truth**: Comprehensive docs in appropriate locations
+- **✅ Improvements Guide**: New IMPROVEMENTS.md with refactoring recommendations
+- **✅ Updated Workflows**: CI/CD documentation reflects new unified pipeline
 
 ### Security & Performance
 - **✅ Encrypted Storage**: SQLCipher database encryption
 - **✅ Biometric Authentication**: Secure access control
 - **✅ Code Obfuscation**: ProGuard/R8 optimization
 - **✅ Resource Optimization**: Shrinking and minification
+- **✅ Automated Security Scans**: Integrated into CI/CD pipeline
 
 ## 📚 Documentation
 
 - **[CI/CD Guide](CI-CD.md)**: Complete pipeline documentation
 - **[Deployment Guide](DEPLOYMENT.md)**: Production deployment instructions
 - **[API Documentation](docs/API.md)**: Technical API reference
+- **[Improvements Guide](IMPROVEMENTS.md)**: Refactoring recommendations and best practices
 
 ## 📄 License
 
