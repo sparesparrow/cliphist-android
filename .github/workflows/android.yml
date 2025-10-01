@@ -10,6 +10,7 @@ on:
       - '**/*.jpeg'
       - '**/*.gif'
       - '**/*.svg'
+    tags: [ 'v*' ]
   pull_request:
     branches: [ '**' ]
   workflow_dispatch:
