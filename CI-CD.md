@@ -26,32 +26,38 @@ This project implements a comprehensive CI/CD pipeline using GitHub Actions with
 
 ## Workflow Structure
 
-### Main CI/CD Pipeline (`main-ci-cd.yml`)
+### Unified CI/CD Pipeline (`ci-cd.yml`)
+
+**Single comprehensive workflow consolidating all build, test, and deployment tasks.**
 
 ```yaml
 Trigger Events:
-├── Push to main/develop branches
-├── Pull requests to main/develop
+├── Push to main/develop/master branches
+├── Pull requests to main/develop/master
 ├── Git tags (v*)
-└── Manual workflow dispatch
+├── Release events
+├── Daily scheduled health checks (9 AM UTC)
+└── Manual workflow dispatch with options
 
 Jobs:
-├── quality-checks (Tests, Lint, Security)
-├── security-scan (CodeQL, Dependency Check)
-├── build (Debug & Release APKs)
-├── release (GitHub Release Creation)
-└── containerized-build (Docker-based builds)
+├── validate-wrapper (Gradle Wrapper Security Validation)
+├── quality-checks (ktlint, detekt, Android lint)
+├── security-scan (Dependency vulnerability scanning)
+├── test (Unit & Instrumentation tests on API 24, 29, 34)
+├── build (Debug & Release APKs with matrix strategy)
+├── release (Automated GitHub releases with APKs)
+├── monitor (Build health monitoring)
+└── notify (Build summary and notifications)
 ```
 
-### Pull Request Checks (`pr-checks.yml`)
-
-```yaml
-Focus: Code Quality
-├── ktlint formatting checks
-├── detekt static analysis
-├── Android lint validation
-└── PR comment integration
-```
+**Key Features:**
+- Gradle wrapper validation for security
+- Multi-API level testing matrix
+- Parallel job execution for efficiency
+- Automated versioning based on Git
+- Integrated build health monitoring
+- Scheduled health checks
+- Comprehensive artifact management
 
 ## Build Configuration
 
