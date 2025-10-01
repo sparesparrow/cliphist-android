@@ -313,6 +313,8 @@ cd cliphist-android
 - **[Deployment Guide](DEPLOYMENT.md)**: Production deployment instructions
 - **[API Documentation](docs/API.md)**: Technical API reference
 - **[Improvements Guide](IMPROVEMENTS.md)**: Refactoring recommendations and best practices
+- **[Fixes Applied](FIXES_APPLIED.md)**: Details of wildcard import fixes and quality checks
+- **[Quick Reference](QUICK_REFERENCE.md)**: Quick reference for common commands
 
 ## 📄 License
 
