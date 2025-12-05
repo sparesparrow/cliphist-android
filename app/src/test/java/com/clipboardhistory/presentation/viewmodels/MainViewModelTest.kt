@@ -1,6 +1,7 @@
 package com.clipboardhistory.presentation.viewmodels
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.clipboardhistory.MainDispatcherRule
 import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.ClipboardSettings
 import com.clipboardhistory.domain.model.ContentType
@@ -10,12 +11,9 @@ import com.clipboardhistory.domain.usecase.DeleteClipboardItemUseCase
 import com.clipboardhistory.domain.usecase.GetAllClipboardItemsUseCase
 import com.clipboardhistory.domain.usecase.GetClipboardSettingsUseCase
 import com.clipboardhistory.domain.usecase.UpdateClipboardSettingsUseCase
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -39,6 +37,9 @@ class MainViewModelTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
     @Mock
     private lateinit var getAllClipboardItemsUseCase: GetAllClipboardItemsUseCase
 
@@ -58,20 +59,13 @@ class MainViewModelTest {
     private lateinit var cleanupOldItemsUseCase: CleanupOldItemsUseCase
 
     private lateinit var viewModel: MainViewModel
-    private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
-        Dispatchers.setMain(testDispatcher)
 
         // Setup default mock behaviors
         whenever(getAllClipboardItemsUseCase()).thenReturn(flowOf(emptyList()))
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
     }
 
     @Test

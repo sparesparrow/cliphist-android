@@ -44,6 +44,7 @@ class BubbleView(
     private var flashAnimator: ValueAnimator? = null
     private var isFlashing: Boolean = false
     private var flashAlpha: Float = 1.0f
+    private var pendingFlashRunnable: Runnable? = null
 
     init {
         updateColors()
@@ -140,13 +141,14 @@ class BubbleView(
     fun flashContent() {
         if (bubbleType != BubbleType.CUBE) return
 
-        // Stop any existing flash animation
+        // Stop any existing flash animation and cancel pending runnable
         flashAnimator?.cancel()
+        cancelPendingFlashRunnable()
 
         isFlashing = true
         flashAnimator =
             ValueAnimator.ofFloat(1.0f, 0.3f, 1.0f).apply {
-                duration = 1000
+                duration = FLASH_DURATION_MS
                 interpolator = AccelerateDecelerateInterpolator()
                 addUpdateListener { animator ->
                     flashAlpha = animator.animatedValue as Float
@@ -156,11 +158,14 @@ class BubbleView(
             }
 
         // Reset flash state after animation
-        postDelayed({
-            isFlashing = false
-            flashAlpha = 1.0f
-            invalidate()
-        }, 1000)
+        pendingFlashRunnable =
+            Runnable {
+                isFlashing = false
+                flashAlpha = 1.0f
+                invalidate()
+                pendingFlashRunnable = null
+            }
+        postDelayed(pendingFlashRunnable, FLASH_DURATION_MS)
     }
 
     /**
@@ -176,13 +181,14 @@ class BubbleView(
         val originalContent = content
         content = flashText
 
-        // Stop any existing flash animation
+        // Stop any existing flash animation and cancel pending runnable
         flashAnimator?.cancel()
+        cancelPendingFlashRunnable()
 
         isFlashing = true
         flashAnimator =
             ValueAnimator.ofFloat(1.0f, 0.3f, 1.0f).apply {
-                duration = 1000
+                duration = FLASH_DURATION_MS
                 interpolator = AccelerateDecelerateInterpolator()
                 addUpdateListener { animator ->
                     flashAlpha = animator.animatedValue as Float
@@ -192,12 +198,28 @@ class BubbleView(
             }
 
         // Reset flash state and restore original content after animation
-        postDelayed({
-            isFlashing = false
-            flashAlpha = 1.0f
-            content = originalContent
-            invalidate()
-        }, 1000)
+        pendingFlashRunnable =
+            Runnable {
+                isFlashing = false
+                flashAlpha = 1.0f
+                content = originalContent
+                invalidate()
+                pendingFlashRunnable = null
+            }
+        postDelayed(pendingFlashRunnable, FLASH_DURATION_MS)
+    }
+
+    /**
+     * Cancels any pending flash runnable to prevent memory leaks.
+     */
+    private fun cancelPendingFlashRunnable() {
+        pendingFlashRunnable?.let { removeCallbacks(it) }
+        pendingFlashRunnable = null
+    }
+
+    companion object {
+        private const val FLASH_DURATION_MS = 1000L
+        private const val MAX_CONTENT_PREVIEW_CHARS = 20
     }
 
     /**
@@ -380,7 +402,7 @@ class BubbleView(
         previewPaint.textAlign = Paint.Align.CENTER
         previewPaint.alpha = (flashAlpha * 255).toInt()
 
-        val previewText = content?.take(20) ?: ""
+        val previewText = content?.take(MAX_CONTENT_PREVIEW_CHARS) ?: ""
         if (previewText.isNotEmpty()) {
             canvas.drawText(previewText, centerX, centerY + size * 0.1f, previewPaint)
         }
@@ -397,6 +419,8 @@ class BubbleView(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         flashAnimator?.cancel()
+        flashAnimator = null
+        cancelPendingFlashRunnable()
     }
 }
 

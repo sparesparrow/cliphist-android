@@ -76,11 +76,14 @@ class FloatingBubbleService : Service() {
     private var currentThemeName: String = "Default"
     private var currentBubbleType: BubbleType = BubbleType.CIRCLE
 
+    // Synchronization lock for bubble operations to prevent race conditions
+    private val bubbleLock = Any()
+
     // Enhanced drag-and-drop system
     private var highlightedAreaView: HighlightedAreaView? = null
     private var isDragging = false
     private var draggedBubble: BubbleData? = null
-    private var edgeThreshold = 100 // Distance from edge to trigger activation
+    private var edgeThreshold = EDGE_THRESHOLD_PX // Distance from edge to trigger activation
     private var isEdgeActivated = false
     private var currentDragEdge: HighlightedAreaView.ActivationEdge = HighlightedAreaView.ActivationEdge.NONE
 
@@ -94,6 +97,14 @@ class FloatingBubbleService : Service() {
         private const val CHANNEL_NAME = "Floating Bubbles"
         private const val DEFAULT_BUBBLE_SIZE_DP = 60
         private const val BUBBLE_MARGIN_DP = 16
+        private const val EDGE_THRESHOLD_PX = 100
+        private const val APPEND_WINDOW_MS = 2000L
+        private const val SERVICE_CHECK_INTERVAL_MS = 30000L
+        private const val SERVICE_RESTART_DELAY_MS = 5000L
+        private const val SERVICE_INIT_RETRY_DELAY_MS = 3000L
+        private const val BUBBLE_RECOVERY_DELAY_MS = 1000L
+        private const val MAX_BUBBLE_COUNT = 5
+        private const val MAX_LOW_MEMORY_BUBBLES = 3
     }
 
     /**
@@ -142,7 +153,7 @@ class FloatingBubbleService : Service() {
             e.printStackTrace()
             // Attempt to restart service after delay
             serviceScope.launch {
-                kotlinx.coroutines.delay(5000)
+                kotlinx.coroutines.delay(SERVICE_RESTART_DELAY_MS)
                 val intent = Intent(applicationContext, this@FloatingBubbleService::class.java)
                 startService(intent)
             }
@@ -190,7 +201,7 @@ class FloatingBubbleService : Service() {
         serviceJob.cancel()
 
         // Attempt to restart service if it was killed unexpectedly
-        if (System.currentTimeMillis() - lastActivityTime < 30000) { // 30 seconds
+        if (System.currentTimeMillis() - lastActivityTime < SERVICE_CHECK_INTERVAL_MS) {
             val intent = Intent(applicationContext, this::class.java)
             startService(intent)
         }
@@ -217,10 +228,10 @@ class FloatingBubbleService : Service() {
                     // Update notification to keep service alive
                     notificationManager.notify(NOTIFICATION_ID, createNotification())
 
-                    kotlinx.coroutines.delay(30000) // Check every 30 seconds
+                    kotlinx.coroutines.delay(SERVICE_CHECK_INTERVAL_MS)
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    kotlinx.coroutines.delay(5000) // Shorter delay on error
+                    kotlinx.coroutines.delay(SERVICE_RESTART_DELAY_MS)
                 }
             }
         }
@@ -243,7 +254,7 @@ class FloatingBubbleService : Service() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 // Retry after 3 seconds
-                kotlinx.coroutines.delay(3000)
+                kotlinx.coroutines.delay(SERVICE_INIT_RETRY_DELAY_MS)
                 initializeServiceWithRetry()
             }
         }
@@ -262,7 +273,7 @@ class FloatingBubbleService : Service() {
                 try {
                     val items = getAllClipboardItemsUseCase().first()
                     withContext(Dispatchers.Main) {
-                        items.take(5).forEachIndexed { index, item ->
+                        items.take(MAX_BUBBLE_COUNT).forEachIndexed { index, item ->
                             createFullBubble(item.content, index)
                         }
                     }
@@ -335,7 +346,7 @@ class FloatingBubbleService : Service() {
                 e.printStackTrace()
                 // Try to recover by recreating the bubble
                 serviceScope.launch {
-                    kotlinx.coroutines.delay(1000)
+                    kotlinx.coroutines.delay(BUBBLE_RECOVERY_DELAY_MS)
                     withContext(Dispatchers.Main) {
                         createEmptyBubble()
                     }
@@ -874,7 +885,7 @@ class FloatingBubbleService : Service() {
     }
 
     /**
-     * Handles empty bubble click.
+     * Handles empty bubble click with proper synchronization.
      */
     private fun handleEmptyBubbleClick() {
         try {
@@ -886,12 +897,19 @@ class FloatingBubbleService : Service() {
                     serviceScope.launch {
                         val result = addClipboardItemUseCase(clipText)
                         if (result != null) {
-                            // Content was added, create bubble
+                            // Content was added, create bubble with synchronization
                             withContext(Dispatchers.Main) {
-                                emptyBubble?.let { bubble ->
-                                    windowManager.removeView(bubble.view)
-                                    createFullBubble(clipText, bubbles.size)
-                                    createEmptyBubble() // Create new empty bubble
+                                synchronized(bubbleLock) {
+                                    emptyBubble?.let { bubble ->
+                                        try {
+                                            windowManager.removeView(bubble.view)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                        emptyBubble = null
+                                        createFullBubble(clipText, bubbles.size)
+                                        createEmptyBubble() // Create new empty bubble
+                                    }
                                 }
                             }
                         } else {
@@ -921,8 +939,8 @@ class FloatingBubbleService : Service() {
         try {
             val currentTime = System.currentTimeMillis()
 
-            // Check if we're in the 2-second append window
-            if (appendWindowActive && (currentTime - lastCopyTime) <= 2000) {
+            // Check if we're in the append window
+            if (appendWindowActive && (currentTime - lastCopyTime) <= APPEND_WINDOW_MS) {
                 // Append mode: append bubble content to current clipboard
                 val currentClip = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
                 val newContent = if (currentClip.isBlank()) content else "$currentClip\n$content"
@@ -940,9 +958,9 @@ class FloatingBubbleService : Service() {
                 lastCopyTime = currentTime
                 appendWindowActive = true
 
-                // Auto-disable append window after 2 seconds
+                // Auto-disable append window after the window period
                 mainScope.launch {
-                    kotlinx.coroutines.delay(2000)
+                    kotlinx.coroutines.delay(APPEND_WINDOW_MS)
                     appendWindowActive = false
                 }
             }
@@ -952,37 +970,53 @@ class FloatingBubbleService : Service() {
     }
 
     /**
-     * Removes all bubbles from the window.
+     * Removes all bubbles from the window with synchronization.
      */
     private fun removeAllBubbles() {
-        try {
-            emptyBubble?.let { windowManager.removeView(it.view) }
-            bubbles.forEach { windowManager.removeView(it.view) }
+        synchronized(bubbleLock) {
+            try {
+                emptyBubble?.let {
+                    try {
+                        windowManager.removeView(it.view)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                bubbles.forEach {
+                    try {
+                        windowManager.removeView(it.view)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
 
-            emptyBubble = null
-            bubbles.clear()
-        } catch (e: Exception) {
-            e.printStackTrace()
+                emptyBubble = null
+                bubbles.clear()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     /**
-     * Removes excess bubbles to free memory.
+     * Removes excess bubbles to free memory with synchronization.
      */
     private fun removeExcessBubbles() {
-        try {
-            // Keep only the 3 most recent bubbles
-            val bubblesToRemove = bubbles.drop(3)
-            bubblesToRemove.forEach { bubble ->
-                try {
-                    windowManager.removeView(bubble.view)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+        synchronized(bubbleLock) {
+            try {
+                // Keep only the most recent bubbles based on low memory limit
+                val bubblesToRemove = bubbles.drop(MAX_LOW_MEMORY_BUBBLES)
+                bubblesToRemove.forEach { bubble ->
+                    try {
+                        windowManager.removeView(bubble.view)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
+                bubbles.removeAll(bubblesToRemove.toSet())
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            bubbles.removeAll(bubblesToRemove.toSet())
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 

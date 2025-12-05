@@ -73,3 +73,39 @@ object Constants {
     const val ERROR_ENCRYPTION_FAILED = "Encryption failed"
     const val ERROR_DECRYPTION_FAILED = "Decryption failed"
 }
+
+/**
+ * Constants specific to bubble UI components.
+ *
+ * These constants control bubble appearance, timing, and behavior.
+ */
+object BubbleConstants {
+    // Timing constants
+    const val FLASH_DURATION_MS = 1000L
+    const val APPEND_WINDOW_MS = 2000L
+    const val SERVICE_CHECK_INTERVAL_MS = 30000L
+    const val SERVICE_RESTART_DELAY_MS = 5000L
+    const val SERVICE_INIT_RETRY_DELAY_MS = 3000L
+    const val BUBBLE_RECOVERY_DELAY_MS = 1000L
+
+    // Size constants
+    const val DEFAULT_BUBBLE_SIZE_DP = 60
+    const val BUBBLE_MARGIN_DP = 16
+    const val MAX_BUBBLE_COUNT = 5
+    const val MAX_LOW_MEMORY_BUBBLES = 3
+    const val MAX_CONTENT_PREVIEW_CHARS = 20
+
+    // Edge activation constants
+    const val EDGE_THRESHOLD_PX = 100
+
+    // Highlighted area constants
+    const val ACTION_WIDTH = 120f
+    const val ACTION_HEIGHT = 80f
+    const val ACTION_SPACING = 16f
+    const val ACTION_CORNER_RADIUS = 12f
+    const val ACTION_TEXT_SIZE = 14f
+    const val ACTION_ICON_SIZE = 32f
+    const val BACKGROUND_ALPHA = 0.85f
+    const val GLOW_WIDTH = 40f
+    const val ANIMATION_DURATION_MS = 200L
+}

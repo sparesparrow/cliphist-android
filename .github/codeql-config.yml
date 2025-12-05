@@ -1,0 +1,42 @@
+name: "CodeQL Configuration"
+
+disable-default-queries: false
+
+queries:
+  # Include Android-specific security queries
+  - uses: github/codeql/java-queries
+  - uses: github/codeql/kotlin-queries
+  - uses: github/codeql/critical-security-queries
+
+paths:
+  - src/main/java
+  - src/test/java
+  - src/androidTest/java
+
+paths-ignore:
+  - src/test/resources
+  - src/androidTest/resources
+  - build/
+  - .gradle/
+  - app/build/
+
+languages:
+  - java
+  - kotlin
+
+query-filters:
+  # Focus on security-related issues
+  - include:
+      kind: problem
+      tags contain: security
+
+  # Include performance issues that could lead to security problems
+  - include:
+      kind: problem
+      tags contain: performance
+
+  # Exclude informational warnings that aren't security-related
+  - exclude:
+      kind: diagnostic
+  - exclude:
+      kind: recommendation

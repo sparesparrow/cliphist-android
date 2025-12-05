@@ -10,6 +10,22 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        
+        // GitHub Packages repository for sparetools-android-security
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/sparrowsl/sparetools")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: System.getProperty("gpr.user") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: System.getProperty("gpr.key") ?: ""
+            }
+        }
+        
+        // Cloudsmith repository for sparetools packages (placeholder)
+        maven {
+            name = "Cloudsmith"
+            url = uri("https://dl.cloudsmith.io/public/sparrowsl/sparetools/maven/")
+        }
     }
 }
 
