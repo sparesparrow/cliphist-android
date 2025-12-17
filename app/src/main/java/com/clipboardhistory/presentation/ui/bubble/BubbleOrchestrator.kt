@@ -9,7 +9,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clipboardhistory.utils.KeyboardVisibilityDetector
-import com.clipboardhistory.utils.TextSelectionManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -19,8 +18,7 @@ import kotlinx.coroutines.launch
  */
 class BubbleOrchestrator(
     private val keyboardDetector: KeyboardVisibilityDetector,
-    private val smartInputManager: com.clipboardhistory.utils.SmartInputManager? = null,
-    private val textSelectionManager: TextSelectionManager? = null
+    private val smartInputManager: com.clipboardhistory.utils.SmartInputManager? = null
 ) : ViewModel() {
 
     private val _bubbles = MutableStateFlow<List<BubbleSpec>>(emptyList())
@@ -31,17 +29,6 @@ class BubbleOrchestrator(
 
     private val _keyboardVisible = MutableStateFlow(false)
     val keyboardVisible: StateFlow<Boolean> = _keyboardVisible
-
-    // Bubble cut menu management
-    val bubbleCutMenuManager = BubbleCutMenuManager(
-        textSelectionManager ?: TextSelectionManager(
-            keyboardDetector.getApplicationContext() ?: android.app.Application(),
-            null
-        )
-    ) { selectedText ->
-        // Handle bubble cut action
-        performBubbleCut(selectedText)
-    }
 
     init {
         // Observe keyboard visibility changes
@@ -158,13 +145,6 @@ class BubbleOrchestrator(
     }
 
     /**
-     * Updates multiple bubbles at once (used for batch operations like regex accumulation).
-     */
-    fun updateBubbles(newBubbles: List<BubbleSpec>) {
-        _bubbles.value = newBubbles
-    }
-
-    /**
      * Clears all bubbles of a specific type.
      */
     fun clearBubblesByType(type: BubbleType) {
@@ -186,81 +166,6 @@ class BubbleOrchestrator(
     fun getVisibleBubbles(): List<BubbleSpec> {
         return _bubbles.value.filter { bubble ->
             bubble.isVisible && bubble.type.shouldBeVisible(_keyboardVisible.value)
-        }
-    }
-
-    // Bubble cut functionality
-
-    /**
-     * Shows the bubble cut menu when text is selected.
-     */
-    fun showBubbleCutMenu(position: androidx.compose.ui.geometry.Offset) {
-        val selectedText = bubbleCutMenuManager.getSelectedTextForMenu()
-        if (selectedText.isNotEmpty()) {
-            bubbleCutMenuManager.showBubbleCutMenu(selectedText, position)
-        }
-    }
-
-    /**
-     * Hides the bubble cut menu.
-     */
-    fun hideBubbleCutMenu() {
-        bubbleCutMenuManager.hideBubbleCutMenu()
-    }
-
-    /**
-     * Performs the bubble cut operation.
-     */
-    private fun performBubbleCut(text: String) {
-        // Create appropriate bubble based on content type
-        val bubble = createBubbleForText(text)
-        addBubble(bubble)
-
-        // Hide the bubble cut menu
-        hideBubbleCutMenu()
-    }
-
-    /**
-     * Creates the appropriate bubble type for the given text.
-     */
-    private fun createBubbleForText(text: String): BubbleSpec {
-        // First check if any regex accumulators want this text
-        processClipboardContentForRegexAccumulators(text, "bubble_cut")
-
-        // Then create a text paste bubble as fallback
-        return BubbleSpec.TextPasteBubble(
-            textContent = text,
-            contentType = detectContentType(text)
-        )
-    }
-
-    /**
-     * Detects content type for automatic bubble creation.
-     */
-    private fun detectContentType(text: String): BubbleSpec.TextPasteBubble.ContentType {
-        return when {
-            text.matches(Regex("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b")) -> {
-                BubbleSpec.TextPasteBubble.ContentType.EMAIL
-            }
-            text.matches(Regex("https?://\\S+")) -> {
-                BubbleSpec.TextPasteBubble.ContentType.URL
-            }
-            text.matches(Regex("\\b\\d{3}-\\d{3}-\\d{4}\\b")) -> {
-                BubbleSpec.TextPasteBubble.ContentType.PHONE_NUMBER
-            }
-            text.matches(Regex("\\d+(\\.\\d+)?")) -> {
-                BubbleSpec.TextPasteBubble.ContentType.NUMBER
-            }
-            text.contains("{") && text.contains("}") -> {
-                BubbleSpec.TextPasteBubble.ContentType.JSON
-            }
-            text.contains("<") && text.contains(">") -> {
-                BubbleSpec.TextPasteBubble.ContentType.XML
-            }
-            text.contains("function") || text.contains("def ") || text.contains("class ") -> {
-                BubbleSpec.TextPasteBubble.ContentType.CODE
-            }
-            else -> BubbleSpec.TextPasteBubble.ContentType.TEXT
         }
     }
 
@@ -419,7 +324,6 @@ fun BubbleOrchestrator(
                 orchestrator.updateContainerSize(size)
             }
     ) {
-        // Render regular bubbles
         visibleBubbles.forEach { bubble ->
             key(bubble.id) {
                 BubbleContainer(
@@ -432,14 +336,5 @@ fun BubbleOrchestrator(
                 )
             }
         }
-
-        // Render bubble cut menu if visible
-        BubbleCutMenu(
-            position = orchestrator.bubbleCutMenuManager.position,
-            selectedText = orchestrator.bubbleCutMenuManager.selectedText,
-            isVisible = orchestrator.bubbleCutMenuManager.isVisible,
-            onCutToBubble = { orchestrator.bubbleCutMenuManager.performBubbleCut() },
-            onDismiss = { orchestrator.hideBubbleCutMenu() }
-        )
     }
 }
