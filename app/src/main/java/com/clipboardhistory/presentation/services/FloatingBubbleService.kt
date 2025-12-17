@@ -151,7 +151,7 @@ class FloatingBubbleService : Service() {
             notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             // Initialize smart UI components
-            keyboardDetector = KeyboardVisibilityDetector.create(this)
+            keyboardDetector = KeyboardVisibilityDetector(this)
             smartInputManager = SmartInputManager(this)
 
             createNotificationChannel()

@@ -2,78 +2,49 @@ package com.clipboardhistory.utils
 
 import android.app.Activity
 import android.graphics.Rect
-import android.view.View
 import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Detects soft keyboard visibility changes and provides reactive state updates.
- *
- * Uses ViewTreeObserver to monitor global layout changes and determine
- * when the soft keyboard is shown or hidden based on screen real estate.
+ * Designed to work with Activities and provides lifecycle-aware monitoring.
  */
 class KeyboardVisibilityDetector(
-    private val context: android.content.Context
+    private val activity: Activity
 ) : DefaultLifecycleObserver {
 
-    private val _isKeyboardVisible = MutableStateFlow(false)
-    val isKeyboardVisible: StateFlow<Boolean> = _isKeyboardVisible
+    private val _keyboardState = MutableStateFlow(KeyboardState(isVisible = false, height = 0))
+    val keyboardState: StateFlow<KeyboardState> = _keyboardState
 
-    private val _keyboardHeight = MutableStateFlow(0)
-    val keyboardHeight: StateFlow<Int> = _keyboardHeight
+    // Legacy flow for backward compatibility
+    val isKeyboardVisible = _keyboardState.map { it.isVisible }
 
-    private var lastKeyboardHeight = 0
     private var isRegistered = false
-
-    // Threshold for considering keyboard visible (minimum height in pixels)
-    private val KEYBOARD_HEIGHT_THRESHOLD = 150
-
-    // Debounce time to avoid rapid show/hide events (in milliseconds)
-    private val DEBOUNCE_DELAY_MS = 100L
-    private var lastChangeTime = 0L
-
     private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
         detectKeyboardVisibility()
     }
 
     /**
-     * Gets the root view for keyboard monitoring.
-     * Returns null if not available (e.g., in services without UI).
+     * Data class representing keyboard state.
      */
-    private fun getRootView(): android.view.View? {
-        return try {
-            when (context) {
-                is android.app.Activity -> context.window.decorView.rootView
-                is android.app.Service -> {
-                    // Services don't have direct access to window decor view
-                    // This functionality may not work in services
-                    null
-                }
-                else -> null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
+    data class KeyboardState(
+        val isVisible: Boolean,
+        val height: Int = 0
+    )
 
     /**
      * Starts monitoring keyboard visibility.
      * Should be called when the activity is resumed.
      */
     fun startMonitoring() {
-        if (isRegistered) return
-
         try {
-            val rootView = getRootView()
-            if (rootView != null) {
-                rootView.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
-                isRegistered = true
-            }
+            val rootView = activity.window.decorView.rootView
+            rootView.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
+            isRegistered = true
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -84,72 +55,44 @@ class KeyboardVisibilityDetector(
      * Should be called when the activity is paused.
      */
     fun stopMonitoring() {
-        if (!isRegistered) return
-
         try {
-            val rootView = getRootView()
-            if (rootView != null) {
-                rootView.viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
-                isRegistered = false
-            }
+            val rootView = activity.window.decorView.rootView
+            rootView.viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
+            isRegistered = false
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     /**
-     * Detects keyboard visibility by comparing screen real estate.
+     * Detects current keyboard visibility state.
      */
     private fun detectKeyboardVisibility() {
         try {
-            val rootView = getRootView()
-            if (rootView == null) {
-                // Can't detect keyboard in services without UI
-                return
-            }
-
+            val rootView = activity.window.decorView.rootView
             val rect = Rect()
             rootView.getWindowVisibleDisplayFrame(rect)
 
             val screenHeight = rootView.height
-            val visibleHeight = rect.bottom - rect.top
-            val heightDiff = screenHeight - visibleHeight
+            val keypadHeight = screenHeight - rect.bottom
 
-            val currentTime = System.currentTimeMillis()
+            // Consider keyboard visible if it's taller than 15% of screen height
+            val isVisible = keypadHeight > screenHeight * 0.15
 
-            // Debounce rapid changes
-            if (currentTime - lastChangeTime < DEBOUNCE_DELAY_MS) {
-                return
-            }
-
-            val isVisible = heightDiff > KEYBOARD_HEIGHT_THRESHOLD
-            val keyboardHeight = if (isVisible) heightDiff else 0
-
-            // Only emit change if state actually changed
-            if (isVisible != _isKeyboardVisible.value || keyboardHeight != lastKeyboardHeight) {
-                _isKeyboardVisible.value = isVisible
-                _keyboardHeight.value = keyboardHeight
-                lastKeyboardHeight = keyboardHeight
-                lastChangeTime = currentTime
-            }
+            _keyboardState.value = KeyboardState(
+                isVisible = isVisible,
+                height = if (isVisible) keypadHeight else 0
+            )
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     /**
-     * Gets current keyboard visibility state.
+     * Gets the current keyboard state synchronously.
      */
-    fun getCurrentKeyboardState(): KeyboardState {
-        return KeyboardState(
-            isVisible = _isKeyboardVisible.value,
-            height = _keyboardHeight.value
-        )
-    }
+    fun getCurrentKeyboardState(): KeyboardState = _keyboardState.value
 
-    /**
-     * Lifecycle observer implementation.
-     */
     override fun onResume(owner: LifecycleOwner) {
         startMonitoring()
     }
@@ -158,30 +101,11 @@ class KeyboardVisibilityDetector(
         stopMonitoring()
     }
 
-    /**
-     * Data class representing keyboard state.
-     */
-    data class KeyboardState(
-        val isVisible: Boolean,
-        val height: Int
-    )
-
-    /**
-     * Companion object with utility methods.
-     */
     companion object {
-        /**
-         * Creates a KeyboardVisibilityDetector for the given context.
-         * For Activities, consider using attachToLifecycle for automatic lifecycle management.
-         */
-        fun create(context: android.content.Context): KeyboardVisibilityDetector {
-            return KeyboardVisibilityDetector(context)
-        }
-
         /**
          * Creates a KeyboardVisibilityDetector attached to an Activity's lifecycle.
          */
-        fun attachToLifecycle(activity: android.app.Activity): KeyboardVisibilityDetector {
+        fun attachToLifecycle(activity: Activity): KeyboardVisibilityDetector {
             return KeyboardVisibilityDetector(activity).apply {
                 if (activity is ComponentActivity) {
                     activity.lifecycle.addObserver(this)
