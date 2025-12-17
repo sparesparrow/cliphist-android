@@ -247,29 +247,6 @@ enum class AdvancedBubbleType(
         category = BubbleCategory.CREATIVE
     ),
 
-    // 🎤 Voice & Speech Bubbles
-    VOICE_BUBBLE(
-        displayName = "Voice Assistant",
-        description = "Text-to-speech playback and voice recognition for creating/appending transcribed content",
-        keyboardPolicy = KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE,
-        defaultSize = 100.dp,
-        supportsDragging = true,
-        autoHideDelay = 0L, // Persistent for accessibility
-        zIndexPriority = 9,
-        category = BubbleCategory.VOICE
-    ),
-
-    // 🔍 Pattern Matching & Collection Bubbles
-    REGEX_ACCUMULATOR(
-        displayName = "Regex Collector",
-        description = "Accumulates clipboard content matching regex patterns with visual growth",
-        keyboardPolicy = KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE,
-        defaultSize = 200.dp,
-        supportsDragging = true,
-        autoHideDelay = 0L, // Persistent collection
-        zIndexPriority = 7,
-        category = BubbleCategory.COLLECTION
-    ),
 
     // 🤝 Collaboration & Sharing Bubbles
     COLLABORATION(
@@ -352,10 +329,7 @@ enum class BubbleCategory {
     CONTEXT,       // Context-aware actions
     PRODUCTIVITY,  // Productivity tools and notes
     SYSTEM,        // System integration and settings
-    CREATIVE,      // Creative tools and media
-    COLLECTION,    // Pattern matching and data collection
-    VOICE,         // Voice and speech interaction
-    COLLABORATION  // Real-time collaborative editing
+    CREATIVE       // Creative tools and media
 }
 
 /**
@@ -437,118 +411,6 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
         override fun withInteraction(): TemplateBubble = copy(lastInteractionTime = System.currentTimeMillis())
     }
 
-    /**
-     * Regex accumulator bubble that collects clipboard content matching patterns.
-     */
-    data class RegexAccumulator(
-        override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.REGEX_ACCUMULATOR,
-        override val position: Offset = Offset.Zero,
-        override val size: Dp = type.defaultSize,
-        override val isVisible: Boolean = true,
-        override val isMinimized: Boolean = false,
-        override val lastInteractionTime: Long = System.currentTimeMillis(),
-        val pattern: RegexPattern,
-        val accumulatedItems: List<AccumulatedItem> = emptyList(),
-        val isCollecting: Boolean = true,
-        val showDuplicates: Boolean = false,
-        override val relevanceScore: Float = 0.8f,
-        override val contextualActions: List<String> = listOf("collect", "export", "clear", "configure")
-    ) : AdvancedBubbleSpec() {
-
-        override val content: @Composable (BubbleSpec) -> Unit = { spec ->
-            val regexSpec = spec as RegexAccumulator
-            RegexAccumulatorContent(regexSpec)
-        }
-
-        override fun withKeyboardState(isKeyboardVisible: Boolean): RegexAccumulator =
-            copy() // Repositioning handled by base class
-
-        override fun withPosition(newPosition: Offset): RegexAccumulator = copy(position = newPosition)
-        override fun withMinimized(isMinimized: Boolean): RegexAccumulator = copy(isMinimized = isMinimized)
-        override fun withSize(newSize: Dp): RegexAccumulator = copy(size = newSize)
-        override fun withInteraction(): RegexAccumulator = copy(lastInteractionTime = System.currentTimeMillis())
-
-        /**
-         * Attempts to add content if it matches the regex pattern.
-         */
-        fun tryAccumulate(content: String, source: String? = null): RegexAccumulator {
-            return try {
-                val regex = Regex(pattern.pattern)
-                val matches = regex.findAll(content)
-
-                val newItems = matches.map { match ->
-                    AccumulatedItem(
-                        content = match.value,
-                        matchedAt = System.currentTimeMillis(),
-                        source = source
-                    )
-                }.toList()
-
-                if (newItems.isNotEmpty()) {
-                    val updatedItems = if (showDuplicates) {
-                        accumulatedItems + newItems
-                    } else {
-                        // Remove duplicates based on content
-                        val existingContent = accumulatedItems.map { it.content }.toSet()
-                        val filteredNewItems = newItems.filter { it.content !in existingContent }
-                        accumulatedItems + filteredNewItems
-                    }
-
-                    // Limit to max items
-                    val limitedItems = updatedItems.takeLast(pattern.maxItems)
-
-                    copy(
-                        accumulatedItems = limitedItems,
-                        lastInteractionTime = System.currentTimeMillis()
-                    )
-                } else {
-                    this
-                }
-            } catch (e: Exception) {
-                // Invalid regex pattern, return unchanged
-                this
-            }
-        }
-
-        /**
-         * Clears all accumulated items.
-         */
-        fun clearAccumulated(): RegexAccumulator = copy(
-            accumulatedItems = emptyList(),
-            lastInteractionTime = System.currentTimeMillis()
-        )
-
-        /**
-         * Exports accumulated items as formatted string.
-         */
-        fun exportAccumulated(): String {
-            return accumulatedItems.joinToString(pattern.delimiter.getSeparator()) { it.content }
-        }
-
-        /**
-         * Gets the display size based on accumulated items count.
-         */
-        fun getDynamicSize(baseSize: Dp): Dp {
-            val itemCount = accumulatedItems.size
-            val growthFactor = when {
-                itemCount <= 5 -> 1.0f
-                itemCount <= 10 -> 1.2f
-                itemCount <= 20 -> 1.4f
-                itemCount <= 50 -> 1.6f
-                else -> 1.8f
-            }
-            return (baseSize.value * growthFactor).dp
-        }
-
-        /**
-         * Checks if the bubble should visually indicate new content.
-         */
-        fun hasNewContent(since: Long): Boolean {
-            return accumulatedItems.any { it.matchedAt > since }
-        }
-    }
-
     companion object {
         private fun generateId(): String = "advanced_${System.currentTimeMillis()}_${(0..999).random()}"
 
@@ -580,46 +442,6 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                         templates = templateData as List<TextTemplate>
                     )
                 }
-                AdvancedBubbleType.REGEX_ACCUMULATOR -> {
-                    val regexData = content as? Map<String, Any> ?: emptyMap()
-                    val pattern = regexData["pattern"] as? RegexPattern ?: RegexPattern(
-                        id = "default_pattern",
-                        name = "Default Pattern",
-                        pattern = ".*",
-                        description = "Matches all content"
-                    )
-                    RegexAccumulator(
-                        id = id,
-                        position = position,
-                        pattern = pattern
-                    )
-                }
-                AdvancedBubbleType.VOICE_BUBBLE -> {
-                    val voiceData = content as? Map<String, Any> ?: emptyMap()
-                    val textContent = voiceData["text"] as? String ?: ""
-                    val isTTSEnabled = voiceData["ttsEnabled"] as? Boolean ?: true
-                    val isVoiceEnabled = voiceData["voiceEnabled"] as? Boolean ?: true
-
-                    VoiceBubble(
-                        id = id,
-                        position = position,
-                        textContent = textContent,
-                        isTTSEnabled = isTTSEnabled,
-                        isVoiceRecognitionEnabled = isVoiceEnabled
-                    )
-                }
-                AdvancedBubbleType.COLLABORATION -> {
-                    val collabData = content as? Map<String, Any> ?: emptyMap()
-                    val initialText = collabData["text"] as? String ?: ""
-                    val isHost = collabData["isHost"] as? Boolean ?: true
-
-                    CollaborationBubble(
-                        id = id,
-                        position = position,
-                        isHost = isHost,
-                        content = CollaborativeContent(text = initialText)
-                    )
-                }
                 else -> {
                     // Fallback for other types
                     SearchBubble(id = id, position = position)
@@ -647,39 +469,4 @@ enum class SearchFilter {
         val tags: List<String> = emptyList(),
         val usageCount: Int = 0,
         val lastUsed: Long = System.currentTimeMillis()
-    )
-
-    /**
-     * Regex pattern for the regex accumulator bubble.
-     */
-    data class RegexPattern(
-        val id: String,
-        val name: String,
-        val pattern: String,
-        val description: String,
-        val delimiter: Delimiter = Delimiter.NEWLINE,
-        val isEnabled: Boolean = true,
-        val maxItems: Int = 50,
-        val createdAt: Long = System.currentTimeMillis()
-    ) {
-        enum class Delimiter {
-            NEWLINE, SPACE, COMMA, SEMICOLON, CUSTOM;
-
-            fun getSeparator(): String = when (this) {
-                NEWLINE -> "\n"
-                SPACE -> " "
-                COMMA -> ", "
-                SEMICOLON -> "; "
-                CUSTOM -> "" // Custom delimiter would be specified separately
-            }
-        }
-    }
-
-    /**
-     * Accumulated item for the regex collector.
-     */
-    data class AccumulatedItem(
-        val content: String,
-        val matchedAt: Long = System.currentTimeMillis(),
-        val source: String? = null // Optional source context
     )
