@@ -184,8 +184,10 @@ class HighlightedAreaView
             x: Float,
             y: Float,
         ): BubbleState? {
-            val smartAction = getSmartActionForPosition(x, y)
-            return smartAction?.action
+            // Smart actions now use ActionType for external apps, not BubbleState
+            // This method is kept for compatibility but returns null
+            // Use getSmartActionForPosition() instead for ActionType-based actions
+            return null
         }
 
         /**
