@@ -63,7 +63,8 @@ class ExecuteSmartActionUseCase @Inject constructor(
      * @return List of available smart actions
      */
     fun getAvailableActions(content: String, contentType: String): List<SmartAction> {
-        return ContentAnalyzer.getSmartActions(contentType, content)
+        val type = ContentAnalyzer.analyzeContentType(content)
+        return ContentAnalyzer.getSmartActions(type, content)
     }
 
     /**

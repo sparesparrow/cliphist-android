@@ -91,4 +91,60 @@ interface ClipboardRepository {
         limit: Int,
         offset: Int,
     ): List<ClipboardItem>
+
+    /**
+     * Get all favorite clipboard items.
+     */
+    fun getFavoriteItems(): Flow<List<ClipboardItem>>
+
+    /**
+     * Toggle favorite status for an item.
+     *
+     * @param id The item ID
+     * @return true if the operation succeeded, false otherwise
+     */
+    suspend fun toggleFavoriteStatus(id: String): Boolean
+
+    /**
+     * Soft delete an item by ID.
+     *
+     * @return true if the operation succeeded, false otherwise
+     */
+    suspend fun softDeleteItem(id: String): Boolean
+
+    /**
+     * Restore a previously soft-deleted item.
+     */
+    suspend fun restoreItem(id: String): Boolean
+
+    /**
+     * Get items in a given timestamp range.
+     */
+    suspend fun getItemsByTimestampRange(
+        startTimestamp: Long,
+        endTimestamp: Long,
+    ): List<ClipboardItem>
+
+    /**
+     * Search items by content.
+     */
+    suspend fun searchItems(query: String): List<ClipboardItem>
+
+    /**
+     * Get high-level clipboard statistics.
+     */
+    suspend fun getStatistics(): ClipboardStatistics
 }
+
+/**
+ * Aggregate clipboard usage statistics.
+ */
+data class ClipboardStatistics(
+    val totalItems: Int,
+    val favoriteItems: Int,
+    val itemsToday: Int,
+    val itemsThisWeek: Int,
+    val mostUsedContentType: String,
+    val averageContentLength: Int,
+    val lastActivityTimestamp: Long,
+)

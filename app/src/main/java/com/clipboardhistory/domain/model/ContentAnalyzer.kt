@@ -68,11 +68,11 @@ object ContentAnalyzer {
         content: String,
     ): List<SmartAction> {
         return when (type) {
-            Type.URL -> listOf(SmartAction("Open Link", BubbleState.REPLACE))
-            Type.PHONE -> listOf(SmartAction("Call Number", BubbleState.REPLACE))
-            Type.EMAIL -> listOf(SmartAction("Send Email", BubbleState.REPLACE))
-            Type.MAPS -> listOf(SmartAction("Open Maps", BubbleState.REPLACE))
-            Type.TEXT -> listOf(SmartAction("Search Text", BubbleState.REPLACE))
+            Type.URL -> listOf(SmartAction("Open Link", SmartAction.ActionType.OPEN_LINK))
+            Type.PHONE -> listOf(SmartAction("Call Number", SmartAction.ActionType.CALL_NUMBER))
+            Type.EMAIL -> listOf(SmartAction("Send Email", SmartAction.ActionType.SEND_EMAIL))
+            Type.MAPS -> listOf(SmartAction("Open Maps", SmartAction.ActionType.OPEN_MAPS))
+            Type.TEXT -> listOf(SmartAction("Search Web", SmartAction.ActionType.SEARCH_WEB))
         }
     }
 }

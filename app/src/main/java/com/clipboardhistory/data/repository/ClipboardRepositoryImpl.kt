@@ -7,7 +7,9 @@ import com.clipboardhistory.domain.model.BubbleType
 import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.ClipboardSettings
 import com.clipboardhistory.domain.repository.ClipboardRepository
+import com.clipboardhistory.domain.repository.ClipboardStatistics
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -64,7 +66,8 @@ class ClipboardRepositoryImpl
 
         override suspend fun deleteItemsOlderThan(hours: Int) {
             val threshold = System.currentTimeMillis() - (hours * 60 * 60 * 1000)
-            clipboardItemDao.deleteItemsOlderThan(threshold)
+            // Delegate to DAO cleanup function using timestamp threshold
+            clipboardItemDao.cleanupOldItems(threshold)
         }
 
         override suspend fun getSettings(): ClipboardSettings {
@@ -82,6 +85,11 @@ class ClipboardRepositoryImpl
                     BubbleType.CIRCLE
                 }
 
+            val enableClipboardMonitoring =
+                encryptionManager.getSecureString("enable_clipboard_monitoring", "true").toBoolean()
+            val enableAccessibilityMonitoring =
+                encryptionManager.getSecureString("enable_accessibility_monitoring", "false").toBoolean()
+
             return ClipboardSettings(
                 maxHistorySize = maxHistorySize,
                 autoDeleteAfterHours = autoDeleteAfterHours,
@@ -90,6 +98,8 @@ class ClipboardRepositoryImpl
                 bubbleOpacity = bubbleOpacity,
                 selectedTheme = selectedTheme,
                 bubbleType = bubbleType,
+                enableClipboardMonitoring = enableClipboardMonitoring,
+                enableAccessibilityMonitoring = enableAccessibilityMonitoring,
             )
         }
 
@@ -102,6 +112,8 @@ class ClipboardRepositoryImpl
             encryptionManager.storeSecureString("bubble_opacity", settings.bubbleOpacity.toString())
             encryptionManager.storeSecureString("selected_theme", settings.selectedTheme)
             encryptionManager.storeSecureString("bubble_type", settings.bubbleType.name)
+            encryptionManager.storeSecureString("enable_clipboard_monitoring", settings.enableClipboardMonitoring.toString())
+            encryptionManager.storeSecureString("enable_accessibility_monitoring", settings.enableAccessibilityMonitoring.toString())
             // Maintain compatibility with tests expecting clipboard_mode persistence
             encryptionManager.storeSecureString("clipboard_mode", "EXTEND")
         }
@@ -113,6 +125,74 @@ class ClipboardRepositoryImpl
             return clipboardItemDao.getItemsWithPagination(limit, offset).map { entity ->
                 mapEntityToItem(entity)
             }
+        }
+
+        override fun getFavoriteItems(): Flow<List<ClipboardItem>> {
+            return clipboardItemDao.getFavoriteItems().map { entities ->
+                entities.map { mapEntityToItem(it) }
+            }
+        }
+
+        override suspend fun toggleFavoriteStatus(id: String): Boolean {
+            val entity = clipboardItemDao.getItemById(id) ?: return false
+            clipboardItemDao.updateFavoriteStatus(id, !entity.isFavorite)
+            return true
+        }
+
+        override suspend fun softDeleteItem(id: String): Boolean {
+            clipboardItemDao.softDeleteItemById(id)
+            return true
+        }
+
+        override suspend fun restoreItem(id: String): Boolean {
+            clipboardItemDao.restoreItemById(id)
+            return true
+        }
+
+        override suspend fun getItemsByTimestampRange(
+            startTimestamp: Long,
+            endTimestamp: Long,
+        ): List<ClipboardItem> {
+            return clipboardItemDao.getItemsByTimestampRange(startTimestamp, endTimestamp).map {
+                mapEntityToItem(it)
+            }
+        }
+
+        override suspend fun searchItems(query: String): List<ClipboardItem> {
+            return clipboardItemDao.searchItems(query).map { mapEntityToItem(it) }
+        }
+
+        override suspend fun getStatistics(): ClipboardStatistics {
+            val items = getAllItems().first()
+            val now = System.currentTimeMillis()
+            val dayAgo = now - 24 * 60 * 60 * 1000L
+            val weekAgo = now - 7 * 24 * 60 * 60 * 1000L
+
+            val favoriteItems = items.count { it.isFavorite }
+            val itemsToday = items.count { it.timestamp >= dayAgo }
+            val itemsThisWeek = items.count { it.timestamp >= weekAgo }
+
+            val mostUsedContentType =
+                items
+                    .groupBy { it.contentType }
+                    .maxByOrNull { it.value.size }
+                    ?.key
+                    ?.name ?: "TEXT"
+
+            val averageContentLength =
+                if (items.isNotEmpty()) items.sumOf { it.content.length } / items.size else 0
+
+            val lastActivityTimestamp = items.maxOfOrNull { it.timestamp } ?: 0L
+
+            return ClipboardStatistics(
+                totalItems = items.size,
+                favoriteItems = favoriteItems,
+                itemsToday = itemsToday,
+                itemsThisWeek = itemsThisWeek,
+                mostUsedContentType = mostUsedContentType,
+                averageContentLength = averageContentLength,
+                lastActivityTimestamp = lastActivityTimestamp,
+            )
         }
 
         /**
@@ -136,6 +216,10 @@ class ClipboardRepositoryImpl
                 contentType = entity.contentType,
                 isEncrypted = entity.isEncrypted,
                 size = entity.size,
+                sourceApp = entity.sourceApp,
+                isFavorite = entity.isFavorite,
+                isDeleted = entity.isDeleted,
+                encryptionKey = entity.encryptionKey,
             )
         }
 
@@ -160,6 +244,10 @@ class ClipboardRepositoryImpl
                 contentType = item.contentType,
                 isEncrypted = item.isEncrypted,
                 size = item.size,
+                isDeleted = item.isDeleted,
+                isFavorite = item.isFavorite,
+                sourceApp = item.sourceApp,
+                encryptionKey = item.encryptionKey,
             )
         }
     }

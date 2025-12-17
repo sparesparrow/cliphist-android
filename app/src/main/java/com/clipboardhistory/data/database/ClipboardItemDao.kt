@@ -107,7 +107,7 @@ interface ClipboardItemDao {
      * @param id The ID of the clipboard item to soft delete
      */
     @Query("UPDATE clipboard_items SET is_deleted = 1 WHERE id = :id")
-    suspend fun softDeleteItemById(id: Long)
+    suspend fun softDeleteItemById(id: String)
 
     /**
      * Soft delete operations - restore item from soft delete.
@@ -115,7 +115,7 @@ interface ClipboardItemDao {
      * @param id The ID of the clipboard item to restore
      */
     @Query("UPDATE clipboard_items SET is_deleted = 0 WHERE id = :id")
-    suspend fun restoreItemById(id: Long)
+    suspend fun restoreItemById(id: String)
 
     /**
      * Get all non-deleted items ordered by timestamp (newest first).
@@ -140,7 +140,7 @@ interface ClipboardItemDao {
      * @param isFavorite The new favorite status
      */
     @Query("UPDATE clipboard_items SET is_favorite = :isFavorite WHERE id = :id")
-    suspend fun updateFavoriteStatus(id: Long, isFavorite: Boolean)
+    suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
 
     /**
      * Cleanup old items (retention policy).
