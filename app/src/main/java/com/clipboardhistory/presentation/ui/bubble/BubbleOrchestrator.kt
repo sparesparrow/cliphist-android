@@ -9,7 +9,10 @@ import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clipboardhistory.utils.KeyboardVisibilityDetector
+<<<<<<< HEAD
 import com.clipboardhistory.utils.TextSelectionManager
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -19,8 +22,12 @@ import kotlinx.coroutines.launch
  */
 class BubbleOrchestrator(
     private val keyboardDetector: KeyboardVisibilityDetector,
+<<<<<<< HEAD
     private val smartInputManager: com.clipboardhistory.utils.SmartInputManager? = null,
     private val textSelectionManager: TextSelectionManager? = null
+=======
+    private val smartInputManager: com.clipboardhistory.utils.SmartInputManager? = null
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
 ) : ViewModel() {
 
     private val _bubbles = MutableStateFlow<List<BubbleSpec>>(emptyList())
@@ -32,6 +39,7 @@ class BubbleOrchestrator(
     private val _keyboardVisible = MutableStateFlow(false)
     val keyboardVisible: StateFlow<Boolean> = _keyboardVisible
 
+<<<<<<< HEAD
     // Bubble cut menu management
     val bubbleCutMenuManager = BubbleCutMenuManager(
         textSelectionManager ?: TextSelectionManager(
@@ -43,6 +51,8 @@ class BubbleOrchestrator(
         performBubbleCut(selectedText)
     }
 
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
     init {
         // Observe keyboard visibility changes
         viewModelScope.launch {
@@ -158,6 +168,7 @@ class BubbleOrchestrator(
     }
 
     /**
+<<<<<<< HEAD
      * Updates multiple bubbles at once (used for batch operations like regex accumulation).
      */
     fun updateBubbles(newBubbles: List<BubbleSpec>) {
@@ -165,6 +176,8 @@ class BubbleOrchestrator(
     }
 
     /**
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
      * Clears all bubbles of a specific type.
      */
     fun clearBubblesByType(type: BubbleType) {
@@ -189,6 +202,7 @@ class BubbleOrchestrator(
         }
     }
 
+<<<<<<< HEAD
     // Bubble cut functionality
 
     /**
@@ -264,6 +278,8 @@ class BubbleOrchestrator(
         }
     }
 
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
     // Private helper methods
 
     private fun updateBubblesForKeyboardState(isKeyboardVisible: Boolean) {
@@ -419,7 +435,10 @@ fun BubbleOrchestrator(
                 orchestrator.updateContainerSize(size)
             }
     ) {
+<<<<<<< HEAD
         // Render regular bubbles
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
         visibleBubbles.forEach { bubble ->
             key(bubble.id) {
                 BubbleContainer(
@@ -432,6 +451,7 @@ fun BubbleOrchestrator(
                 )
             }
         }
+<<<<<<< HEAD
 
         // Render bubble cut menu if visible
         BubbleCutMenu(
@@ -441,5 +461,7 @@ fun BubbleOrchestrator(
             onCutToBubble = { orchestrator.bubbleCutMenuManager.performBubbleCut() },
             onDismiss = { orchestrator.hideBubbleCutMenu() }
         )
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
     }
 }
