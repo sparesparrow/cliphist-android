@@ -3,6 +3,7 @@ package com.clipboardhistory.presentation.services
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import com.clipboardhistory.domain.usecase.GetClipboardSettingsUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -129,7 +130,11 @@ class ServiceCoordinator @Inject constructor(
 
     private fun startClipboardService() {
         val intent = Intent(context, ClipboardService::class.java)
-        context.startForegroundService(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
     }
 
     private fun stopClipboardService() {
@@ -139,7 +144,11 @@ class ServiceCoordinator @Inject constructor(
 
     private fun startFloatingBubbleService() {
         val intent = Intent(context, FloatingBubbleService::class.java)
-        context.startForegroundService(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
     }
 
     private fun stopFloatingBubbleService() {
