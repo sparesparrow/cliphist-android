@@ -52,6 +52,12 @@
             android:foregroundServiceType="dataSync"
             android:stopWithTask="false" />
 
+        <!-- ToolBelt Service -->
+        <service
+            android:name=".presentation.services.ToolBeltService"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- Accessibility service to allow advanced automation features (user must enable) -->
         <service
             android:name=".presentation.services.AccessibilityMonitorService"

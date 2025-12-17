@@ -31,6 +31,7 @@ import com.clipboardhistory.presentation.MainActivity
 import com.clipboardhistory.presentation.ui.components.BubbleView
 import com.clipboardhistory.presentation.ui.components.BubbleViewFactory
 import com.clipboardhistory.presentation.ui.components.HighlightedAreaView
+import com.clipboardhistory.presentation.ui.toolbelt.TransparencyController
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +73,11 @@ class FloatingBubbleService : Service() {
     private val bubbles = mutableListOf<BubbleData>()
     private var emptyBubble: BubbleData? = null
     private var currentBubbleOpacity: Float = 0.8f
+
+    // Transparency controller callback
+    private val globalTransparencyCallback: (Float) -> Unit = { opacity ->
+        updateAllBubbleOpacity(opacity)
+    }
     private var currentBubbleSizeDp: Int = DEFAULT_BUBBLE_SIZE_DP
     private var currentThemeName: String = "Default"
     private var currentBubbleType: BubbleType = BubbleType.CIRCLE
@@ -116,6 +122,7 @@ class FloatingBubbleService : Service() {
      * @property state The current bubble state
      * @property originalState The original state before edge changes
      * @property bubbleType The type/shape of the bubble
+     * @property transparencyCallback Callback for transparency updates
      */
     data class BubbleData(
         var view: BubbleView,
@@ -124,6 +131,9 @@ class FloatingBubbleService : Service() {
         var state: BubbleState,
         var originalState: BubbleState = state,
         val bubbleType: BubbleType = BubbleType.CIRCLE,
+        val transparencyCallback: (Float) -> Unit = { opacity ->
+            params.alpha = opacity
+        }
     )
 
     override fun onCreate() {
@@ -143,6 +153,9 @@ class FloatingBubbleService : Service() {
                 stopSelf()
                 return
             }
+
+            // Register with transparency controller
+            TransparencyController.registerBubble(globalTransparencyCallback)
 
             // Load settings and initialize bubbles with retry mechanism
             initializeServiceWithRetry()
@@ -197,6 +210,10 @@ class FloatingBubbleService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
+
+        // Unregister from transparency controller
+        TransparencyController.unregisterBubble(globalTransparencyCallback)
+
         removeAllBubbles()
         serviceJob.cancel()
 
@@ -311,6 +328,13 @@ class FloatingBubbleService : Service() {
                     bubbleType = currentBubbleType,
                 )
 
+            // Register with transparency controller
+            TransparencyController.registerBubble(bubble.transparencyCallback)
+
+            // Apply initial opacity
+            val initialOpacity = TransparencyController.getGlobalOpacity(this)
+            TransparencyController.applyOpacityToView(bubble.params, initialOpacity)
+
             // Position at top-right
             bubble.params.x = 100
             bubble.params.y = 100
@@ -403,6 +427,13 @@ class FloatingBubbleService : Service() {
         }
 
         setupDragBehavior(bubble)
+
+        // Register with transparency controller
+        TransparencyController.registerBubble(bubble.transparencyCallback)
+
+        // Apply initial opacity
+        val initialOpacity = TransparencyController.getGlobalOpacity(this)
+        TransparencyController.applyOpacityToView(bubble.params, initialOpacity)
 
         try {
             windowManager.addView(bubbleView, bubble.params)
@@ -962,6 +993,8 @@ class FloatingBubbleService : Service() {
                 emptyBubble?.let {
                     try {
                         windowManager.removeView(it.view)
+                        // Unregister from transparency controller
+                        TransparencyController.unregisterBubble(it.transparencyCallback)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -969,6 +1002,8 @@ class FloatingBubbleService : Service() {
                 bubbles.forEach {
                     try {
                         windowManager.removeView(it.view)
+                        // Unregister from transparency controller
+                        TransparencyController.unregisterBubble(it.transparencyCallback)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -993,6 +1028,8 @@ class FloatingBubbleService : Service() {
                 bubblesToRemove.forEach { bubble ->
                     try {
                         windowManager.removeView(bubble.view)
+                        // Unregister from transparency controller
+                        TransparencyController.unregisterBubble(bubble.transparencyCallback)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -1070,5 +1107,36 @@ class FloatingBubbleService : Service() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
+    }
+
+    /**
+     * Updates the opacity of all bubbles when global transparency changes.
+     *
+     * @param opacity The new opacity value (0.0 to 1.0)
+     */
+    private fun updateAllBubbleOpacity(opacity: Float) {
+        try {
+            synchronized(bubbleLock) {
+                emptyBubble?.let { bubble ->
+                    bubble.params.alpha = opacity
+                    try {
+                        windowManager.updateViewLayout(bubble.view, bubble.params)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                bubbles.forEach { bubble ->
+                    bubble.params.alpha = opacity
+                    try {
+                        windowManager.updateViewLayout(bubble.view, bubble.params)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
