@@ -74,7 +74,109 @@ interface ClipboardItemDao {
     suspend fun deleteItemById(id: String)
 
     /**
-     * Delete all clipboard items.
+     * Query by timestamp range.
+     *
+     * @param startTimestamp Start of the timestamp range
+     * @param endTimestamp End of the timestamp range
+     * @return List of clipboard items in the timestamp range
+     */
+    @Query("SELECT * FROM clipboard_items WHERE timestamp BETWEEN :startTimestamp AND :endTimestamp AND is_deleted = 0 ORDER BY timestamp DESC")
+    suspend fun getItemsByTimestampRange(startTimestamp: Long, endTimestamp: Long): List<ClipboardItemEntity>
+
+    /**
+     * Query by content type.
+     *
+     * @param contentType The content type to filter by
+     * @return List of clipboard items with the specified content type
+     */
+    @Query("SELECT * FROM clipboard_items WHERE content_type = :contentType AND is_deleted = 0 ORDER BY timestamp DESC")
+    suspend fun getItemsByContentType(contentType: String): List<ClipboardItemEntity>
+
+    /**
+     * Search functionality with full-text search.
+     *
+     * @param query The search query
+     * @return List of clipboard items matching the search query
+     */
+    @Query("SELECT * FROM clipboard_items WHERE content LIKE '%' || :query || '%' AND is_deleted = 0 ORDER BY timestamp DESC")
+    suspend fun searchItems(query: String): List<ClipboardItemEntity>
+
+    /**
+     * Soft delete operations - mark item as deleted.
+     *
+     * @param id The ID of the clipboard item to soft delete
+     */
+    @Query("UPDATE clipboard_items SET is_deleted = 1 WHERE id = :id")
+    suspend fun softDeleteItemById(id: Long)
+
+    /**
+     * Soft delete operations - restore item from soft delete.
+     *
+     * @param id The ID of the clipboard item to restore
+     */
+    @Query("UPDATE clipboard_items SET is_deleted = 0 WHERE id = :id")
+    suspend fun restoreItemById(id: Long)
+
+    /**
+     * Get all non-deleted items ordered by timestamp (newest first).
+     *
+     * @return Flow of list of clipboard items
+     */
+    @Query("SELECT * FROM clipboard_items WHERE is_deleted = 0 ORDER BY timestamp DESC")
+    fun getAllItems(): Flow<List<ClipboardItemEntity>>
+
+    /**
+     * Get favorite items.
+     *
+     * @return Flow of list of favorite clipboard items
+     */
+    @Query("SELECT * FROM clipboard_items WHERE is_favorite = 1 AND is_deleted = 0 ORDER BY timestamp DESC")
+    fun getFavoriteItems(): Flow<List<ClipboardItemEntity>>
+
+    /**
+     * Toggle favorite status.
+     *
+     * @param id The ID of the clipboard item
+     * @param isFavorite The new favorite status
+     */
+    @Query("UPDATE clipboard_items SET is_favorite = :isFavorite WHERE id = :id")
+    suspend fun updateFavoriteStatus(id: Long, isFavorite: Boolean)
+
+    /**
+     * Cleanup old items (retention policy).
+     *
+     * @param timestamp The timestamp threshold - items older than this will be deleted
+     */
+    @Query("DELETE FROM clipboard_items WHERE timestamp < :timestamp")
+    suspend fun cleanupOldItems(timestamp: Long)
+
+    /**
+     * Get items count (excluding soft deleted).
+     *
+     * @return The total number of non-deleted clipboard items
+     */
+    @Query("SELECT COUNT(*) FROM clipboard_items WHERE is_deleted = 0")
+    suspend fun getItemCount(): Int
+
+    /**
+     * Get soft deleted items for potential restoration.
+     *
+     * @return List of soft deleted clipboard items
+     */
+    @Query("SELECT * FROM clipboard_items WHERE is_deleted = 1 ORDER BY timestamp DESC")
+    suspend fun getSoftDeletedItems(): List<ClipboardItemEntity>
+
+    /**
+     * Permanently delete soft deleted items older than timestamp.
+     *
+     * @param timestamp The timestamp threshold
+     * @return The number of deleted items
+     */
+    @Query("DELETE FROM clipboard_items WHERE is_deleted = 1 AND timestamp < :timestamp")
+    suspend fun permanentlyDeleteOldSoftDeletedItems(timestamp: Long): Int
+
+    /**
+     * Delete all items (hard delete).
      */
     @Query("DELETE FROM clipboard_items")
     suspend fun deleteAllItems()
