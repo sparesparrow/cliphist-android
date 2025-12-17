@@ -21,6 +21,10 @@ data class ClipboardItem(
     val contentType: ContentType,
     val isEncrypted: Boolean = true,
     val size: Int,
+    val sourceApp: String? = null,
+    val isFavorite: Boolean = false,
+    val isDeleted: Boolean = false,
+    val encryptionKey: String? = null,
 ) : Parcelable
 
 /**
@@ -157,4 +161,6 @@ data class ClipboardSettings(
     val bubbleOpacity: Float = 0.8f,
     val selectedTheme: String = "Default",
     val bubbleType: BubbleType = BubbleType.CIRCLE,
+    val enableClipboardMonitoring: Boolean = true,
+    val enableAccessibilityMonitoring: Boolean = false,
 )

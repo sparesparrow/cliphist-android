@@ -32,26 +32,24 @@ class MainDispatcherRule(
  */
 object TestDataGenerator {
     fun generateClipboardItem(
-        id: String = "1",
+        id: Long = 1L,
         content: String = "Test content",
         timestamp: Long = System.currentTimeMillis(),
-        contentType: com.clipboardhistory.domain.model.ContentType = com.clipboardhistory.domain.model.ContentType.TEXT,
         isEncrypted: Boolean = false,
-        size: Int = content.length,
     ) = com.clipboardhistory.domain.model.ClipboardItem(
         id = id,
         content = content,
         timestamp = timestamp,
-        contentType = contentType,
         isEncrypted = isEncrypted,
-        size = size,
     )
 
     fun generateSmartAction(
+        type: String = "copy",
         label: String = "Copy",
-        action: com.clipboardhistory.domain.model.BubbleState = com.clipboardhistory.domain.model.BubbleState.REPLACE,
+        icon: String = "content_copy",
     ) = com.clipboardhistory.domain.model.SmartAction(
+        type = type,
         label = label,
-        action = action,
+        icon = icon,
     )
 }

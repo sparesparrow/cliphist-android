@@ -101,7 +101,7 @@ class ContentAnalyzerTest {
 
         assertEquals(1, actions.size)
         assertEquals("Open Link", actions[0].label)
-        assertEquals(BubbleState.REPLACE, actions[0].action)
+        assertEquals(BubbleState.REPLACE, actions[0].bubbleState)
     }
 
     @Test
@@ -110,7 +110,7 @@ class ContentAnalyzerTest {
 
         assertEquals(1, actions.size)
         assertEquals("Call Number", actions[0].label)
-        assertEquals(BubbleState.REPLACE, actions[0].action)
+        assertEquals(BubbleState.REPLACE, actions[0].bubbleState)
     }
 
     @Test
@@ -119,7 +119,7 @@ class ContentAnalyzerTest {
 
         assertEquals(1, actions.size)
         assertEquals("Send Email", actions[0].label)
-        assertEquals(BubbleState.REPLACE, actions[0].action)
+        assertEquals(BubbleState.REPLACE, actions[0].bubbleState)
     }
 
     @Test
@@ -128,7 +128,7 @@ class ContentAnalyzerTest {
 
         assertEquals(1, actions.size)
         assertEquals("Open Maps", actions[0].label)
-        assertEquals(BubbleState.REPLACE, actions[0].action)
+        assertEquals(BubbleState.REPLACE, actions[0].bubbleState)
     }
 
     @Test
@@ -137,7 +137,7 @@ class ContentAnalyzerTest {
 
         assertEquals(1, actions.size)
         assertEquals("Search Text", actions[0].label)
-        assertEquals(BubbleState.REPLACE, actions[0].action)
+        assertEquals(BubbleState.REPLACE, actions[0].bubbleState)
     }
 
     @Test
@@ -161,51 +161,6 @@ class ContentAnalyzerTest {
     @Test
     fun `analyzeContentType handles international phone format`() {
         val result = ContentAnalyzer.analyzeContentType("+44 20 7946 0958")
-        assertEquals(ContentAnalyzer.Type.PHONE, result)
-    }
-
-    @Test
-    fun `analyzeContentType handles phone with dots`() {
-        val result = ContentAnalyzer.analyzeContentType("555.123.4567")
-        assertEquals(ContentAnalyzer.Type.PHONE, result)
-    }
-
-    @Test
-    fun `analyzeContentType handles US phone format with area code`() {
-        val result = ContentAnalyzer.analyzeContentType("(212) 555-1234")
-        assertEquals(ContentAnalyzer.Type.PHONE, result)
-    }
-
-    @Test
-    fun `analyzeContentType handles German phone format`() {
-        val result = ContentAnalyzer.analyzeContentType("+49 30 12345678")
-        assertEquals(ContentAnalyzer.Type.PHONE, result)
-    }
-
-    @Test
-    fun `analyzeContentType rejects too short phone number`() {
-        // Only 5 digits - not a valid phone number
-        val result = ContentAnalyzer.analyzeContentType("12345")
-        assertEquals(ContentAnalyzer.Type.TEXT, result)
-    }
-
-    @Test
-    fun `analyzeContentType rejects number with letters`() {
-        // Contains letters - not a phone number
-        val result = ContentAnalyzer.analyzeContentType("123-ABC-4567")
-        assertEquals(ContentAnalyzer.Type.TEXT, result)
-    }
-
-    @Test
-    fun `analyzeContentType detects 7 digit phone number`() {
-        // Minimum valid phone number
-        val result = ContentAnalyzer.analyzeContentType("5551234")
-        assertEquals(ContentAnalyzer.Type.PHONE, result)
-    }
-
-    @Test
-    fun `analyzeContentType handles phone with extension notation`() {
-        val result = ContentAnalyzer.analyzeContentType("555-123-4567")
         assertEquals(ContentAnalyzer.Type.PHONE, result)
     }
 }

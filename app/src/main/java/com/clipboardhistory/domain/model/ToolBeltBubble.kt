@@ -28,35 +28,7 @@ data class ToolBeltBubble(
     val position: Int = 0,
     val createdAt: Date = Date(),
     val updatedAt: Date = Date(),
-) {
-    /**
-     * Creates a copy of this bubble with updated properties.
-     */
-    fun copy(
-        id: String = this.id,
-        type: ToolBeltBubbleType = this.type,
-        content: String = this.content,
-        bubbleType: BubbleType = this.bubbleType,
-        isPrivate: Boolean = this.isPrivate,
-        isVisible: Boolean = this.isVisible,
-        operationMode: OperationMode = this.operationMode,
-        position: Int = this.position,
-        createdAt: Date = this.createdAt,
-        updatedAt: Date = Date(),
-    ): ToolBeltBubble =
-        ToolBeltBubble(
-            id = id,
-            type = type,
-            content = content,
-            bubbleType = bubbleType,
-            isPrivate = isPrivate,
-            isVisible = isVisible,
-            operationMode = operationMode,
-            position = position,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-        )
-}
+)
 
 /**
  * Enumeration of different ToolBelt bubble types.

@@ -67,6 +67,10 @@ import java.util.*
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToStatistics: () -> Unit = {},
+    onNavigateToItemDetail: (Long) -> Unit = {},
+    onNavigateToSmartActions: (Long) -> Unit = {},
     onStartServices: () -> Unit,
     onStopServices: () -> Unit,
 ) {

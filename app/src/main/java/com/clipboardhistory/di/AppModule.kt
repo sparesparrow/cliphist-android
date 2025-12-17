@@ -19,6 +19,28 @@ import javax.inject.Singleton
  */
 @Module
 @InstallIn(SingletonComponent::class)
+object AppModule {
+
+    /**
+     * Provides the application context.
+     *
+     * @param context The application context
+     * @return The application context
+     */
+    @Provides
+    @Singleton
+    fun provideApplicationContext(@ApplicationContext context: Context): Context {
+        return context
+    }
+}
+
+/**
+ * Dependency injection module for database-related components.
+ *
+ * This module provides the database instance and DAO for dependency injection.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
 object DatabaseModule {
     /**
      * Provides the clipboard database instance.

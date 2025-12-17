@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.*
 import androidx.cardview.widget.CardView
 import com.clipboardhistory.R
+import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.OperationMode
 import com.clipboardhistory.domain.model.ToolBeltBubble
 import com.clipboardhistory.domain.model.ToolBeltBubbleType
@@ -391,7 +392,7 @@ private class ToolBeltBubbleView(
                 com.clipboardhistory.domain.model.BubbleThemes.DEFAULT,
                 com.clipboardhistory.domain.model.BubbleState.EMPTY,
                 bubble.bubbleType,
-                bubble.content,
+                content = bubble.content,
             )
         customBubbleView.layoutParams =
             FrameLayout.LayoutParams(
