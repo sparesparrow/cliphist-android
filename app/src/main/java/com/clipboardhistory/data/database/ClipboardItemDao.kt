@@ -118,14 +118,6 @@ interface ClipboardItemDao {
     suspend fun restoreItemById(id: String)
 
     /**
-     * Get all non-deleted items ordered by timestamp (newest first).
-     *
-     * @return Flow of list of clipboard items
-     */
-    @Query("SELECT * FROM clipboard_items WHERE is_deleted = 0 ORDER BY timestamp DESC")
-    fun getAllItems(): Flow<List<ClipboardItemEntity>>
-
-    /**
      * Get favorite items.
      *
      * @return Flow of list of favorite clipboard items
@@ -188,14 +180,6 @@ interface ClipboardItemDao {
      */
     @Query("DELETE FROM clipboard_items WHERE timestamp < :timestamp")
     suspend fun deleteItemsOlderThan(timestamp: Long)
-
-    /**
-     * Get the count of clipboard items.
-     *
-     * @return The total number of clipboard items
-     */
-    @Query("SELECT COUNT(*) FROM clipboard_items")
-    suspend fun getItemCount(): Int
 
     /**
      * Get clipboard items with a limit (for pagination).
