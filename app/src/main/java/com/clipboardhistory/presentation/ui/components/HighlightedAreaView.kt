@@ -334,13 +334,7 @@ class HighlightedAreaView
                 "Send Email" -> theme.colors.prepend
                 "Open Maps" -> theme.colors.replace
                 "Search Text" -> theme.colors.storing
-                else ->
-                    when (action.action) {
-                        BubbleState.REPLACE -> theme.colors.replace
-                        BubbleState.APPEND -> theme.colors.append
-                        BubbleState.PREPEND -> theme.colors.prepend
-                        else -> theme.colors.storing
-                    }
+                else -> theme.colors.storing
             }
         }
 
@@ -354,13 +348,7 @@ class HighlightedAreaView
                 "Send Email" -> "✉"
                 "Open Maps" -> "📍"
                 "Search Text" -> "🔍"
-                else ->
-                    when (action.action) {
-                        BubbleState.REPLACE -> "↔"
-                        BubbleState.APPEND -> "+"
-                        BubbleState.PREPEND -> "⤒"
-                        else -> "•"
-                    }
+                else -> "•"
             }
         }
 

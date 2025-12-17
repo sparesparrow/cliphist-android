@@ -182,14 +182,6 @@ interface ClipboardItemDao {
     suspend fun deleteItemsOlderThan(timestamp: Long)
 
     /**
-     * Get the count of clipboard items.
-     *
-     * @return The total number of clipboard items
-     */
-    @Query("SELECT COUNT(*) FROM clipboard_items")
-    suspend fun getItemCount(): Int
-
-    /**
      * Get clipboard items with a limit (for pagination).
      *
      * @param limit The maximum number of items to return

@@ -789,30 +789,10 @@ class FloatingBubbleService : Service() {
             if (clipData != null && clipData.itemCount > 0) {
                 val clipText = clipData.getItemAt(0).text?.toString()
                 if (!clipText.isNullOrEmpty()) {
-                    val currentContent = bubble.content ?: ""
-                    val newContent =
-                        when (smartAction.action) {
-                            BubbleState.PREPEND -> clipText + currentContent
-                            BubbleState.REPLACE -> clipText
-                            BubbleState.APPEND -> currentContent + clipText
-                            else -> currentContent
-                        }
-
-                    // Update bubble content
-                    bubble.content = newContent
-
-                    // Update the bubble view
-                    bubble.view.updateState(BubbleState.STORING)
-
-                    // Add to clipboard history
-                    serviceScope.launch {
-                        addClipboardItemUseCase(newContent)
-                    }
-
                     // Show smart action feedback
                     Toast.makeText(this, smartAction.label, Toast.LENGTH_SHORT).show()
 
-                    // Handle specific smart actions
+                    // Handle specific smart actions (triggers external apps based on ActionType)
                     handleSpecificSmartAction(smartAction, clipText)
                 }
             }
@@ -831,8 +811,8 @@ class FloatingBubbleService : Service() {
         smartAction: SmartAction,
         content: String,
     ) {
-        when (smartAction.label) {
-            "Open Link" -> {
+        when (smartAction.type) {
+            SmartAction.ActionType.OPEN_LINK -> {
                 try {
                     val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(content))
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -841,7 +821,7 @@ class FloatingBubbleService : Service() {
                     Toast.makeText(this, "Could not open link", Toast.LENGTH_SHORT).show()
                 }
             }
-            "Call Number" -> {
+            SmartAction.ActionType.CALL_NUMBER -> {
                 try {
                     val intent = Intent(Intent.ACTION_DIAL)
                     intent.data = android.net.Uri.parse("tel:$content")
@@ -851,7 +831,7 @@ class FloatingBubbleService : Service() {
                     Toast.makeText(this, "Could not dial number", Toast.LENGTH_SHORT).show()
                 }
             }
-            "Send Email" -> {
+            SmartAction.ActionType.SEND_EMAIL -> {
                 try {
                     val intent = Intent(Intent.ACTION_SENDTO)
                     intent.data = android.net.Uri.parse("mailto:$content")
@@ -861,7 +841,7 @@ class FloatingBubbleService : Service() {
                     Toast.makeText(this, "Could not open email", Toast.LENGTH_SHORT).show()
                 }
             }
-            "Open Maps" -> {
+            SmartAction.ActionType.OPEN_MAPS -> {
                 try {
                     val intent = Intent(Intent.ACTION_VIEW)
                     intent.data = android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(content)}")
@@ -871,7 +851,7 @@ class FloatingBubbleService : Service() {
                     Toast.makeText(this, "Could not open maps", Toast.LENGTH_SHORT).show()
                 }
             }
-            "Search Text" -> {
+            SmartAction.ActionType.SEARCH_WEB -> {
                 try {
                     val intent = Intent(Intent.ACTION_WEB_SEARCH)
                     intent.putExtra(SearchManager.QUERY, content)
@@ -880,6 +860,10 @@ class FloatingBubbleService : Service() {
                 } catch (e: Exception) {
                     Toast.makeText(this, "Could not search", Toast.LENGTH_SHORT).show()
                 }
+            }
+            else -> {
+                // Other action types not yet implemented
+                Toast.makeText(this, "Action not implemented: ${smartAction.label}", Toast.LENGTH_SHORT).show()
             }
         }
     }
