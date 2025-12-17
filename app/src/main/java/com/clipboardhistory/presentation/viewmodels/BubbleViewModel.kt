@@ -150,43 +150,61 @@ class BubbleViewModel(
                 icon = 6,
                 action = { /* Change operation mode */ },
                 priority = 6
+            ),
+            ToolbeltTool(
+                id = "clear_all",
+                name = "Clear",
+                icon = 7,
+                action = { /* Clear all bubbles */ },
+                priority = 7
+            ),
+            ToolbeltTool(
+                id = "settings",
+                name = "Settings",
+                icon = 8,
+                action = { /* Open settings */ },
+                priority = 8
             )
         )
     }
 
+    // Bubble interaction methods
+
     /**
-     * Removes a bubble by ID.
+     * Handles bubble tap/interaction.
      */
-    fun removeBubble(bubbleId: String) {
-        _orchestrator.removeBubble(bubbleId)
+    fun onBubbleTap(bubbleId: String) {
+        _orchestrator.onBubbleInteraction(bubbleId)
     }
 
     /**
-     * Updates bubble position.
+     * Updates bubble position after dragging.
      */
     fun updateBubblePosition(bubbleId: String, position: androidx.compose.ui.geometry.Offset) {
         _orchestrator.updateBubblePosition(bubbleId, position)
     }
 
     /**
-     * Toggles bubble minimization.
+     * Toggles minimization state of a bubble.
      */
     fun toggleBubbleMinimized(bubbleId: String) {
         _orchestrator.toggleBubbleMinimized(bubbleId)
     }
 
     /**
-     * Updates a bubble.
+     * Removes a specific bubble.
      */
-    fun updateBubble(bubble: BubbleSpec) {
-        _orchestrator.updateBubble(bubble)
+    fun removeBubble(bubbleId: String) {
+        _orchestrator.removeBubble(bubbleId)
     }
 
+    // Bulk operations
+
     /**
-     * Gets bubbles of a specific type.
+     * Clears all bubbles of a specific type.
      */
-    fun getBubblesByType(type: BubbleType): List<BubbleSpec> {
-        return bubbles.value.filter { it.type == type }
+    fun clearBubblesByType(type: BubbleType) {
+        _orchestrator.clearBubblesByType(type)
     }
 
     /**
@@ -197,7 +215,28 @@ class BubbleViewModel(
     }
 
     /**
-     * Gets the current keyboard state.
+     * Gets bubbles that should be visible based on current state.
+     */
+    fun getVisibleBubbles(): List<BubbleSpec> {
+        return _orchestrator.getVisibleBubbles()
+    }
+
+    // Utility methods
+
+    /**
+     * Checks if direct input pasting is available.
+     */
+    fun isDirectInputAvailable(): Boolean {
+        return smartInputManager?.isDirectInputAvailable() ?: false
+    }
+
+    /**
+     * Gets current input context information.
+     */
+    fun getInputContextInfo() = smartInputManager?.getInputContextInfo()
+
+    /**
+     * Gets keyboard state information.
      */
     fun getKeyboardState() = keyboardDetector.getCurrentKeyboardState()
 }
