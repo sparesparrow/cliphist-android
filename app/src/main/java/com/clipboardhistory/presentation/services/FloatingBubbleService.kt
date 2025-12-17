@@ -32,6 +32,8 @@ import com.clipboardhistory.presentation.ui.components.BubbleView
 import com.clipboardhistory.presentation.ui.components.BubbleViewFactory
 import com.clipboardhistory.presentation.ui.components.HighlightedAreaView
 import com.clipboardhistory.presentation.ui.toolbelt.TransparencyController
+import com.clipboardhistory.utils.KeyboardVisibilityDetector
+import com.clipboardhistory.utils.SmartInputManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +75,11 @@ class FloatingBubbleService : Service() {
     private val bubbles = mutableListOf<BubbleData>()
     private var emptyBubble: BubbleData? = null
     private var currentBubbleOpacity: Float = 0.8f
+
+    // Smart UI components
+    private lateinit var keyboardDetector: KeyboardVisibilityDetector
+    private lateinit var smartInputManager: SmartInputManager
+    private var bubblesVisibleDueToKeyboard = false
 
     // Transparency controller callback
     private val globalTransparencyCallback: (Float) -> Unit = { opacity ->
@@ -144,6 +151,10 @@ class FloatingBubbleService : Service() {
             clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+            // Initialize smart UI components
+            keyboardDetector = KeyboardVisibilityDetector(this)
+            smartInputManager = SmartInputManager(this)
+
             createNotificationChannel()
             startForeground(NOTIFICATION_ID, createNotification())
 
@@ -156,6 +167,9 @@ class FloatingBubbleService : Service() {
 
             // Register with transparency controller
             TransparencyController.registerBubble(globalTransparencyCallback)
+
+            // Setup keyboard visibility monitoring
+            setupKeyboardVisibilityMonitoring()
 
             // Load settings and initialize bubbles with retry mechanism
             initializeServiceWithRetry()
@@ -214,6 +228,9 @@ class FloatingBubbleService : Service() {
         // Unregister from transparency controller
         TransparencyController.unregisterBubble(globalTransparencyCallback)
 
+        // Stop keyboard monitoring
+        keyboardDetector.stopMonitoring()
+
         removeAllBubbles()
         serviceJob.cancel()
 
@@ -222,6 +239,122 @@ class FloatingBubbleService : Service() {
             val intent = Intent(applicationContext, this::class.java)
             startService(intent)
         }
+    }
+
+    /**
+     * Sets up keyboard visibility monitoring to show/hide bubbles based on keyboard state.
+     */
+    private fun setupKeyboardVisibilityMonitoring() {
+        serviceScope.launch {
+            keyboardDetector.isKeyboardVisible.collect { isVisible ->
+                mainScope.launch {
+                    handleKeyboardVisibilityChange(isVisible)
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles keyboard visibility changes to show/hide bubbles appropriately.
+     */
+    private fun handleKeyboardVisibilityChange(isKeyboardVisible: Boolean) {
+        synchronized(bubbleLock) {
+            if (isKeyboardVisible) {
+                // Show bubbles when keyboard is visible
+                if (!bubblesVisibleDueToKeyboard) {
+                    showBubblesForKeyboardInput()
+                    bubblesVisibleDueToKeyboard = true
+                }
+            } else {
+                // Hide bubbles when keyboard is not visible
+                if (bubblesVisibleDueToKeyboard) {
+                    hideBubblesForKeyboardInput()
+                    bubblesVisibleDueToKeyboard = false
+                }
+            }
+        }
+    }
+
+    /**
+     * Shows bubbles when keyboard input is active.
+     */
+    private fun showBubblesForKeyboardInput() {
+        try {
+            // Only show if we have bubbles to display
+            if (emptyBubble == null && bubbles.isEmpty()) {
+                // Initialize bubbles if none exist
+                initializeBubbles()
+            }
+
+            // Ensure bubbles are visible
+            updateBubbleVisibility(true)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Hides bubbles when keyboard input is not active.
+     */
+    private fun hideBubblesForKeyboardInput() {
+        try {
+            // Temporarily hide bubbles (but keep them in memory)
+            updateBubbleVisibility(false)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Updates the visibility of all bubbles.
+     */
+    private fun updateBubbleVisibility(visible: Boolean) {
+        try {
+            // Update empty bubble visibility
+            emptyBubble?.let { bubble ->
+                val alpha = if (visible) currentBubbleOpacity else 0.0f
+                bubble.params.alpha = alpha
+                if (visible) {
+                    windowManager.updateViewLayout(bubble.view, bubble.params)
+                }
+                // Update accessibility description
+                updateEmptyBubbleAccessibility(bubble.view)
+            }
+
+            // Update content bubbles visibility
+            bubbles.forEach { bubble ->
+                val alpha = if (visible) currentBubbleOpacity else 0.0f
+                bubble.params.alpha = alpha
+                if (visible) {
+                    windowManager.updateViewLayout(bubble.view, bubble.params)
+                }
+                // Update accessibility description
+                updateContentBubbleAccessibility(bubble.view, bubble.content ?: "")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Updates accessibility description for empty bubble.
+     */
+    private fun updateEmptyBubbleAccessibility(bubbleView: BubbleView) {
+        val keyboardVisible = keyboardDetector.getCurrentKeyboardState().isVisible
+        bubbleView.contentDescription = "Empty clipboard bubble. Tap to capture current clipboard content. ${if (keyboardVisible) "Keyboard is visible - bubbles are active." else "Keyboard is hidden - bubbles are hidden."}"
+    }
+
+    /**
+     * Updates accessibility description for content bubble.
+     */
+    private fun updateContentBubbleAccessibility(bubbleView: BubbleView, content: String) {
+        val inputContext = smartInputManager.getInputContextInfo()
+        val smartPasteAvailable = inputContext.canSmartPaste
+        val keyboardVisible = keyboardDetector.getCurrentKeyboardState().isVisible
+
+        bubbleView.contentDescription = "Clipboard bubble with content: ${content.take(50)}${if (content.length > 50) "..." else ""}. " +
+                "${if (smartPasteAvailable) "Smart paste available - will paste directly into input field. " else "Will copy to clipboard. "}" +
+                "${if (keyboardVisible) "Keyboard is visible - tap to paste." else "Keyboard is hidden - tap to copy."}"
     }
 
     /**
@@ -361,6 +494,9 @@ class FloatingBubbleService : Service() {
                 }
             }
 
+            // Set accessibility properties for empty bubble
+            bubbleView.contentDescription = "Empty clipboard bubble. Tap to capture current clipboard content. ${if (keyboardDetector.getCurrentKeyboardState().isVisible) "Keyboard is visible - bubbles are active." else "Keyboard is hidden - bubbles are hidden."}"
+
             setupDragBehavior(bubble)
 
             try {
@@ -425,6 +561,15 @@ class FloatingBubbleService : Service() {
                 handleFullBubbleClick(content)
             }
         }
+
+        // Set accessibility properties for content bubbles
+        val inputContext = smartInputManager.getInputContextInfo()
+        val smartPasteAvailable = inputContext.canSmartPaste
+        val keyboardVisible = keyboardDetector.getCurrentKeyboardState().isVisible
+
+        bubbleView.contentDescription = "Clipboard bubble with content: ${content.take(50)}${if (content.length > 50) "..." else ""}. " +
+                "${if (smartPasteAvailable) "Smart paste available - will paste directly into input field. " else "Will copy to clipboard. "}" +
+                "${if (keyboardVisible) "Keyboard is visible - tap to paste." else "Keyboard is hidden - tap to copy."}"
 
         setupDragBehavior(bubble)
 
@@ -946,14 +1091,52 @@ class FloatingBubbleService : Service() {
     }
 
     /**
-     * Handles full bubble click.
+     * Handles full bubble click with smart pasting capabilities.
+     *
+     * When keyboard is visible and accessibility service is available,
+     * attempts to paste directly into the focused input field.
+     * Falls back to traditional clipboard method otherwise.
      *
      * @param content The clipboard content
      */
     private fun handleFullBubbleClick(content: String) {
         try {
             val currentTime = System.currentTimeMillis()
+            val keyboardVisible = keyboardDetector.getCurrentKeyboardState().isVisible
 
+            // Check if we can paste directly into input field (smart paste)
+            if (keyboardVisible && smartInputManager.isDirectInputAvailable()) {
+                val inputContext = smartInputManager.getInputContextInfo()
+
+                if (inputContext.canSmartPaste) {
+                    // Smart paste: paste directly into focused input field
+                    val success = smartInputManager.pasteText(content, useDirectInput = true)
+                    if (success) {
+                        // Don't update append window for smart paste to avoid confusion
+                        return
+                    }
+                }
+            }
+
+            // Fallback to traditional clipboard method
+            handleTraditionalClipboardPaste(content, currentTime)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Ultimate fallback
+            try {
+                clipboardManager.setPrimaryClip(ClipData.newPlainText("clipboard", content))
+                Toast.makeText(this, "Content copied to clipboard", Toast.LENGTH_SHORT).show()
+            } catch (fallbackException: Exception) {
+                fallbackException.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Handles traditional clipboard-based pasting with append window logic.
+     */
+    private fun handleTraditionalClipboardPaste(content: String, currentTime: Long) {
+        try {
             // Check if we're in the append window
             if (appendWindowActive && (currentTime - lastCopyTime) <= APPEND_WINDOW_MS) {
                 // Append mode: append bubble content to current clipboard
