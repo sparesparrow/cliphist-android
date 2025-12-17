@@ -392,14 +392,7 @@ private class ToolBeltBubbleView(
                 com.clipboardhistory.domain.model.BubbleThemes.DEFAULT,
                 com.clipboardhistory.domain.model.BubbleState.EMPTY,
                 bubble.bubbleType,
-                clipboardItem = if (bubble.content.isNotEmpty()) {
-                    ClipboardItem(
-                        id = System.currentTimeMillis(),
-                        content = bubble.content,
-                        timestamp = System.currentTimeMillis(),
-                        contentType = "text/plain",
-                    )
-                } else null,
+                content = bubble.content,
             )
         customBubbleView.layoutParams =
             FrameLayout.LayoutParams(

@@ -1,0 +1,4 @@
+📋 Testing Clipboard Capture & Bubble Display
+Starting: Intent { cmp=com.clipboardhistory.debug/com.clipboardhistory.presentation.MainActivity }
+Error type 3
+Error: Activity class {com.clipboardhistory.debug/com.clipboardhistory.presentation.MainActivity} does not exist.

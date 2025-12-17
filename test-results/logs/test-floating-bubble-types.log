@@ -1,0 +1,27 @@
+🎨 Testing Bubble Type Variations
+Testing: Circle bubble
+Broadcasting: Intent { act=com.sparesparrow.cliphist.SET_BUBBLE_TYPE flg=0x400000 (has extras) }
+Broadcast completed: result=0
+Broadcasting: Intent { act=android.intent.action.SEND flg=0x400000 (has extras) }
+Broadcast completed: result=0
+/sdcard/bubble-circle.png: 1 file pulled, 0 skipped. 18.5 MB/s (93812 bytes in 0.005s)
+Testing: Cube bubble
+Broadcasting: Intent { act=com.sparesparrow.cliphist.SET_BUBBLE_TYPE flg=0x400000 (has extras) }
+Broadcast completed: result=0
+Broadcasting: Intent { act=android.intent.action.SEND flg=0x400000 (has extras) }
+Broadcast completed: result=0
+/sdcard/bubble-cube.png: 1 file pulled, 0 skipped. 20.8 MB/s (93812 bytes in 0.004s)
+  Testing cube flash preview...
+/sdcard/cube-flash-preview.png: 1 file pulled, 0 skipped. 13.3 MB/s (46155 bytes in 0.003s)
+Testing: Hexagon bubble
+Broadcasting: Intent { act=com.sparesparrow.cliphist.SET_BUBBLE_TYPE flg=0x400000 (has extras) }
+Broadcast completed: result=0
+Broadcasting: Intent { act=android.intent.action.SEND flg=0x400000 (has extras) }
+Broadcast completed: result=0
+/sdcard/bubble-hexagon.png: 1 file pulled, 0 skipped. 13.0 MB/s (46155 bytes in 0.003s)
+Testing: Square bubble
+Broadcasting: Intent { act=com.sparesparrow.cliphist.SET_BUBBLE_TYPE flg=0x400000 (has extras) }
+Broadcast completed: result=0
+Broadcasting: Intent { act=android.intent.action.SEND flg=0x400000 (has extras) }
+Broadcast completed: result=0
+/sdcard/bubble-square.png: 1 file pulled, 0 skipped. 12.2 MB/s (46155 bytes in 0.004s)

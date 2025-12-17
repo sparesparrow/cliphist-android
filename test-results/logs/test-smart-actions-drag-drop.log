@@ -1,0 +1,4 @@
+🎯 Testing Smart Actions Drag-and-Drop
+Test 1: URL smart action
+Broadcasting: Intent { act=android.intent.action.SEND flg=0x400000 (has extras) }
+Broadcast completed: result=0
