@@ -327,4 +327,107 @@ class BubbleViewModel(
         val bubble = createRegexAccumulator(pattern)
         _orchestrator.addBubble(bubble)
     }
+
+    // Voice bubble functionality
+
+    /**
+     * Creates a new voice bubble with the given text content.
+     */
+    fun createVoiceBubble(
+        textContent: String = "",
+        isTTSEnabled: Boolean = true,
+        isVoiceRecognitionEnabled: Boolean = true,
+        position: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero
+    ): VoiceBubble {
+        return VoiceBubble(
+            id = "voice_${System.currentTimeMillis()}_${textContent.hashCode()}",
+            position = position,
+            textContent = textContent,
+            isTTSEnabled = isTTSEnabled,
+            isVoiceRecognitionEnabled = isVoiceRecognitionEnabled
+        )
+    }
+
+    /**
+     * Adds a voice bubble to the orchestrator.
+     */
+    fun addVoiceBubble(
+        textContent: String = "",
+        isTTSEnabled: Boolean = true,
+        isVoiceRecognitionEnabled: Boolean = true
+    ) {
+        val bubble = createVoiceBubble(textContent, isTTSEnabled, isVoiceRecognitionEnabled)
+        _orchestrator.addBubble(bubble)
+    }
+
+    /**
+     * Adds a voice transcription to an existing voice bubble.
+     */
+    fun addVoiceTranscriptionToBubble(
+        bubbleId: String,
+        transcription: String,
+        confidence: Float = 1.0f,
+        source: String = "voice"
+    ) {
+        val updatedBubble = bubbles.value.find { it.id == bubbleId } as? VoiceBubble
+        updatedBubble?.let { voiceBubble ->
+            val updated = voiceBubble.addTranscription(transcription, confidence, source)
+            updateBubble(updated)
+        }
+    }
+
+    /**
+     * Gets all voice bubbles.
+     */
+    fun getVoiceBubbles(): List<VoiceBubble> {
+        return bubbles.value.filterIsInstance<VoiceBubble>()
+    }
+
+    /**
+     * Updates voice bubble TTS settings.
+     */
+    fun updateVoiceBubbleTTSSettings(
+        bubbleId: String,
+        speechRate: Float? = null,
+        pitch: Float? = null,
+        language: String? = null,
+        autoSpeakOnLongPress: Boolean? = null
+    ) {
+        val bubble = bubbles.value.find { it.id == bubbleId } as? VoiceBubble
+        bubble?.let { voiceBubble ->
+            val currentSettings = voiceBubble.ttsSettings
+            val newSettings = currentSettings.copy(
+                speechRate = speechRate ?: currentSettings.speechRate,
+                pitch = pitch ?: currentSettings.pitch,
+                language = language ?: currentSettings.language,
+                autoSpeakOnLongPress = autoSpeakOnLongPress ?: currentSettings.autoSpeakOnLongPress
+            )
+            val updated = voiceBubble.withTTSSettings(newSettings)
+            updateBubble(updated)
+        }
+    }
+
+    /**
+     * Updates voice bubble voice recognition settings.
+     */
+    fun updateVoiceBubbleVoiceSettings(
+        bubbleId: String,
+        language: String? = null,
+        maxResults: Int? = null,
+        enablePartialResults: Boolean? = null,
+        confidenceThreshold: Float? = null
+    ) {
+        val bubble = bubbles.value.find { it.id == bubbleId } as? VoiceBubble
+        bubble?.let { voiceBubble ->
+            val currentSettings = voiceBubble.voiceSettings
+            val newSettings = currentSettings.copy(
+                language = language ?: currentSettings.language,
+                maxResults = maxResults ?: currentSettings.maxResults,
+                enablePartialResults = enablePartialResults ?: currentSettings.enablePartialResults,
+                confidenceThreshold = confidenceThreshold ?: currentSettings.confidenceThreshold
+            )
+            val updated = voiceBubble.withVoiceSettings(newSettings)
+            updateBubble(updated)
+        }
+    }
 }
