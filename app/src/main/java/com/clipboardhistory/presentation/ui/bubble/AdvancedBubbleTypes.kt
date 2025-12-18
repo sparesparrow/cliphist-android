@@ -248,17 +248,6 @@ enum class AdvancedBubbleType(
     ),
 
 
-    // 🤝 Collaboration & Sharing Bubbles
-    COLLABORATION(
-        displayName = "Collaboration Hub",
-        description = "Real-time collaborative editing and sharing of clipboard content with multiple users",
-        keyboardPolicy = KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE,
-        defaultSize = 300.dp,
-        supportsDragging = false, // Fixed for collaboration stability
-        autoHideDelay = 0L, // Persistent collaboration
-        zIndexPriority = 9,
-        category = BubbleCategory.COLLABORATION
-    );
 
     /**
      * Whether this bubble should be visible based on content context.
