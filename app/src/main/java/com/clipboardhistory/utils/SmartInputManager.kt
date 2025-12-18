@@ -175,11 +175,24 @@ class SmartInputManager(
         val accessibilityService = AccessibilityMonitorService.getInstance()
         val focusedNode = accessibilityService?.let { findFocusedInputNode(it) }
 
+        // Keyboard visibility detection requires Activity context
+        // Services cannot directly detect keyboard, so we default to false
+        val keyboardVisible = try {
+            val context = accessibilityService?.getApplicationContext()
+            if (context is android.app.Activity) {
+                KeyboardVisibilityDetector.create(context).getCurrentKeyboardState().isVisible
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+
         return InputContextInfo(
             hasAccessibilityService = accessibilityService != null,
             hasFocusedInput = focusedNode != null,
             inputSupportsDirectPaste = false, // For now, we'll use clipboard method
-            keyboardVisible = false // Keyboard visibility detection requires Activity context
+            keyboardVisible = keyboardVisible
         )
     }
 
