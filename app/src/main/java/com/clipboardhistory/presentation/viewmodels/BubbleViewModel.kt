@@ -239,4 +239,53 @@ class BubbleViewModel(
      * Gets keyboard state information.
      */
     fun getKeyboardState() = keyboardDetector.getCurrentKeyboardState()
+
+    // Regex accumulator operations
+
+    /**
+     * Processes clipboard content against active regex accumulator bubbles.
+     */
+    fun processClipboardContentForRegexAccumulators(content: String, source: String? = null) {
+        val updatedBubbles = bubbles.value.map { bubble ->
+            when (bubble) {
+                is AdvancedBubbleSpec.RegexAccumulator -> {
+                    if (bubble.isCollecting) {
+                        bubble.tryAccumulate(content, source)
+                    } else {
+                        bubble
+                    }
+                }
+                else -> bubble
+            }
+        }
+        _orchestrator.updateBubbles(updatedBubbles)
+    }
+
+    /**
+     * Gets all regex accumulator bubbles.
+     */
+    fun getRegexAccumulatorBubbles(): List<AdvancedBubbleSpec.RegexAccumulator> {
+        return bubbles.value.filterIsInstance<AdvancedBubbleSpec.RegexAccumulator>()
+    }
+
+    /**
+     * Creates a new regex accumulator bubble with the given pattern.
+     */
+    fun createRegexAccumulator(
+        pattern: AdvancedBubbleSpec.RegexPattern,
+        position: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero
+    ): AdvancedBubbleSpec.RegexAccumulator {
+        return AdvancedBubbleSpec.RegexAccumulator(
+            pattern = pattern,
+            position = position
+        )
+    }
+
+    /**
+     * Adds a regex accumulator bubble to the orchestrator.
+     */
+    fun addRegexAccumulator(pattern: AdvancedBubbleSpec.RegexPattern) {
+        val bubble = createRegexAccumulator(pattern)
+        _orchestrator.addBubble(bubble)
+    }
 }
