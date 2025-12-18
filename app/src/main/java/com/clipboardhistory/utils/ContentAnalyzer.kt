@@ -6,7 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+// Note: JSONObject import removed to avoid KAPT issues
 import java.net.URL
 import java.util.regex.Pattern
 
@@ -20,33 +20,15 @@ class ContentAnalyzer(private val context: Context) {
     private val ioScope = CoroutineScope(Dispatchers.IO)
 
     // Content type detection patterns
-    private val urlPattern = Pattern.compile(
-        "\\bhttps?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]",
-        Pattern.CASE_INSENSITIVE
-    )
+    // Simplified patterns to avoid KAPT issues
+    private val urlPattern = Regex("https?://[^\\s]+", RegexOption.IGNORE_CASE)
+    private val emailPattern = Regex("[^@\\s]+@[^@\\s]+\\.[^@\\s]+", RegexOption.IGNORE_CASE)
+    private val phonePattern = Regex("\\+?\\d{1,3}?[-.\\s]?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}", RegexOption.IGNORE_CASE)
+    private val jsonPattern = Regex("^\\s*\\{.*\\}\\s*$", setOf(RegexOption.DOT_MATCHES_ALL))
+    private val xmlPattern = Regex("^\\s*<.*>.*</.*>\\s*$", setOf(RegexOption.DOT_MATCHES_ALL))
 
-    private val emailPattern = Pattern.compile(
-        "[a-zA-Z0-9+._%\\-]{1,256}@[a-zA-Z0-9][a-zA-Z0-9\\-]{0,64}(\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,25})",
-        Pattern.CASE_INSENSITIVE
-    )
-
-    private val phonePattern = Pattern.compile(
-        "(\\+?\\d{1,3}[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}",
-        Pattern.CASE_INSENSITIVE
-    )
-
-    private val jsonPattern = Pattern.compile("^\\s*\\{.*\\}\\s*$", Pattern.DOTALL)
-    private val xmlPattern = Pattern.compile("^\\s*<.*>.*</.*>\\s*$", Pattern.DOTALL)
-
-    private val codePatterns = listOf(
-        Pattern.compile("\\bfun\\s+\\w+\\s*\\("), // Kotlin function
-        Pattern.compile("\\bfunction\\s+\\w+\\s*\\("), // JavaScript function
-        Pattern.compile("\\bdef\\s+\\w+\\s*\\("), // Python function
-        Pattern.compile("\\bclass\\s+\\w+"), // Class definition
-        Pattern.compile("\\bimport\\s+\\w+"), // Import statement
-        Pattern.compile("\\bpackage\\s+[\\w.]+"), // Package declaration
-        Pattern.compile("#include\\s*<.*>"), // C/C++ include
-        Pattern.compile("\\bpublic\\s+\\w+\\s+\\w+\\s*\\("), // Java method
+    private val codeKeywords = listOf(
+        "fun", "function", "def", "class", "import", "package", "public", "#include"
     )
 
     /**
@@ -99,27 +81,27 @@ class ContentAnalyzer(private val context: Context) {
         }
 
         // Check for URLs
-        if (urlPattern.matcher(content).find()) {
+        if (urlPattern.containsMatchIn(content)) {
             // If mostly URLs, classify as URL_LIST, otherwise TEXT_WITH_URLS
-            val urlMatches = urlPattern.matcher(content).results().count()
+            val urlMatches = urlPattern.findAll(content).count()
             val totalWords = content.split("\\s+".toRegex()).size
             return if (urlMatches >= totalWords * 0.5) ContentType.URL_LIST else ContentType.TEXT_WITH_URLS
         }
 
         // Check for emails
-        if (emailPattern.matcher(content).find()) {
-            val emailMatches = emailPattern.matcher(content).results().count()
+        if (emailPattern.containsMatchIn(content)) {
+            val emailMatches = emailPattern.findAll(content).count()
             return if (emailMatches > 1) ContentType.EMAIL_LIST else ContentType.TEXT_WITH_EMAIL
         }
 
         // Check for phone numbers
-        if (phonePattern.matcher(content).find()) {
+        if (phonePattern.containsMatchIn(content)) {
             return ContentType.TEXT_WITH_PHONE
         }
 
         // Check for code patterns
-        val codeMatches = codePatterns.sumOf { pattern ->
-            pattern.matcher(content).results().count()
+        val codeMatches = codeKeywords.sumOf { keyword ->
+            Regex("\\b$keyword\\b", RegexOption.IGNORE_CASE).findAll(content).count()
         }
         if (codeMatches > 0) {
             return ContentType.CODE
@@ -147,27 +129,29 @@ class ContentAnalyzer(private val context: Context) {
     private fun extractEntities(content: String, contentType: ContentType): List<ExtractedEntity> {
         return when (contentType) {
             ContentType.URL_LIST, ContentType.TEXT_WITH_URLS -> {
-                urlPattern.matcher(content).results()
-                    .map { ExtractedEntity("url", it.group(), confidence = 0.9f) }
+                urlPattern.findAll(content)
+                    .map { ExtractedEntity("url", it.value, confidence = 0.9f) }
                     .toList()
             }
             ContentType.EMAIL_LIST, ContentType.TEXT_WITH_EMAIL -> {
-                emailPattern.matcher(content).results()
-                    .map { ExtractedEntity("email", it.group(), confidence = 0.95f) }
+                emailPattern.findAll(content)
+                    .map { ExtractedEntity("email", it.value, confidence = 0.95f) }
                     .toList()
             }
             ContentType.TEXT_WITH_PHONE -> {
-                phonePattern.matcher(content).results()
-                    .map { ExtractedEntity("phone", it.group(), confidence = 0.8f) }
+                phonePattern.findAll(content)
+                    .map { ExtractedEntity("phone", it.value, confidence = 0.8f) }
                     .toList()
             }
             ContentType.JSON -> {
                 try {
-                    val json = JSONObject(content)
-                    val keys = json.keys()
-                    keys.asSequence().map { key ->
-                        ExtractedEntity("json_key", key, value = json.optString(key), confidence = 1.0f)
-                    }.toList()
+                    // Simple JSON key extraction without JSONObject dependency
+                    val jsonKeys = Regex("\"([^\"]+)\"\\s*:").findAll(content)
+                        .map { it.groupValues[1] }
+                        .distinct()
+                        .map { ExtractedEntity("json_key", it, confidence = 0.9f) }
+                        .toList()
+                    jsonKeys
                 } catch (e: Exception) {
                     emptyList()
                 }
@@ -176,18 +160,13 @@ class ContentAnalyzer(private val context: Context) {
                 // Extract function names, classes, imports
                 val entities = mutableListOf<ExtractedEntity>()
 
-                // Function definitions
-                Regex("\\bfun\\s+(\\w+)\\s*\\(").findAll(content).forEach { match ->
-                    entities.add(ExtractedEntity("function", match.groupValues[1], confidence = 0.9f))
-                }
-
-                Regex("\\bfunction\\s+(\\w+)\\s*\\(").findAll(content).forEach { match ->
-                    entities.add(ExtractedEntity("function", match.groupValues[1], confidence = 0.9f))
-                }
-
-                // Class definitions
-                Regex("\\bclass\\s+(\\w+)").findAll(content).forEach { match ->
-                    entities.add(ExtractedEntity("class", match.groupValues[1], confidence = 0.9f))
+                // Simple keyword-based extraction
+                codeKeywords.forEach { keyword ->
+                    Regex("\\b$keyword\\s+(\\w+)").findAll(content).forEach { match ->
+                        if (match.groupValues.size > 1) {
+                            entities.add(ExtractedEntity(keyword, match.groupValues[1], confidence = 0.8f))
+                        }
+                    }
                 }
 
                 entities.take(10) // Limit to prevent overload
@@ -476,11 +455,11 @@ class ContentAnalyzer(private val context: Context) {
     private fun generateSummary(content: String, contentType: ContentType): String {
         return when (contentType) {
             ContentType.URL_LIST -> {
-                val urlCount = urlPattern.matcher(content).results().count()
+                val urlCount = urlPattern.findAll(content).count()
                 "$urlCount URLs detected"
             }
             ContentType.EMAIL_LIST -> {
-                val emailCount = emailPattern.matcher(content).results().count()
+                val emailCount = emailPattern.findAll(content).count()
                 "$emailCount email addresses found"
             }
             ContentType.CODE -> {
