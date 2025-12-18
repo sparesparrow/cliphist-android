@@ -10,6 +10,13 @@ import com.clipboardhistory.utils.TextSelectionManager
  */
 class AccessibilityMonitorService : AccessibilityService() {
 
+    private lateinit var textSelectionManager: TextSelectionManager
+
+    override fun onCreate() {
+        super.onCreate()
+        textSelectionManager = TextSelectionManager(this, null)
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event?.let { accessibilityEvent ->
             textSelectionManager.onAccessibilityEvent(accessibilityEvent, this)
@@ -31,34 +38,6 @@ class AccessibilityMonitorService : AccessibilityService() {
      */
     fun setBubbleOrchestrator(orchestrator: com.clipboardhistory.presentation.ui.bubble.BubbleOrchestrator?) {
         textSelectionManager = TextSelectionManager(this, orchestrator)
-    }
-
-    companion object {
-        private var instance: AccessibilityMonitorService? = null
-
-        /**
-         * Gets the current instance of the accessibility service.
-         * Returns null if the service is not running.
-         */
-        fun getInstance(): AccessibilityMonitorService? = instance
-
-        /**
-         * Sets the instance for testing purposes.
-         * This method should only be used in unit tests.
-         */
-        internal fun setInstanceForTesting(service: AccessibilityMonitorService?) {
-            instance = service
-        }
-    }
-
-    override fun onServiceConnected() {
-        super.onServiceConnected()
-        instance = this
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        instance = null
     }
 
     companion object {
