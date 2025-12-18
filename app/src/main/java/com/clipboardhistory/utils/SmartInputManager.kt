@@ -179,9 +179,7 @@ class SmartInputManager(
             hasAccessibilityService = accessibilityService != null,
             hasFocusedInput = focusedNode != null,
             inputSupportsDirectPaste = false, // For now, we'll use clipboard method
-            keyboardVisible = KeyboardVisibilityDetector.attachToLifecycle(
-                accessibilityService?.getApplicationContext() as? android.app.Activity ?: return InputContextInfo()
-            ).getCurrentKeyboardState().isVisible
+            keyboardVisible = false // Keyboard visibility detection requires Activity context
         )
     }
 
