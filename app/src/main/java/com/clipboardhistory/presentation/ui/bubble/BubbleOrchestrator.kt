@@ -145,6 +145,13 @@ class BubbleOrchestrator(
     }
 
     /**
+     * Updates multiple bubbles at once (used for batch operations like regex accumulation).
+     */
+    fun updateBubbles(newBubbles: List<BubbleSpec>) {
+        _bubbles.value = newBubbles
+    }
+
+    /**
      * Clears all bubbles of a specific type.
      */
     fun clearBubblesByType(type: BubbleType) {
