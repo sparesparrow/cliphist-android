@@ -247,6 +247,18 @@ enum class AdvancedBubbleType(
         category = BubbleCategory.CREATIVE
     ),
 
+    // 🎤 Voice & Speech Bubbles
+    VOICE_BUBBLE(
+        displayName = "Voice Assistant",
+        description = "Text-to-speech playback and voice recognition for creating/appending transcribed content",
+        keyboardPolicy = KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE,
+        defaultSize = 100.dp,
+        supportsDragging = true,
+        autoHideDelay = 0L, // Persistent for accessibility
+        zIndexPriority = 9,
+        category = BubbleCategory.VOICE
+    ),
+
     // 🔍 Pattern Matching & Collection Bubbles
     REGEX_ACCUMULATOR(
         displayName = "Regex Collector",
@@ -329,7 +341,8 @@ enum class BubbleCategory {
     PRODUCTIVITY,  // Productivity tools and notes
     SYSTEM,        // System integration and settings
     CREATIVE,      // Creative tools and media
-    COLLECTION     // Pattern matching and data collection
+    COLLECTION,    // Pattern matching and data collection
+    VOICE          // Voice and speech interaction
 }
 
 /**
@@ -566,6 +579,20 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                         id = id,
                         position = position,
                         pattern = pattern
+                    )
+                }
+                AdvancedBubbleType.VOICE_BUBBLE -> {
+                    val voiceData = content as? Map<String, Any> ?: emptyMap()
+                    val textContent = voiceData["text"] as? String ?: ""
+                    val isTTSEnabled = voiceData["ttsEnabled"] as? Boolean ?: true
+                    val isVoiceEnabled = voiceData["voiceEnabled"] as? Boolean ?: true
+
+                    VoiceBubble(
+                        id = id,
+                        position = position,
+                        textContent = textContent,
+                        isTTSEnabled = isTTSEnabled,
+                        isVoiceRecognitionEnabled = isVoiceEnabled
                     )
                 }
                 else -> {
