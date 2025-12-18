@@ -33,7 +33,6 @@ import com.clipboardhistory.presentation.ui.components.BubbleViewFactory
 import com.clipboardhistory.presentation.ui.components.HighlightedAreaView
 import com.clipboardhistory.presentation.ui.toolbelt.TransparencyController
 import com.clipboardhistory.utils.KeyboardVisibilityDetector
-import com.clipboardhistory.utils.SmartInputManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

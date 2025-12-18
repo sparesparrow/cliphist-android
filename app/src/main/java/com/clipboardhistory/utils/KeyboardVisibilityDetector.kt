@@ -179,11 +179,11 @@ class KeyboardVisibilityDetector(
 
         /**
          * Creates a KeyboardVisibilityDetector attached to an Activity's lifecycle.
+         * Note: Lifecycle management is not implemented in this minimal version.
          */
         fun attachToLifecycle(activity: android.app.Activity): KeyboardVisibilityDetector {
-            return KeyboardVisibilityDetector(activity).apply {
-                activity.lifecycle.addObserver(this)
-            }
+            return KeyboardVisibilityDetector(activity)
+            // lifecycle.addObserver(this) - not implemented
         }
     }
 }
