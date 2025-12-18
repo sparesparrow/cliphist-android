@@ -4,6 +4,7 @@ import android.app.Activity
 import android.graphics.Rect
 import android.view.View
 import android.view.ViewTreeObserver
+import androidx.activity.ComponentActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -179,11 +180,13 @@ class KeyboardVisibilityDetector(
 
         /**
          * Creates a KeyboardVisibilityDetector attached to an Activity's lifecycle.
-         * Note: Lifecycle management is not implemented in this minimal version.
          */
         fun attachToLifecycle(activity: android.app.Activity): KeyboardVisibilityDetector {
-            return KeyboardVisibilityDetector(activity)
-            // lifecycle.addObserver(this) - not implemented
+            return KeyboardVisibilityDetector(activity).apply {
+                if (activity is ComponentActivity) {
+                    activity.lifecycle.addObserver(this)
+                }
+            }
         }
     }
 }

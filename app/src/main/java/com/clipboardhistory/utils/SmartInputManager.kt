@@ -9,7 +9,6 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.InputConnection
 import android.widget.Toast
 import com.clipboardhistory.presentation.services.AccessibilityMonitorService
-import com.clipboardhistory.utils.KeyboardVisibilityDetector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -176,9 +175,18 @@ class SmartInputManager(
         val accessibilityService = AccessibilityMonitorService.getInstance()
         val focusedNode = accessibilityService?.let { findFocusedInputNode(it) }
 
-        // Keyboard visibility detection requires Activity context and proper lifecycle management
-        // Services cannot reliably detect keyboard visibility without monitoring setup
-        val keyboardVisible = false
+        // Keyboard visibility detection requires Activity context
+        // Services cannot directly detect keyboard, so we default to false
+        val keyboardVisible = try {
+            val context = accessibilityService?.getApplicationContext()
+            if (context is android.app.Activity) {
+                KeyboardVisibilityDetector.create(context).getCurrentKeyboardState().isVisible
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
 
         return InputContextInfo(
             hasAccessibilityService = accessibilityService != null,
