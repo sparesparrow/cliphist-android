@@ -30,9 +30,12 @@ class BubbleViewModel(
     init {
         // Initialize keyboard monitoring
         keyboardDetector.startMonitoring()
+<<<<<<< HEAD
 
         // Setup text selection integration if accessibility service is available
         setupTextSelectionIntegration()
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
     }
 
     override fun onCleared() {
@@ -40,6 +43,7 @@ class BubbleViewModel(
         keyboardDetector.stopMonitoring()
     }
 
+<<<<<<< HEAD
     /**
      * Sets up integration with text selection for bubble cut functionality.
      */
@@ -53,6 +57,8 @@ class BubbleViewModel(
         }
     }
 
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
     // Bubble management methods
 
     /**
@@ -255,6 +261,10 @@ class BubbleViewModel(
      * Gets keyboard state information.
      */
     fun getKeyboardState() = keyboardDetector.getCurrentKeyboardState()
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
 
     // Regex accumulator operations
 
@@ -297,6 +307,7 @@ class BubbleViewModel(
         )
     }
 
+<<<<<<< HEAD
     // Bubble cut functionality
 
     /**
@@ -320,6 +331,8 @@ class BubbleViewModel(
         return _orchestrator.bubbleCutMenuManager.shouldShowBubbleCutMenu()
     }
 
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
     /**
      * Adds a regex accumulator bubble to the orchestrator.
      */
@@ -327,6 +340,7 @@ class BubbleViewModel(
         val bubble = createRegexAccumulator(pattern)
         _orchestrator.addBubble(bubble)
     }
+<<<<<<< HEAD
 
     // Voice bubble functionality
 
@@ -508,4 +522,8 @@ class BubbleViewModel(
             it.connectionStatus == ConnectionStatus.CONNECTED
         }
     }
+=======
+>>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
 }
