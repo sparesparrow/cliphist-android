@@ -245,6 +245,7 @@ enum class AdvancedBubbleType(
         autoHideDelay = 30000L,
         zIndexPriority = 6,
         category = BubbleCategory.CREATIVE
+<<<<<<< HEAD
     ),
 
     // 🎤 Voice & Speech Bubbles
@@ -281,6 +282,8 @@ enum class AdvancedBubbleType(
         autoHideDelay = 0L, // Persistent collaboration
         zIndexPriority = 9,
         category = BubbleCategory.COLLABORATION
+=======
+>>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
     );
 
     /**
@@ -352,10 +355,14 @@ enum class BubbleCategory {
     CONTEXT,       // Context-aware actions
     PRODUCTIVITY,  // Productivity tools and notes
     SYSTEM,        // System integration and settings
+<<<<<<< HEAD
     CREATIVE,      // Creative tools and media
     COLLECTION,    // Pattern matching and data collection
     VOICE,         // Voice and speech interaction
     COLLABORATION  // Real-time collaborative editing
+=======
+    CREATIVE       // Creative tools and media
+>>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
 }
 
 /**
@@ -437,6 +444,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
         override fun withInteraction(): TemplateBubble = copy(lastInteractionTime = System.currentTimeMillis())
     }
 
+<<<<<<< HEAD
     /**
      * Regex accumulator bubble that collects clipboard content matching patterns.
      */
@@ -626,6 +634,10 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                 }
             }
         }
+=======
+    companion object {
+        private fun generateId(): String = "advanced_${System.currentTimeMillis()}_${(0..999).random()}"
+>>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
     }
 }
 
@@ -636,6 +648,7 @@ enum class SearchFilter {
     TEXT_ONLY, URLS_ONLY, IMAGES_ONLY, CODE_ONLY, RECENT_ONLY, FAVORITES_ONLY, BY_DATE, BY_APP
 }
 
+<<<<<<< HEAD
     /**
      * Text template for the template bubble.
      */
@@ -683,3 +696,17 @@ enum class SearchFilter {
         val matchedAt: Long = System.currentTimeMillis(),
         val source: String? = null // Optional source context
     )
+=======
+/**
+ * Text template for the template bubble.
+ */
+data class TextTemplate(
+    val id: String,
+    val name: String,
+    val content: String,
+    val category: String,
+    val tags: List<String> = emptyList(),
+    val usageCount: Int = 0,
+    val lastUsed: Long = System.currentTimeMillis()
+)
+>>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
