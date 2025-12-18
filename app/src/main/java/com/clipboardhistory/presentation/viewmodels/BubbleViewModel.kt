@@ -430,4 +430,82 @@ class BubbleViewModel(
             updateBubble(updated)
         }
     }
+
+    // Collaboration bubble functionality
+
+    /**
+     * Creates a new collaboration session as host.
+     */
+    fun createCollaborationSession(initialContent: String = ""): CollaborationBubble {
+        return CollaborationBubble.createSession(initialContent)
+    }
+
+    /**
+     * Joins an existing collaboration session.
+     */
+    fun joinCollaborationSession(sessionId: String): CollaborationBubble {
+        return CollaborationBubble.joinSession(sessionId)
+    }
+
+    /**
+     * Adds a collaboration bubble to the orchestrator.
+     */
+    fun addCollaborationBubble(initialContent: String = "", asHost: Boolean = true) {
+        val bubble = if (asHost) {
+            createCollaborationSession(initialContent)
+        } else {
+            // In a real app, this would use a provided session ID
+            joinCollaborationSession("demo_session")
+        }
+        _orchestrator.addBubble(bubble)
+    }
+
+    /**
+     * Adds a collaborator to a collaboration session.
+     */
+    fun addCollaboratorToSession(bubbleId: String, collaborator: Collaborator) {
+        val bubble = bubbles.value.find { it.id == bubbleId } as? CollaborationBubble
+        bubble?.let { collabBubble ->
+            val updated = collabBubble.addCollaborator(collaborator)
+            updateBubble(updated)
+        }
+    }
+
+    /**
+     * Removes a collaborator from a collaboration session.
+     */
+    fun removeCollaboratorFromSession(bubbleId: String, collaboratorId: String) {
+        val bubble = bubbles.value.find { it.id == bubbleId } as? CollaborationBubble
+        bubble?.let { collabBubble ->
+            val updated = collabBubble.removeCollaborator(collaboratorId)
+            updateBubble(updated)
+        }
+    }
+
+    /**
+     * Applies a content change to a collaboration session.
+     */
+    fun applyContentChangeToSession(bubbleId: String, change: ContentChange) {
+        val bubble = bubbles.value.find { it.id == bubbleId } as? CollaborationBubble
+        bubble?.let { collabBubble ->
+            val updated = collabBubble.applyContentChange(change)
+            updateBubble(updated)
+        }
+    }
+
+    /**
+     * Gets all collaboration bubbles.
+     */
+    fun getCollaborationBubbles(): List<CollaborationBubble> {
+        return bubbles.value.filterIsInstance<CollaborationBubble>()
+    }
+
+    /**
+     * Gets active collaboration sessions.
+     */
+    fun getActiveCollaborationSessions(): List<CollaborationBubble> {
+        return getCollaborationBubbles().filter {
+            it.connectionStatus == ConnectionStatus.CONNECTED
+        }
+    }
 }

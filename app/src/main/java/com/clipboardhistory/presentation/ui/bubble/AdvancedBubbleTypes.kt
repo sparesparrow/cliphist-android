@@ -269,6 +269,18 @@ enum class AdvancedBubbleType(
         autoHideDelay = 0L, // Persistent collection
         zIndexPriority = 7,
         category = BubbleCategory.COLLECTION
+    ),
+
+    // 🤝 Collaboration & Sharing Bubbles
+    COLLABORATION(
+        displayName = "Collaboration Hub",
+        description = "Real-time collaborative editing and sharing of clipboard content with multiple users",
+        keyboardPolicy = KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE,
+        defaultSize = 300.dp,
+        supportsDragging = false, // Fixed for collaboration stability
+        autoHideDelay = 0L, // Persistent collaboration
+        zIndexPriority = 9,
+        category = BubbleCategory.COLLABORATION
     );
 
     /**
@@ -342,7 +354,8 @@ enum class BubbleCategory {
     SYSTEM,        // System integration and settings
     CREATIVE,      // Creative tools and media
     COLLECTION,    // Pattern matching and data collection
-    VOICE          // Voice and speech interaction
+    VOICE,         // Voice and speech interaction
+    COLLABORATION  // Real-time collaborative editing
 }
 
 /**
@@ -593,6 +606,18 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                         textContent = textContent,
                         isTTSEnabled = isTTSEnabled,
                         isVoiceRecognitionEnabled = isVoiceEnabled
+                    )
+                }
+                AdvancedBubbleType.COLLABORATION -> {
+                    val collabData = content as? Map<String, Any> ?: emptyMap()
+                    val initialText = collabData["text"] as? String ?: ""
+                    val isHost = collabData["isHost"] as? Boolean ?: true
+
+                    CollaborationBubble(
+                        id = id,
+                        position = position,
+                        isHost = isHost,
+                        content = CollaborativeContent(text = initialText)
                     )
                 }
                 else -> {
