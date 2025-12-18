@@ -246,6 +246,7 @@ enum class AdvancedBubbleType(
         zIndexPriority = 6,
         category = BubbleCategory.CREATIVE
 <<<<<<< HEAD
+<<<<<<< HEAD
     ),
 
     // 🎤 Voice & Speech Bubbles
@@ -258,6 +259,8 @@ enum class AdvancedBubbleType(
         autoHideDelay = 0L, // Persistent for accessibility
         zIndexPriority = 9,
         category = BubbleCategory.VOICE
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
     ),
 
     // 🔍 Pattern Matching & Collection Bubbles
@@ -270,6 +273,7 @@ enum class AdvancedBubbleType(
         autoHideDelay = 0L, // Persistent collection
         zIndexPriority = 7,
         category = BubbleCategory.COLLECTION
+<<<<<<< HEAD
     ),
 
     // 🤝 Collaboration & Sharing Bubbles
@@ -284,6 +288,8 @@ enum class AdvancedBubbleType(
         category = BubbleCategory.COLLABORATION
 =======
 >>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
     );
 
     /**
@@ -356,6 +362,7 @@ enum class BubbleCategory {
     PRODUCTIVITY,  // Productivity tools and notes
     SYSTEM,        // System integration and settings
 <<<<<<< HEAD
+<<<<<<< HEAD
     CREATIVE,      // Creative tools and media
     COLLECTION,    // Pattern matching and data collection
     VOICE,         // Voice and speech interaction
@@ -363,6 +370,10 @@ enum class BubbleCategory {
 =======
     CREATIVE       // Creative tools and media
 >>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
+=======
+    CREATIVE,      // Creative tools and media
+    COLLECTION     // Pattern matching and data collection
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
 }
 
 /**
@@ -445,6 +456,9 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
     /**
      * Regex accumulator bubble that collects clipboard content matching patterns.
      */
@@ -602,6 +616,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                         pattern = pattern
                     )
                 }
+<<<<<<< HEAD
                 AdvancedBubbleType.VOICE_BUBBLE -> {
                     val voiceData = content as? Map<String, Any> ?: emptyMap()
                     val textContent = voiceData["text"] as? String ?: ""
@@ -628,16 +643,21 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                         content = CollaborativeContent(text = initialText)
                     )
                 }
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
                 else -> {
                     // Fallback for other types
                     SearchBubble(id = id, position = position)
                 }
             }
         }
+<<<<<<< HEAD
 =======
     companion object {
         private fun generateId(): String = "advanced_${System.currentTimeMillis()}_${(0..999).random()}"
 >>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
     }
 }
 
@@ -649,6 +669,9 @@ enum class SearchFilter {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
     /**
      * Text template for the template bubble.
      */
@@ -695,6 +718,7 @@ enum class SearchFilter {
         val content: String,
         val matchedAt: Long = System.currentTimeMillis(),
         val source: String? = null // Optional source context
+<<<<<<< HEAD
     )
 =======
 /**
@@ -710,3 +734,6 @@ data class TextTemplate(
     val lastUsed: Long = System.currentTimeMillis()
 )
 >>>>>>> b53ab47 (feat: Implement comprehensive advanced bubble types with detailed use cases)
+=======
+    )
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)

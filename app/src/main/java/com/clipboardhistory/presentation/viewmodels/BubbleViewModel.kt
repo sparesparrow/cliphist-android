@@ -262,6 +262,9 @@ class BubbleViewModel(
      */
     fun getKeyboardState() = keyboardDetector.getCurrentKeyboardState()
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
 
     // Regex accumulator operations
 
@@ -304,6 +307,7 @@ class BubbleViewModel(
         )
     }
 
+<<<<<<< HEAD
     // Bubble cut functionality
 
     /**
@@ -327,6 +331,8 @@ class BubbleViewModel(
         return _orchestrator.bubbleCutMenuManager.shouldShowBubbleCutMenu()
     }
 
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
     /**
      * Adds a regex accumulator bubble to the orchestrator.
      */
@@ -334,6 +340,7 @@ class BubbleViewModel(
         val bubble = createRegexAccumulator(pattern)
         _orchestrator.addBubble(bubble)
     }
+<<<<<<< HEAD
 
     // Voice bubble functionality
 
@@ -517,4 +524,6 @@ class BubbleViewModel(
     }
 =======
 >>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
+=======
+>>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
 }
