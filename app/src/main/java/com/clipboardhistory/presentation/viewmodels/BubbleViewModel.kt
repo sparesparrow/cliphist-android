@@ -30,11 +30,27 @@ class BubbleViewModel(
     init {
         // Initialize keyboard monitoring
         keyboardDetector.startMonitoring()
+
+        // Setup text selection integration if accessibility service is available
+        setupTextSelectionIntegration()
     }
 
     override fun onCleared() {
         super.onCleared()
         keyboardDetector.stopMonitoring()
+    }
+
+    /**
+     * Sets up integration with text selection for bubble cut functionality.
+     */
+    private fun setupTextSelectionIntegration() {
+        try {
+            val accessibilityService = com.clipboardhistory.presentation.services.AccessibilityMonitorService.getInstance()
+            accessibilityService?.setBubbleOrchestrator(_orchestrator)
+        } catch (e: Exception) {
+            // Accessibility service not available or not properly initialized
+            // This is expected and not an error
+        }
     }
 
     // Bubble management methods
@@ -279,6 +295,29 @@ class BubbleViewModel(
             pattern = pattern,
             position = position
         )
+    }
+
+    // Bubble cut functionality
+
+    /**
+     * Shows the bubble cut menu when text is selected.
+     */
+    fun showBubbleCutMenu(position: androidx.compose.ui.geometry.Offset) {
+        _orchestrator.showBubbleCutMenu(position)
+    }
+
+    /**
+     * Hides the bubble cut menu.
+     */
+    fun hideBubbleCutMenu() {
+        _orchestrator.hideBubbleCutMenu()
+    }
+
+    /**
+     * Checks if bubble cut menu should be shown for current text selection.
+     */
+    fun shouldShowBubbleCutMenu(): Boolean {
+        return _orchestrator.bubbleCutMenuManager.shouldShowBubbleCutMenu()
     }
 
     /**
