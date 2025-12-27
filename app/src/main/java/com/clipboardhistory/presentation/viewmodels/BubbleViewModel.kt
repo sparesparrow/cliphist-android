@@ -17,7 +17,7 @@ class BubbleViewModel(
     private val smartInputManager: SmartInputManager? = null
 ) : ViewModel() {
 
-    private val _orchestrator = BubbleOrchestrator(keyboardDetector, smartInputManager)
+    private val _orchestrator = BubbleOrchestrator(keyboardDetector, smartInputManager, null, viewModelScope)
     val orchestrator: BubbleOrchestrator = _orchestrator
 
     // Exposed flows for UI consumption

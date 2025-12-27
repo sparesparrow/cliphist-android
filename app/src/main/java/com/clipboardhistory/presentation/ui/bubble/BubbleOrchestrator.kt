@@ -6,10 +6,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.clipboardhistory.utils.KeyboardVisibilityDetector
 import com.clipboardhistory.utils.TextSelectionManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -20,8 +19,9 @@ import kotlinx.coroutines.launch
 class BubbleOrchestrator(
     private val keyboardDetector: KeyboardVisibilityDetector,
     private val smartInputManager: com.clipboardhistory.utils.SmartInputManager? = null,
-    private val textSelectionManager: TextSelectionManager? = null
-) : ViewModel() {
+    private val textSelectionManager: TextSelectionManager? = null,
+    private val coroutineScope: CoroutineScope
+) {
 
     private val _bubbles = MutableStateFlow<List<BubbleSpec>>(emptyList())
     val bubbles: StateFlow<List<BubbleSpec>> = _bubbles
@@ -45,7 +45,7 @@ class BubbleOrchestrator(
 
     init {
         // Observe keyboard visibility changes
-        viewModelScope.launch {
+        coroutineScope.launch {
             keyboardDetector.isKeyboardVisible.collect { isVisible ->
                 _keyboardVisible.value = isVisible
                 updateBubblesForKeyboardState(isVisible)
@@ -385,7 +385,7 @@ class BubbleOrchestrator(
     }
 
     private fun startAutoHideTimer() {
-        viewModelScope.launch {
+        coroutineScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(5000) // Check every 5 seconds
 
