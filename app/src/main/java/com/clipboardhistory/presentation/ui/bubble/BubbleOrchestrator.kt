@@ -232,6 +232,26 @@ class BubbleOrchestrator(
     }
 
     /**
+     * Processes clipboard content against active regex accumulator bubbles.
+     */
+    private fun processClipboardContentForRegexAccumulators(content: String, source: String? = null) {
+        _bubbles.update { bubbles ->
+            bubbles.map { bubble ->
+                when (bubble) {
+                    is AdvancedBubbleSpec.RegexAccumulator -> {
+                        if (bubble.isCollecting) {
+                            bubble.tryAccumulate(content, source)
+                        } else {
+                            bubble
+                        }
+                    }
+                    else -> bubble
+                }
+            }
+        }
+    }
+
+    /**
      * Creates the appropriate bubble type for the given text.
      */
     private fun createBubbleForText(text: String): BubbleSpec {
