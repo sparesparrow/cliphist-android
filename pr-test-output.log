@@ -1,0 +1,100 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing PR #15: feature/smart-bubble-visibility
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+branch 'test-feature/smart-bubble-visibility' set up to track 'origin/feature/smart-bubble-visibility'.
+Compiling...
+❌ Compilation failed
+FloatingBubbleService.kt:155:59 Type mismatch: inferred type is FloatingBubbleService but Activity was expected;KeyboardVisibilityDetector.kt:147:26 Unresolved reference: lifecycle;
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+Deleted branch test-feature/smart-bubble-visibility (was 9750940).
+## PR #15: feature/smart-bubble-visibility
+- **Status**: ❌ FAILED
+- **Errors**: FloatingBubbleService.kt:155:59 Type mismatch: inferred type is FloatingBubbleService but Activity was expected;KeyboardVisibilityDetector.kt:147:26 Unresolved reference: lifecycle;
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing PR #16: feature/regex-accumulation-bubble
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+branch 'test-feature/regex-accumulation-bubble' set up to track 'origin/feature/regex-accumulation-bubble'.
+Compiling...
+❌ Compilation failed
+
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+Deleted branch test-feature/regex-accumulation-bubble (was b04bf72).
+## PR #16: feature/regex-accumulation-bubble
+- **Status**: ❌ FAILED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing PR #17: feature/voice-tts-bubble
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+branch 'test-feature/voice-tts-bubble' set up to track 'origin/feature/voice-tts-bubble'.
+Compiling...
+❌ Compilation failed
+
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+Deleted branch test-feature/voice-tts-bubble (was e4d7b9f).
+## PR #17: feature/voice-tts-bubble
+- **Status**: ❌ FAILED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing PR #18: feature/bubble-cut-integration
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+branch 'test-feature/bubble-cut-integration' set up to track 'origin/feature/bubble-cut-integration'.
+Compiling...
+❌ Compilation failed
+
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+Deleted branch test-feature/bubble-cut-integration (was 48e0df8).
+## PR #18: feature/bubble-cut-integration
+- **Status**: ❌ FAILED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing PR #19: feature/compose-bubble-types
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+branch 'test-feature/compose-bubble-types' set up to track 'origin/feature/compose-bubble-types'.
+Compiling...
+❌ Compilation failed
+FloatingBubbleService.kt:155:59 Type mismatch: inferred type is FloatingBubbleService but Activity was expected;BubbleSpec.kt:105:13 Conflicting declarations: public open val content: (BubbleSpec) -> Unit, public final val content: String;BubbleSpec.kt:105:13 'content' hides member of supertype 'BubbleSpec' and needs 'override' modifier;BubbleSpec.kt:111:22 Conflicting declarations: public open val content: (BubbleSpec) -> Unit, public final val content: String;BubbleSpec.kt:249:56 Not enough information to infer type variable T;
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+Deleted branch test-feature/compose-bubble-types (was 97e852e).
+## PR #19: feature/compose-bubble-types
+- **Status**: ❌ FAILED
+- **Errors**: FloatingBubbleService.kt:155:59 Type mismatch: inferred type is FloatingBubbleService but Activity was expected;BubbleSpec.kt:105:13 Conflicting declarations: public open val content: (BubbleSpec) -> Unit, public final val content: String;BubbleSpec.kt:105:13 'content' hides member of supertype 'BubbleSpec' and needs 'override' modifier;BubbleSpec.kt:111:22 Conflicting declarations: public open val content: (BubbleSpec) -> Unit, public final val content: String;BubbleSpec.kt:249:56 Not enough information to infer type variable T;
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing PR #20: feature/advanced-bubble-types
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+branch 'test-feature/advanced-bubble-types' set up to track 'origin/feature/advanced-bubble-types'.
+Compiling...
+❌ Compilation failed
+
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+Deleted branch test-feature/advanced-bubble-types (was b53ab47).
+## PR #20: feature/advanced-bubble-types
+- **Status**: ❌ FAILED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing PR #21: feature/collaboration-bubble
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+branch 'test-feature/collaboration-bubble' set up to track 'origin/feature/collaboration-bubble'.
+Compiling...
+❌ Compilation failed
+
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+Deleted branch test-feature/collaboration-bubble (was 1e1a480).
+## PR #21: feature/collaboration-bubble
+- **Status**: ❌ FAILED
+
