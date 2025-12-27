@@ -30,12 +30,9 @@ class BubbleViewModel(
     init {
         // Initialize keyboard monitoring
         keyboardDetector.startMonitoring()
-<<<<<<< HEAD
 
         // Setup text selection integration if accessibility service is available
         setupTextSelectionIntegration()
-=======
->>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
     }
 
     override fun onCleared() {
@@ -43,7 +40,6 @@ class BubbleViewModel(
         keyboardDetector.stopMonitoring()
     }
 
-<<<<<<< HEAD
     /**
      * Sets up integration with text selection for bubble cut functionality.
      */
@@ -57,8 +53,6 @@ class BubbleViewModel(
         }
     }
 
-=======
->>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
     // Bubble management methods
 
     /**
@@ -522,8 +516,4 @@ class BubbleViewModel(
             it.connectionStatus == ConnectionStatus.CONNECTED
         }
     }
-=======
->>>>>>> 97e852e (feat: Implement comprehensive bubble type system with different behaviors)
-=======
->>>>>>> b04bf72 (feat: Implement Regex Accumulator Bubble with pattern-based collection)
 }
