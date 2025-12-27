@@ -93,6 +93,13 @@ class KeyboardVisibilityDetector(
      */
     fun getCurrentKeyboardState(): KeyboardState = _keyboardState.value
 
+    /**
+     * Gets the application context from the activity.
+     */
+    fun getApplicationContext(): android.content.Context? {
+        return activity.applicationContext
+    }
+
     override fun onResume(owner: LifecycleOwner) {
         startMonitoring()
     }

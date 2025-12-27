@@ -462,76 +462,6 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
     }
 
     /**
-     * Voice bubble for text-to-speech and voice recognition.
-     */
-    data class VoiceBubble(
-        override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.VOICE_BUBBLE,
-        override val position: Offset = Offset.Zero,
-        override val size: Dp = type.defaultSize,
-        override val isVisible: Boolean = true,
-        override val isMinimized: Boolean = false,
-        override val lastInteractionTime: Long = System.currentTimeMillis(),
-        val textContent: String = "",
-        val isTTSEnabled: Boolean = true,
-        val isVoiceRecognitionEnabled: Boolean = true,
-        override val relevanceScore: Float = 0.9f,
-        override val contextualActions: List<String> = listOf("speak", "listen", "transcribe")
-    ) : AdvancedBubbleSpec() {
-
-        override val content: @Composable (BubbleSpec) -> Unit = { spec ->
-            val voiceSpec = spec as VoiceBubble
-            VoiceBubbleContent(voiceSpec)
-        }
-
-        override fun withKeyboardState(isKeyboardVisible: Boolean): VoiceBubble =
-            copy(isMinimized = isKeyboardVisible)
-
-        override fun withPosition(newPosition: Offset): VoiceBubble = copy(position = newPosition)
-        override fun withMinimized(isMinimized: Boolean): VoiceBubble = copy(isMinimized = isMinimized)
-        override fun withSize(newSize: Dp): VoiceBubble = copy(size = newSize)
-        override fun withInteraction(): VoiceBubble = copy(lastInteractionTime = System.currentTimeMillis())
-    }
-
-    /**
-     * Collaboration bubble for real-time collaborative editing.
-     */
-    data class CollaborationBubble(
-        override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.COLLABORATION,
-        override val position: Offset = Offset.Zero,
-        override val size: Dp = type.defaultSize,
-        override val isVisible: Boolean = true,
-        override val isMinimized: Boolean = false,
-        override val lastInteractionTime: Long = System.currentTimeMillis(),
-        val isHost: Boolean = true,
-        val content: CollaborativeContent = CollaborativeContent(),
-        val connectedUsers: List<String> = emptyList(),
-        override val relevanceScore: Float = 0.95f,
-        override val contextualActions: List<String> = listOf("invite", "share", "sync")
-    ) : AdvancedBubbleSpec() {
-
-        override val content: @Composable (BubbleSpec) -> Unit = { spec ->
-            val collabSpec = spec as CollaborationBubble
-            CollaborationBubbleContent(collabSpec)
-        }
-
-        override fun withKeyboardState(isKeyboardVisible: Boolean): CollaborationBubble =
-            copy() // Repositioning handled by base class
-
-        override fun withPosition(newPosition: Offset): CollaborationBubble = copy(position = newPosition)
-        override fun withMinimized(isMinimized: Boolean): CollaborationBubble = copy(isMinimized = isMinimized)
-        override fun withSize(newSize: Dp): CollaborationBubble = copy(size = newSize)
-        override fun withInteraction(): CollaborationBubble = copy(lastInteractionTime = System.currentTimeMillis())
-
-        /**
-         * Updates the collaborative content.
-         */
-        fun withContent(newContent: CollaborativeContent): CollaborationBubble =
-            copy(content = newContent, lastInteractionTime = System.currentTimeMillis())
-    }
-
-    /**
      * Regex accumulator bubble that collects clipboard content matching patterns.
      */
     data class RegexAccumulator(
@@ -778,12 +708,3 @@ enum class SearchFilter {
         val source: String? = null // Optional source context
     )
 
-    /**
-     * Collaborative content for real-time editing.
-     */
-    data class CollaborativeContent(
-        val text: String = "",
-        val lastModified: Long = System.currentTimeMillis(),
-        val version: Int = 1,
-        val author: String = "unknown"
-    )

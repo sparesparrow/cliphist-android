@@ -158,6 +158,17 @@ class BubbleOrchestrator(
     }
 
     /**
+     * Updates a single bubble.
+     */
+    fun updateBubble(updatedBubble: BubbleSpec) {
+        _bubbles.update { bubbles ->
+            bubbles.map { bubble ->
+                if (bubble.id == updatedBubble.id) updatedBubble else bubble
+            }
+        }
+    }
+
+    /**
      * Updates multiple bubbles at once (used for batch operations like regex accumulation).
      */
     fun updateBubbles(newBubbles: List<BubbleSpec>) {

@@ -214,6 +214,13 @@ class BubbleViewModel(
         _orchestrator.removeBubble(bubbleId)
     }
 
+    /**
+     * Updates a bubble.
+     */
+    fun updateBubble(bubble: BubbleSpec) {
+        _orchestrator.updateBubble(bubble)
+    }
+
     // Bulk operations
 
     /**
