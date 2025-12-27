@@ -1,3 +1,4 @@
+// This file triggers the CI/CD release APK build when modified
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
