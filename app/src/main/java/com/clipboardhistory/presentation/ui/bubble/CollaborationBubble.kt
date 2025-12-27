@@ -1,5 +1,6 @@
 package com.clipboardhistory.presentation.ui.bubble
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import com.clipboardhistory.utils.ContentAnalyzer
