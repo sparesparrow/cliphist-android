@@ -41,14 +41,14 @@ for test in "${tests[@]}"; do
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "Running: $test"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  
+
   # Execute test (invoke corresponding cursor command)
   start_time=$(date +%s)
   run_command_md "$test" 2>&1 | tee test-results/logs/${test}.log
   exit_code=${PIPESTATUS[0]}
   end_time=$(date +%s)
   duration=$((end_time - start_time))
-  
+
   # Record result
   if [ $exit_code -eq 0 ]; then
     results+=("$test:PASS:${duration}s")
@@ -57,37 +57,22 @@ for test in "${tests[@]}"; do
     results+=("$test:FAIL:${duration}s")
     echo "❌ $test: FAIL (${duration}s)"
   fi
-  
-  # Move any screenshots from test-results/ to test-results/screenshots/
-  if [ -d test-results ]; then
-    find test-results -maxdepth 1 -name "*.png" -type f -exec mv {} test-results/screenshots/ \; 2>/dev/null || true
-    find test-results -maxdepth 1 -name "step*.png" -type f -exec mv {} test-results/screenshots/ \; 2>/dev/null || true
-  fi
 done
 
 # Generate HTML report
-# Pass results to Python script via bash variable substitution
-python3 << PYEOF
+python3 << 'EOF'
 import json
 from datetime import datetime
-import sys
-import os
 
-results_str = """${results[*]}"""
+results = """${results[@]}"""
 tests_data = []
-if results_str:
-    for result in results_str.split():
-        if ':' in result:
-            parts = result.split(':')
-            if len(parts) >= 3:
-                name = parts[0]
-                status = parts[1]
-                duration = ':'.join(parts[2:])
-                tests_data.append({
-                    'name': name.replace('test-', '').replace('-', ' ').title(),
-                    'status': status,
-                    'duration': duration
-                })
+for result in results.split():
+    name, status, duration = result.split(':')
+    tests_data.append({
+        'name': name.replace('test-', '').replace('-', ' ').title(),
+        'status': status,
+        'duration': duration
+    })
 
 html = f"""
 <!DOCTYPE html>
@@ -115,7 +100,7 @@ html = f"""
     <div class="container">
         <h1>📋 Clipboard History Test Report</h1>
         <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-        
+
         <div class="summary">
             <div class="summary-card total">
                 <h2>{len(tests_data)}</h2>
@@ -130,7 +115,7 @@ html = f"""
                 <p>Failed</p>
             </div>
         </div>
-        
+
         <h2>Test Results</h2>
         <table>
             <tr>
@@ -152,10 +137,10 @@ for test in tests_data:
 
 html += """
         </table>
-        
+
         <h2>📸 Screenshots</h2>
         <p>All test screenshots saved in: <code>test-results/screenshots/</code></p>
-        
+
         <h2>📋 Logs</h2>
         <p>Detailed logs available in: <code>test-results/logs/</code></p>
     </div>
@@ -165,9 +150,9 @@ html += """
 
 with open('test-results/reports/full-test-suite-report.html', 'w') as f:
     f.write(html)
-    
+
 print("✅ HTML report generated: test-results/reports/full-test-suite-report.html")
-PYEOF
+EOF
 
 # Final summary
 echo ""

@@ -120,6 +120,10 @@ class BubbleOrchestrator(
             is BubbleSpec.SystemBubble -> {
                 handleSystemBubbleInteraction(bubble)
             }
+            else -> {
+                // Handle any other bubble types generically
+                handleGenericBubbleInteraction(bubble)
+            }
         }
 
         // Update interaction time
@@ -281,13 +285,13 @@ class BubbleOrchestrator(
                 BubbleSpec.TextPasteBubble.ContentType.PHONE_NUMBER
             }
             text.matches(Regex("\\d+(\\.\\d+)?")) -> {
-                BubbleSpec.TextPasteBubble.ContentType.NUMBER
+                BubbleSpec.TextPasteBubble.ContentType.TEXT
             }
             text.contains("{") && text.contains("}") -> {
                 BubbleSpec.TextPasteBubble.ContentType.JSON
             }
             text.contains("<") && text.contains(">") -> {
-                BubbleSpec.TextPasteBubble.ContentType.XML
+                BubbleSpec.TextPasteBubble.ContentType.CODE
             }
             text.contains("function") || text.contains("def ") || text.contains("class ") -> {
                 BubbleSpec.TextPasteBubble.ContentType.CODE

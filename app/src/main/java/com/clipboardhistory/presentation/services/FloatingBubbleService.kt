@@ -28,6 +28,7 @@ import com.clipboardhistory.domain.usecase.AddClipboardItemUseCase
 import com.clipboardhistory.domain.usecase.GetAllClipboardItemsUseCase
 import com.clipboardhistory.domain.usecase.GetClipboardSettingsUseCase
 import com.clipboardhistory.presentation.MainActivity
+import com.clipboardhistory.utils.SmartInputManager
 import com.clipboardhistory.presentation.ui.components.BubbleView
 import com.clipboardhistory.presentation.ui.components.BubbleViewFactory
 import com.clipboardhistory.presentation.ui.components.HighlightedAreaView
@@ -151,7 +152,7 @@ class FloatingBubbleService : Service() {
             notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             // Initialize smart UI components
-            keyboardDetector = KeyboardVisibilityDetector(this)
+            // keyboardDetector = KeyboardVisibilityDetector(this) // TODO: Fix for Service context
             smartInputManager = SmartInputManager(this)
 
             createNotificationChannel()
@@ -244,6 +245,8 @@ class FloatingBubbleService : Service() {
      * Sets up keyboard visibility monitoring to show/hide bubbles based on keyboard state.
      */
     private fun setupKeyboardVisibilityMonitoring() {
+        // TODO: Re-enable when KeyboardVisibilityDetector supports Service context
+        /*
         serviceScope.launch {
             keyboardDetector.isKeyboardVisible.collect { isVisible ->
                 mainScope.launch {
@@ -251,6 +254,7 @@ class FloatingBubbleService : Service() {
                 }
             }
         }
+        */
     }
 
     /**

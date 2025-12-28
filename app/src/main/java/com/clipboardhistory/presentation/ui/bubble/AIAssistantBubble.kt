@@ -13,7 +13,7 @@ import com.clipboardhistory.utils.SuggestedAction
  */
 data class AIAssistantBubble(
     override val id: String,
-    override val type: BubbleType = AdvancedBubbleType.AI_ASSISTANT,
+    override val type: BubbleType = AdvancedBubbleType.SEARCH_BUBBLE,
     override val position: Offset = Offset.Zero,
     override val size: Dp = type.defaultSize,
     override val isVisible: Boolean = true,

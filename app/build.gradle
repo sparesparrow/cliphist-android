@@ -85,7 +85,7 @@ android {
         buildConfig true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.6.4'
+        kotlinCompilerExtensionVersion '1.5.10'
     }
     testOptions {
         unitTests.includeAndroidResources = true

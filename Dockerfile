@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Android app building
-FROM openjdk:17-jdk-slim as base
+FROM openjdk:17-slim AS base
 
 # Install required packages
 RUN apt-get update && apt-get install -y \
@@ -32,7 +32,7 @@ RUN yes | sdkmanager --licenses && \
     sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmake;3.22.1"
 
 # Build stage
-FROM base as builder
+FROM base AS builder
 
 # Set working directory
 WORKDIR /app
@@ -57,7 +57,7 @@ RUN echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 RUN ./gradlew assembleDebug --no-daemon
 
 # Final stage - just the APK
-FROM alpine:latest as final
+FROM alpine:latest AS final
 
 # Install ca-certificates for HTTPS
 RUN apk --no-cache add ca-certificates

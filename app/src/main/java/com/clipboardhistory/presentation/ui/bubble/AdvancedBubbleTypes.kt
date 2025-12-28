@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.clipboardhistory.domain.model.BubbleType
 
 /**
  * Advanced bubble types with specialized functionalities and use cases.
@@ -18,7 +19,7 @@ enum class AdvancedBubbleType(
     val supportsDragging: Boolean = true,
     val autoHideDelay: Long = 0L,
     val zIndexPriority: Int = 0,
-    val category: BubbleCategory = BubbleCategory.UTILITY
+    val category: BubbleCategory = BubbleCategory.PRODUCTIVITY
 ) {
 
     // 🔍 Search & Discovery Bubbles
@@ -283,30 +284,6 @@ enum class AdvancedBubbleType(
         autoHideDelay = 0L, // Persistent collaboration
         zIndexPriority = 9,
         category = BubbleCategory.COLLABORATION
-    ),
-
-    // 🎤 Voice & Speech Bubbles
-    VOICE_BUBBLE(
-        displayName = "Voice Assistant",
-        description = "Text-to-speech playback and voice recognition for creating/appending transcribed content",
-        keyboardPolicy = KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE,
-        defaultSize = 100.dp,
-        supportsDragging = true,
-        autoHideDelay = 0L, // Persistent for accessibility
-        zIndexPriority = 9,
-        category = BubbleCategory.VOICE
-    ),
-
-    // 🤝 Collaboration & Sharing Bubbles
-    COLLABORATION(
-        displayName = "Collaboration Hub",
-        description = "Real-time collaborative editing and sharing of clipboard content with multiple users",
-        keyboardPolicy = KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE,
-        defaultSize = 300.dp,
-        supportsDragging = false, // Fixed for collaboration stability
-        autoHideDelay = 0L, // Persistent collaboration
-        zIndexPriority = 9,
-        category = BubbleCategory.COLLABORATION
     );
 
     /**
@@ -404,7 +381,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
      */
     data class SearchBubble(
         override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.SEARCH_BUBBLE,
+        override val type: BubbleType = BubbleType.CIRCLE,
         override val position: Offset = Offset.Zero,
         override val size: Dp = type.defaultSize,
         override val isVisible: Boolean = true,

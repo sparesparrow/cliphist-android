@@ -102,7 +102,7 @@ sealed class BubbleSpec {
         override val lastInteractionTime: Long = System.currentTimeMillis(),
         val notificationId: Int,
         val title: String,
-        val content: String,
+        val textContent: String,
         val iconResId: Int,
         val bubbleActivity: Class<*>? = null,
         val customContent: @Composable (SystemBubble) -> Unit
