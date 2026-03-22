@@ -33,7 +33,7 @@ import com.clipboardhistory.presentation.ui.components.BubbleView
 import com.clipboardhistory.presentation.ui.components.BubbleViewFactory
 import com.clipboardhistory.presentation.ui.components.HighlightedAreaView
 import com.clipboardhistory.presentation.ui.toolbelt.TransparencyController
-import com.clipboardhistory.utils.KeyboardVisibilityDetector
+import com.clipboardhistory.utils.ServiceKeyboardDetector
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,7 +77,7 @@ class FloatingBubbleService : Service() {
     private var currentBubbleOpacity: Float = 0.8f
 
     // Smart UI components
-    private lateinit var keyboardDetector: KeyboardVisibilityDetector
+    private lateinit var keyboardDetector: ServiceKeyboardDetector
     private lateinit var smartInputManager: SmartInputManager
     private var bubblesVisibleDueToKeyboard = false
 
@@ -152,7 +152,7 @@ class FloatingBubbleService : Service() {
             notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             // Initialize smart UI components
-            // keyboardDetector = KeyboardVisibilityDetector(this) // TODO: Fix for Service context
+            keyboardDetector = ServiceKeyboardDetector(this)
             smartInputManager = SmartInputManager(this)
 
             createNotificationChannel()
@@ -245,8 +245,7 @@ class FloatingBubbleService : Service() {
      * Sets up keyboard visibility monitoring to show/hide bubbles based on keyboard state.
      */
     private fun setupKeyboardVisibilityMonitoring() {
-        // TODO: Re-enable when KeyboardVisibilityDetector supports Service context
-        /*
+        keyboardDetector.startMonitoring()
         serviceScope.launch {
             keyboardDetector.isKeyboardVisible.collect { isVisible ->
                 mainScope.launch {
@@ -254,7 +253,6 @@ class FloatingBubbleService : Service() {
                 }
             }
         }
-        */
     }
 
     /**
