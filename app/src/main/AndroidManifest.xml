@@ -58,6 +58,13 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Local REST API Service for MCP / desktop integrations (localhost:8765) -->
+        <service
+            android:name=".presentation.services.LocalApiService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Accessibility service to allow advanced automation features (user must enable) -->
         <service
             android:name=".presentation.services.AccessibilityMonitorService"

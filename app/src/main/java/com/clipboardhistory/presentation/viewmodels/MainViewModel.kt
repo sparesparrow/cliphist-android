@@ -1,6 +1,9 @@
 package com.clipboardhistory.presentation.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.ActivityManager
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.clipboardhistory.domain.model.ClipboardItem
 import com.clipboardhistory.domain.model.ClipboardSettings
@@ -10,6 +13,7 @@ import com.clipboardhistory.domain.usecase.DeleteClipboardItemUseCase
 import com.clipboardhistory.domain.usecase.GetAllClipboardItemsUseCase
 import com.clipboardhistory.domain.usecase.GetClipboardSettingsUseCase
 import com.clipboardhistory.domain.usecase.UpdateClipboardSettingsUseCase
+import com.clipboardhistory.presentation.services.ClipboardService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,13 +31,14 @@ import javax.inject.Inject
 class MainViewModel
     @Inject
     constructor(
+        application: Application,
         private val getAllClipboardItemsUseCase: GetAllClipboardItemsUseCase,
         private val addClipboardItemUseCase: AddClipboardItemUseCase,
         private val deleteClipboardItemUseCase: DeleteClipboardItemUseCase,
         private val getClipboardSettingsUseCase: GetClipboardSettingsUseCase,
         private val updateClipboardSettingsUseCase: UpdateClipboardSettingsUseCase,
         private val cleanupOldItemsUseCase: CleanupOldItemsUseCase,
-    ) : ViewModel() {
+    ) : AndroidViewModel(application) {
         private val _uiState = MutableStateFlow(MainUiState())
         val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
@@ -57,6 +62,21 @@ class MainViewModel
         init {
             loadClipboardItems()
             loadSettings()
+            refreshServiceState()
+        }
+
+        /**
+         * Checks the actual running state of ClipboardService via ActivityManager
+         * and syncs the UI state. Fixes the case where the service is still alive
+         * after a process restart but the ViewModel starts with isServiceRunning = false.
+         */
+        fun refreshServiceState() {
+            val am = getApplication<Application>()
+                .getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
+            val running = am.getRunningServices(Int.MAX_VALUE)
+                .any { it.service.className == ClipboardService::class.java.name }
+            _uiState.value = _uiState.value.copy(isServiceRunning = running)
         }
 
         /**

@@ -9,8 +9,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,11 +25,17 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.clipboardhistory.data.ai.ClaudeApiClient
+import com.clipboardhistory.data.ai.ClaudeResult
 import com.clipboardhistory.utils.ContentAnalysisResult
 import com.clipboardhistory.utils.ContentInsight
 import com.clipboardhistory.utils.SuggestedAction
@@ -288,6 +297,7 @@ private fun ExpandedAIAssistant(
             when (tab) {
                 AITab.INSIGHTS -> InsightsTab(spec)
                 AITab.ACTIONS -> ActionsTab(spec)
+                AITab.CLAUDE -> ClaudeTab(spec)
                 AITab.HISTORY -> HistoryTab(spec)
                 AITab.SETTINGS -> SettingsTab(spec)
             }
@@ -989,6 +999,7 @@ enum class AITab(
 ) {
     INSIGHTS("Insights", Icons.Default.Lightbulb),
     ACTIONS("Actions", Icons.Default.TouchApp),
+    CLAUDE("Claude", Icons.Default.AutoAwesome),
     HISTORY("History", Icons.Default.History),
     SETTINGS("Settings", Icons.Default.Settings)
 }
@@ -1015,6 +1026,179 @@ val AIFeature.description: String
         AIFeature.LEARNING_ADAPTATION -> "Learn from user behavior and preferences"
         AIFeature.CONTEXT_AWARENESS -> "Consider app context and usage history"
     }
+
+/**
+ * Claude AI tab – real Anthropic API integration.
+ *
+ * Users enter their API key once (stored in local state for this session;
+ * integrate with EncryptedSharedPreferences for persistence).
+ * Preset action buttons call the Claude API with the current clipboard content.
+ */
+@Composable
+private fun ClaudeTab(spec: AIAssistantBubble) {
+    val coroutineScope = rememberCoroutineScope()
+    val client = remember { ClaudeApiClient() }
+
+    var apiKey by remember { mutableStateOf("") }
+    var apiKeyVisible by remember { mutableStateOf(false) }
+    var response by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    val contentToAnalyze = spec.analysisResult?.originalContent ?: ""
+
+    fun callClaude(block: suspend ClaudeApiClient.(String, String) -> ClaudeResult) {
+        if (apiKey.isBlank()) {
+            errorMessage = "Enter your Anthropic API key above."
+            return
+        }
+        if (contentToAnalyze.isBlank()) {
+            errorMessage = "No clipboard content to analyze."
+            return
+        }
+        errorMessage = ""
+        isLoading = true
+        response = ""
+        coroutineScope.launch {
+            val result = client.block(contentToAnalyze, apiKey)
+            isLoading = false
+            when (result) {
+                is ClaudeResult.Success -> response = result.text
+                is ClaudeResult.Error -> errorMessage = result.message
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // API key input
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = { apiKey = it },
+            label = { Text("Anthropic API Key") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None
+                                    else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                    Icon(
+                        if (apiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = "Toggle visibility"
+                    )
+                }
+            },
+            textStyle = MaterialTheme.typography.bodySmall
+        )
+
+        // Preset action buttons
+        Text(
+            text = "Quick actions on clipboard content:",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        val presets = listOf(
+            "Analyze" to Icons.Default.Search,
+            "Summarize" to Icons.Default.Compress,
+            "Improve" to Icons.Default.AutoFixHigh,
+            "Explain Code" to Icons.Default.Code,
+            "Extract Data" to Icons.Default.DataArray,
+        )
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(presets) { (label, icon) ->
+                AssistChip(
+                    onClick = {
+                        when (label) {
+                            "Analyze" -> callClaude { c, k -> analyzeClipboardContent(c, k) }
+                            "Summarize" -> callClaude { c, k -> transformText(c, "Summarize in 2-3 sentences", k) }
+                            "Improve" -> callClaude { c, k -> transformText(c, "Improve the grammar and style. Return only the improved text", k) }
+                            "Explain Code" -> callClaude { c, k -> transformText(c, "Explain what this code does in plain English", k) }
+                            "Extract Data" -> callClaude { c, k -> transformText(c, "Extract all key data points (names, dates, numbers, URLs, emails). Format as a bullet list", k) }
+                        }
+                    },
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                    leadingIcon = {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp))
+                    },
+                    enabled = !isLoading
+                )
+            }
+        }
+
+        // Loading / error / response
+        when {
+            isLoading -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(
+                        "Asking Claude…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            errorMessage.isNotBlank() -> {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        text = errorMessage,
+                        modifier = Modifier.padding(10.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+            response.isNotBlank() -> {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Claude's response",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            IconButton(onClick = { response = "" }, modifier = Modifier.size(20.dp)) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = response,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 // Helper function
 private fun formatTimestamp(timestamp: Long): String {

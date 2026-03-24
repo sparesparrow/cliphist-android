@@ -1,5 +1,8 @@
 package com.clipboardhistory.presentation.ui.bubble
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -18,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,8 +34,12 @@ import com.clipboardhistory.presentation.ui.bubble.TextTemplate
  */
 @Composable
 fun TemplateBubbleContent(spec: TemplateBubble) {
+    val context = LocalContext.current
     var selectedCategory by remember { mutableStateOf(spec.selectedCategory ?: spec.categories.firstOrNull()) }
     var searchQuery by remember { mutableStateOf("") }
+    // Local mutable copy of templates to support in-session favorite toggles
+    var templates by remember { mutableStateOf(spec.templates) }
+    var lastInserted by remember { mutableStateOf<String?>(null) }
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -47,13 +55,28 @@ fun TemplateBubbleContent(spec: TemplateBubble) {
         ) {
             // Header with template icon and controls
             TemplateBubbleHeader(
-                templateCount = spec.templates.size,
+                templateCount = templates.size,
                 onSearchToggle = { /* Could expand search */ },
                 onCreateNew = { /* Open template creation */ }
             )
 
+            // Snackbar-style confirmation after insertion
+            lastInserted?.let { name ->
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        text = "\"$name\" copied to clipboard",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
             // Category selector
-            if (spec.categories.isNotEmpty()) {
+            if (templates.isNotEmpty()) {
                 CategorySelector(
                     categories = spec.categories,
                     selectedCategory = selectedCategory,
@@ -63,14 +86,13 @@ fun TemplateBubbleContent(spec: TemplateBubble) {
 
             // Templates list
             TemplateList(
-                templates = getFilteredTemplates(spec.templates, selectedCategory, searchQuery),
+                templates = getFilteredTemplates(templates, selectedCategory, searchQuery),
                 onTemplateSelected = { template ->
-                    // Handle template insertion
-                    insertTemplate(template)
+                    insertTemplate(context, template)
+                    lastInserted = template.name
                 },
                 onTemplateFavorite = { template ->
-                    // Toggle favorite status
-                    toggleTemplateFavorite(template)
+                    templates = toggleTemplateFavorite(templates, template)
                 }
             )
         }
@@ -366,25 +388,31 @@ private fun getFilteredTemplates(
     )
 }
 
-private fun insertTemplate(template: TextTemplate) {
-    // In a real implementation, this would:
-    // 1. Copy template content to clipboard
-    // 2. Increment usage count
-    // 3. Update last used timestamp
-    // 4. Potentially paste directly if input field is focused
-
-    println("Inserting template: ${template.name}")
-    // TODO: Implement actual insertion logic
+/**
+ * Copies the template content to the system clipboard.
+ * The user can then paste it into any focused input field.
+ */
+private fun insertTemplate(context: Context, template: TextTemplate) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText(template.name, template.content)
+    clipboard.setPrimaryClip(clip)
 }
 
-private fun toggleTemplateFavorite(template: TextTemplate) {
-    // In a real implementation, this would:
-    // 1. Toggle the "favorite" tag
-    // 2. Update the template in storage
-    // 3. Refresh the UI
-
-    println("Toggling favorite for template: ${template.name}")
-    // TODO: Implement favorite toggle logic
+/**
+ * Toggles the "favorite" tag on the given template and returns the updated list.
+ * Favorite state is stored in-session via the composable's mutableStateOf.
+ */
+private fun toggleTemplateFavorite(
+    templates: List<TextTemplate>,
+    template: TextTemplate,
+): List<TextTemplate> {
+    val isFavorite = "favorite" in template.tags
+    return templates.map {
+        if (it.id == template.id) {
+            val newTags = if (isFavorite) it.tags - "favorite" else it.tags + "favorite"
+            it.copy(tags = newTags)
+        } else it
+    }
 }
 
 // Sample template data for demonstration

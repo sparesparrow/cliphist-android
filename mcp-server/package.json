@@ -1,0 +1,26 @@
+{
+  "name": "cliphist-android-mcp",
+  "version": "1.0.0",
+  "description": "MCP server bridging ClipHist Android to Claude Desktop and Claude Code",
+  "main": "dist/index.js",
+  "bin": {
+    "cliphist-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

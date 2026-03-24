@@ -1,0 +1,75 @@
+{
+  "name": "cliphist-android",
+  "displayName": "ClipHist Android",
+  "description": "Access your Android clipboard history directly in VS Code and Cursor",
+  "version": "1.0.0",
+  "publisher": "cliphist",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "keywords": ["clipboard", "android", "history", "productivity"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cliphist.search",
+        "title": "ClipHist: Search Clipboard History"
+      },
+      {
+        "command": "cliphist.showRecent",
+        "title": "ClipHist: Show Recent Items"
+      },
+      {
+        "command": "cliphist.pasteFromHistory",
+        "title": "ClipHist: Paste from Clipboard History"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "cliphist.pasteFromHistory",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorFocus"
+      }
+    ],
+    "configuration": {
+      "title": "ClipHist Android",
+      "properties": {
+        "cliphist.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8765",
+          "description": "URL of the ClipHist Android local API (use adb forward tcp:8765 tcp:8765)"
+        },
+        "cliphist.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer token for the ClipHist Android API"
+        },
+        "cliphist.maxItems": {
+          "type": "number",
+          "default": 30,
+          "description": "Maximum number of items to fetch for the quick-pick list"
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "cliphist.sidebarView",
+          "name": "ClipHist Android"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "dev": "npm run build -- --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
