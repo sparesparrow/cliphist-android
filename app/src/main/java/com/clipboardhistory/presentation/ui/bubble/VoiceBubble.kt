@@ -12,7 +12,7 @@ import com.clipboardhistory.utils.VoiceRecognitionManager
  */
 data class VoiceBubble(
     override val id: String,
-    override val type: BubbleType = AdvancedBubbleType.VOICE_BUBBLE,
+    override val type: BubbleType = BubbleType.QUICK_ACTION,
     override val position: Offset = Offset.Zero,
     override val size: Dp = type.defaultSize,
     override val isVisible: Boolean = true,

@@ -219,7 +219,7 @@ sealed class BubbleSpec {
             copy(lastInteractionTime = System.currentTimeMillis())
 
         enum class ContentType {
-            TEXT, URL, EMAIL, PHONE_NUMBER, JSON, CODE
+            TEXT, URL, EMAIL, PHONE_NUMBER, NUMBER, JSON, XML, CODE
         }
 
         val displayText: String

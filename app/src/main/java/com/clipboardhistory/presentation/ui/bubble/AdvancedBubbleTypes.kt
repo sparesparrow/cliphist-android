@@ -381,7 +381,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
      */
     data class SearchBubble(
         override val id: String = generateId(),
-        override val type: BubbleType = BubbleType.CIRCLE,
+        override val type: BubbleType = BubbleType.QUICK_ACTION,
         override val position: Offset = Offset.Zero,
         override val size: Dp = type.defaultSize,
         override val isVisible: Boolean = true,
@@ -413,7 +413,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
      */
     data class TemplateBubble(
         override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.TEMPLATE_BUBBLE,
+        override val type: BubbleType = BubbleType.QUICK_ACTION,
         override val position: Offset = Offset.Zero,
         override val size: Dp = type.defaultSize,
         override val isVisible: Boolean = true,
@@ -445,7 +445,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
      */
     data class RegexAccumulator(
         override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.REGEX_ACCUMULATOR,
+        override val type: BubbleType = BubbleType.QUICK_ACTION,
         override val position: Offset = Offset.Zero,
         override val size: Dp = type.defaultSize,
         override val isVisible: Boolean = true,

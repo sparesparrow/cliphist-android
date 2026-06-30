@@ -49,11 +49,12 @@ fun VoiceBubbleContent(spec: VoiceBubble) {
     var showTranscriptionSuccess by remember { mutableStateOf(false) }
 
     // Managers (would be injected in real implementation)
-    val ttsManager = remember { TTSManager(androidx.compose.ui.platform.LocalContext.current) }
-    val voiceManager = remember {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val ttsManager = remember(context) { TTSManager(context) }
+    val voiceManager = remember(context) {
         VoiceRecognitionManager(
-            androidx.compose.ui.platform.LocalContext.current,
-            androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            context,
+            context as? android.app.Activity
         )
     }
 
@@ -172,7 +173,6 @@ private fun CollapsedVoiceBubble(
     val backgroundColor = when {
         isSpeaking -> Color(0xFF2196F3) // Blue when speaking
         isListening -> Color(0xFF4CAF50) // Green when listening
-        showTranscriptionSuccess -> Color(0xFF4CAF50) // Green on success
         else -> MaterialTheme.colorScheme.primary
     }
 

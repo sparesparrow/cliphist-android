@@ -48,7 +48,7 @@ class VoiceRecognitionManager(
     val recognitionError: StateFlow<String?> = _recognitionError
 
     private val _confidenceScore = MutableStateFlow(0f)
-    val confidenceScore: StateFlow<Float> = _recognitionError
+    val confidenceScore: StateFlow<Float> = _confidenceScore
 
     private val _partialResults = MutableStateFlow<List<String>>(emptyList())
     val partialResults: StateFlow<List<String>> = _partialResults
@@ -355,7 +355,7 @@ class VoiceRecognitionManager(
                     Locale.FRENCH,
                     Locale.GERMAN,
                     Locale.ITALIAN,
-                    Locale.SPANISH,
+                    Locale("es"),
                     Locale.JAPANESE,
                     Locale.KOREAN,
                     Locale.CHINESE

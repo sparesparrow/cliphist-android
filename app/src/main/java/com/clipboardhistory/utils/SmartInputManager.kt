@@ -180,7 +180,7 @@ class SmartInputManager(
         val keyboardVisible = try {
             val context = accessibilityService?.getApplicationContext()
             if (context is android.app.Activity) {
-                KeyboardVisibilityDetector.create(context).getCurrentKeyboardState().isVisible
+                KeyboardVisibilityDetector(context as android.app.Activity).getCurrentKeyboardState().isVisible
             } else {
                 false
             }

@@ -239,7 +239,11 @@ class BubbleOrchestrator(
     /**
      * Processes clipboard content against active regex accumulator bubbles.
      */
-    private fun processClipboardContentForRegexAccumulators(content: String, source: String? = null) {
+    fun getRegexAccumulatorBubbles(): List<BubbleSpec> {
+        return _bubbles.value.filterIsInstance<AdvancedBubbleSpec.RegexAccumulator>()
+    }
+
+    internal fun processClipboardContentForRegexAccumulators(content: String, source: String? = null) {
         _bubbles.update { bubbles ->
             bubbles.map { bubble ->
                 when (bubble) {

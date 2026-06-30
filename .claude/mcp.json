@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "prompts": {
+      "command": "mcp-prompts",
+      "args": ["--storage", "file", "--path", "/home/sparrow/projects/ai-mcp-monorepo/packages/mcp-prompts/data/prompts"]
+    }
+  }
+}

@@ -34,7 +34,7 @@ fun TextPasteContent(
     onDismiss: () -> Unit = {}
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    val isInputAvailable by smartInputManager?.isDirectInputAvailable()?.collectAsState() ?: remember { mutableStateOf(false) }
+    val isInputAvailable = smartInputManager?.isDirectInputAvailable() ?: false
 
     val backgroundColor = when {
         isInputAvailable -> MaterialTheme.colorScheme.primaryContainer
@@ -241,7 +241,9 @@ private fun getContentTypeIcon(contentType: TextPasteBubble.ContentType): androi
         TextPasteBubble.ContentType.URL -> Icons.Default.Link
         TextPasteBubble.ContentType.EMAIL -> Icons.Default.Email
         TextPasteBubble.ContentType.PHONE_NUMBER -> Icons.Default.Phone
+        TextPasteBubble.ContentType.NUMBER -> Icons.Default.TextFields
         TextPasteBubble.ContentType.JSON -> Icons.Default.Code
+        TextPasteBubble.ContentType.XML -> Icons.Default.Code
         TextPasteBubble.ContentType.CODE -> Icons.Default.Code
     }
 }
