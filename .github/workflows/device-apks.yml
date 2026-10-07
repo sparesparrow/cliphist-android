@@ -8,6 +8,9 @@ on:
   push:
     branches: [ci/device-apks]
 
+permissions:
+  contents: read
+
 concurrency:
   group: device-apks-${{ github.ref }}
   cancel-in-progress: true
