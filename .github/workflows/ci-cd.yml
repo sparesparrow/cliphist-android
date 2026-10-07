@@ -243,6 +243,7 @@ jobs:
       version-code: ${{ steps.version.outputs.version-code }}
 
     strategy:
+      fail-fast: false
       matrix:
         build_type: [debug, release]
         include:
