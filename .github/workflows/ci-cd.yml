@@ -86,6 +86,8 @@ jobs:
 
       - name: 📱 Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: 🔧 Configure Android SDK
         run: |
@@ -185,6 +187,8 @@ jobs:
 
       - name: 📱 Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: 🔧 Configure Android SDK
         run: |
@@ -243,6 +247,7 @@ jobs:
       version-code: ${{ steps.version.outputs.version-code }}
 
     strategy:
+      fail-fast: false
       matrix:
         build_type: [debug, release]
         include:
@@ -268,6 +273,8 @@ jobs:
 
       - name: 📱 Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: 🔧 Configure Android SDK
         run: |
