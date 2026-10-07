@@ -24,6 +24,12 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
+        with:
+          # default also installs legacy 'tools', which the SDK repo no longer serves
+          packages: platform-tools
+      - run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - run: chmod +x ./gradlew
       - run: ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace
       - uses: actions/upload-artifact@v4
