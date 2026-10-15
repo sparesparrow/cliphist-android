@@ -20,9 +20,11 @@ import kotlinx.coroutines.runBlocking
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
+import java.security.MessageDigest
 import javax.inject.Inject
 
 /**
@@ -41,8 +43,10 @@ import javax.inject.Inject
  *   GET  /stats              - clipboard statistics
  *   GET  /health             - liveness probe
  *
- * Authentication: shared Bearer token stored in EncryptedSharedPreferences.
- * Set via Intent extra "api_token" on first start, or auto-generated if absent.
+ * The server listens on the loopback interface only (reach it from a computer with
+ * `adb forward tcp:8765 tcp:8765`). Authentication is mandatory: a shared Bearer token
+ * passed in the Intent extra "api_token" when the service is started. Without a token
+ * every request is rejected with 401.
  */
 @AndroidEntryPoint
 class LocalApiService : Service() {
@@ -58,6 +62,7 @@ class LocalApiService : Service() {
 
     companion object {
         const val PORT = 8765
+        private const val BACKLOG = 50
         private const val NOTIFICATION_ID = 3001
         private const val CHANNEL_ID = "local_api_channel"
         const val EXTRA_API_TOKEN = "api_token"
@@ -93,7 +98,7 @@ class LocalApiService : Service() {
 
     private suspend fun runServer() {
         try {
-            serverSocket = ServerSocket(PORT)
+            serverSocket = ServerSocket(PORT, BACKLOG, InetAddress.getLoopbackAddress())
             while (!serviceJob.isCancelled) {
                 val client = serverSocket!!.accept()
                 serviceScope.launch { handleClient(client) }
@@ -130,12 +135,9 @@ class LocalApiService : Service() {
             }
 
             // Check auth
-            if (apiToken.isNotBlank()) {
-                val auth = headers["authorization"] ?: ""
-                if (!auth.equals("Bearer $apiToken", ignoreCase = false)) {
-                    writeResponse(writer, 401, """{"error":"unauthorized"}""")
-                    return
-                }
+            if (!isAuthorized(apiToken, headers["authorization"])) {
+                writeResponse(writer, 401, """{"error":"unauthorized"}""")
+                return
             }
 
             // Parse path and query
@@ -290,4 +292,15 @@ class LocalApiService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.createNotificationChannel(channel)
     }
+}
+
+/**
+ * True only when a non-blank token is configured and the Authorization header is exactly
+ * "Bearer <token>". Compared in constant time; a blank token never authorises anything.
+ */
+internal fun isAuthorized(expectedToken: String, authorizationHeader: String?): Boolean {
+    if (expectedToken.isBlank()) return false
+    val expected = "Bearer $expectedToken".toByteArray(Charsets.UTF_8)
+    val given = (authorizationHeader ?: "").toByteArray(Charsets.UTF_8)
+    return MessageDigest.isEqual(expected, given)
 }

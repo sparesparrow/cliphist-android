@@ -47,14 +47,17 @@ android {
         buildConfigField "String", "GIT_BRANCH", "\"${getGitBranch()}\""
     }
 
-    // Define signing configs only if keystore exists
-    if (hasKeystore) {
+    // Release signing needs the keystore AND all three secrets from the environment.
+    // There are deliberately no fallback values: without them the release stays unsigned.
+    def signingReady = hasKeystore &&
+            System.getenv("KEYSTORE_PASSWORD") && System.getenv("KEY_ALIAS") && System.getenv("KEY_PASSWORD")
+    if (signingReady) {
         signingConfigs {
             release {
                 storeFile file(keystorePath)
-                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "password"
-                keyAlias System.getenv("KEY_ALIAS") ?: "key"
-                keyPassword System.getenv("KEY_PASSWORD") ?: "password"
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
             }
         }
     }
@@ -63,7 +66,7 @@ android {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (hasKeystore) {
+            if (signingReady) {
                 signingConfig signingConfigs.release
             }
         }

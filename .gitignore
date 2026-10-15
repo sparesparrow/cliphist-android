@@ -17,3 +17,13 @@ local.properties
 *.aab
 /app/release/
 /app/debug/
+
+# Secrets and device captures: never commit
+*.keystore
+*.jks
+keystore.properties
+*.log
+window_dump*.xml
+memory.json
+test-results/
+*.bak
