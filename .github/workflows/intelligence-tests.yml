@@ -1,0 +1,114 @@
+name: Intelligence Tests
+
+# Runs the Clipboard Intelligence unit tests on the JVM and the instrumented
+# integration test (ClipboardIntelligenceIntegrationTest) on an Android emulator.
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle/**'
+      - '.github/workflows/intelligence-tests.yml'
+  push:
+    branches: [ 'test/**' ]
+  workflow_dispatch:
+    inputs:
+      test_class:
+        description: 'Instrumented test class to run'
+        required: true
+        default: 'com.clipboardhistory.integration.ClipboardIntelligenceIntegrationTest'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: intelligence-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
+  TEST_CLASS: ${{ github.event.inputs.test_class || 'com.clipboardhistory.integration.ClipboardIntelligenceIntegrationTest' }}
+
+jobs:
+  unit:
+    name: Unit tests (use cases)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install SDK platform
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - run: chmod +x ./gradlew
+      - name: Run use case unit tests
+        run: ./gradlew testDebugUnitTest --tests "com.clipboardhistory.domain.usecase.*" --stacktrace
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports-${{ github.run_number }}
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          retention-days: 14
+
+  instrumented:
+    name: Instrumented test (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [29, 34]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install SDK platform
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - run: chmod +x ./gradlew
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Compile instrumented tests
+        run: ./gradlew assembleDebugAndroidTest --stacktrace
+      - name: Run instrumented test on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          disable-animations: true
+          script: ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=${{ env.TEST_CLASS }} --stacktrace
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-reports-api${{ matrix.api-level }}-${{ github.run_number }}
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          retention-days: 14
