@@ -1,0 +1,5 @@
+load-module module-sles-sink sink_name=speaker
+load-module module-sles-source
+load-module module-native-protocol-tcp auth-anonymous=0 auth-cookie-enabled=1 auth-cookie=/data/local/tmp/pa/cookie
+set-default-sink speaker
+set-default-source OpenSL_ES_source

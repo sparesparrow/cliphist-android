@@ -1,0 +1,105 @@
+# Phone voice assistant (ElevenLabs + Claude Code + Tasker)
+
+Press a Tasker widget, speak, and hear the answer:
+
+```
+Tasker: Record Audio ─► /sdcard/VoiceAssistant/in.m4a
+  └─ Termux:Tasker ─► ~/.termux/tasker/voice-assistant.sh  (native Termux)
+       └─ proot-distro debian ─► /root/voice-assistant/assistant.sh
+            1. ElevenLabs Scribe (scribe_v2)       speech → text
+            2. claude -p  + system prompt `phone-voice-assistant` from mcp-prompts
+                 tools: android-control `droid`, mcp-prompts, mosquitto_pub, web
+            3. ElevenLabs TTS (eleven_flash_v2_5)   text → mp3
+       ◄─ %stdout = /sdcard/VoiceAssistant/reply-<time>.mp3
+Tasker: Music Play %stdout
+```
+
+Follow-ups within 10 minutes continue the same Claude conversation (`--resume`). That is how
+"send it?" → "yes" confirmations work. Pass `--new` to force a fresh one.
+
+## Files
+
+| Path | Role |
+|---|---|
+| `/root/voice-assistant/assistant.sh` | The pipeline. `--text "..."` skips STT for testing. |
+| `/data/data/com.termux/files/home/.termux/tasker/voice-assistant.sh` | Termux:Tasker entry point (Termux `~/.termux/tasker/`). |
+| `/root/mcp-prompts/data/prompts/voice-intelligence/phone-voice-assistant.json` | System prompt: reply style and safety rules. `{{current_time}}` is filled in by the script. |
+| `/root/mia/apps/rpi-backend/.env.local` | `ELEVENLABS_API_KEY` (set up by `elevenlabs onboard`). Never commit or print. |
+| `logs/assistant.log` | Transcripts, replies, errors. |
+| `/sdcard/VoiceAssistant/last.txt` | Last transcript + reply (handy for a Tasker notification). |
+
+Settings (env vars): `ELEVENLABS_VOICE_ID` (default George `JBFqnCBsd6RMkjVDRZzb`),
+`ELEVENLABS_TTS_MODEL`, `ELEVENLABS_STT_MODEL`, `VA_CLAUDE_MODEL` (default `sonnet`),
+`VA_SESSION_TTL`, `VA_OUT_DIR`, `ELEVENLABS_ENV_FILE`.
+
+## Tasker setup (one time, on the phone)
+
+Needs Tasker + the Termux:Tasker plugin; Tasker needs the Termux permission
+"Run commands in Termux environment" (Android Settings ▸ Apps ▸ Tasker ▸ Permissions ▸ Additional).
+
+New task **Voice Assistant**:
+
+1. **Media ▸ Record Audio** — File `VoiceAssistant/in.m4a`, Source `Mic`, Codec `AAC`, Format `MPEG4`.
+2. **Alert ▸ Text/Image Dialog** — Title `Listening…`, Button 1 `Done`, Timeout `15` s.
+   (Tap Done when you finish speaking; it also stops after 15 s.)
+3. **Media ▸ Record Audio Stop**.
+4. **Plugin ▸ Termux:Tasker** — Executable `voice-assistant.sh`,
+   Arguments `/sdcard/VoiceAssistant/in.m4a`, tick *Wait for result for commands*, Timeout `120` s.
+5. **Media ▸ Music Play** — File `%stdout`, Stream `Media`.
+6. (optional) **If** `%errmsg` *Is Set* → **Alert ▸ Say** `Assistant failed` / **Flash** `%stderr`.
+
+Then add a trigger: a home-screen **Task Shortcut/Widget** for *Voice Assistant*, a Quick
+Settings tile (Tasker ▸ Preferences ▸ Action ▸ Quick Setting Tasks), or a profile.
+
+Phone actions (opening apps, deep links, running Tasker tasks) also need the android-control
+adb backend: run `su -c sh ~/droid/setup-root.sh` once in **native** Termux, then
+`droid doctor` should show `backend adb: OK`. Without it the assistant still answers
+questions and uses mcp-prompts, and says phone control is not set up.
+
+## Test without Tasker
+
+```bash
+/root/voice-assistant/assistant.sh --new --text "What time is it?"   # prints the mp3 path
+/root/voice-assistant/assistant.sh /sdcard/VoiceAssistant/in.m4a      # full pipeline
+```
+
+## Tasker without Termux:Tasker: HTTP trigger
+
+`http_trigger.py` listens on `127.0.0.1:8780`. `/root/phone/phone-services ensure` starts it,
+and the watchdog keeps it up while Debian runs. The token is in `state/http-token`.
+
+Tasker task **Voice Assistant (HTTP)**:
+1. Record Audio → `/sdcard/VoiceAssistant/in.m4a` (stop on silence or with a second tap).
+2. HTTP Request:
+   - Method POST, URL `http://127.0.0.1:8780/ask` (add `?new=1` for a new conversation).
+   - Headers `X-Token:<token>` and `Content-Type:application/json`.
+   - Body `{"audio":"/sdcard/VoiceAssistant/in.m4a"}`. Timeout 300 s.
+3. Music Play `%http_data`, which holds the reply mp3 path.
+
+The audio path must be under `/sdcard/VoiceAssistant/`. Errors come back as HTTP 4xx or 5xx,
+with the reason in the body.
+
+## Hands-free: /listen (phone mic + speaker, no Tasker recording)
+
+`listen.sh` runs a whole turn on the phone: a high beep, then it records from the phone mic
+until you stop talking. A short beep confirms it heard you, then it runs `assistant.sh` and
+plays the reply on the speaker. If nothing was said, you hear a low beep. Audio goes through
+the mic server in `/root/phone`. Speech-to-text and text-to-speech use the ElevenLabs Python
+SDK (`eleven.py`, `requirements.txt`).
+
+`POST http://127.0.0.1:8780/listen` (header `X-Token`; add `?new=1` to start a new
+conversation) runs one turn and returns the reply text.
+
+### Tasker: one task, three triggers
+Task **Claude Listen** has one action, HTTP Request:
+- Method POST, URL `http://127.0.0.1:8780/listen`
+- Headers `X-Token:<contents of state/http-token>`, Timeout 300 s
+
+Triggers:
+1. **Quick Settings tile**: Tasker ▸ Preferences ▸ Action ▸ Quick Setting Tasks. Pick
+   Claude Listen, then add the tile from the Quick Settings editor.
+2. **Android assistant** (long-press power or home, or the corner swipe): Android Settings ▸
+   Apps ▸ Default apps ▸ Digital assistant app ▸ Tasker. Then add a Tasker profile that runs
+   Claude Listen on Event ▸ Tasker ▸ "Assistant" (the exact name differs by Tasker version).
+   This replaces the current default, Perplexity.
+3. **Home screen**: a Tasker task widget or shortcut for Claude Listen.

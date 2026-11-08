@@ -1,0 +1,4 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# Start Claude Code in the Debian PRoot (phone services come up via /etc/profile.d).
+# Usage: cc [claude args...]     e.g.  cc --continue
+exec "$HOME/bin/debian" -- bash -lc 'cd /root && exec claude "$@"' cc "$@"
