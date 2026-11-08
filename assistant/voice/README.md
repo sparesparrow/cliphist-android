@@ -26,10 +26,15 @@ Follow-ups within 10 minutes continue the same Claude conversation (`--resume`).
 | `/root/mcp-prompts/data/prompts/voice-intelligence/phone-voice-assistant.json` | System prompt: reply style and safety rules. `{{current_time}}` is filled in by the script. |
 | `/root/mia/apps/rpi-backend/.env.local` | `ELEVENLABS_API_KEY` (set up by `elevenlabs onboard`). Never commit or print. |
 | `logs/assistant.log` | Transcripts, replies, errors. |
+| `logs/latency.log` | One line per turn: model, mode, ms since the recording ended for STT done, first token, first audio, done. No text. |
+| `route.py` | Model routing for a transcript (tested in `assistant/mcp/test_voice.py`). |
+| `stream_speak.py` | Reads Claude's stream-json; speaks the first sentence early, then the rest. |
+| `turnlock.py` | One voice turn at a time, shared by `http_trigger.py` and the MCP tools `speak`/`listen`. |
 | `/sdcard/VoiceAssistant/last.txt` | Last transcript + reply (handy for a Tasker notification). |
 
 Settings (env vars): `ELEVENLABS_VOICE_ID` (default George `JBFqnCBsd6RMkjVDRZzb`),
-`ELEVENLABS_TTS_MODEL`, `ELEVENLABS_STT_MODEL`, `VA_CLAUDE_MODEL` (default `sonnet`),
+`ELEVENLABS_TTS_MODEL`, `ELEVENLABS_STT_MODEL`, `VA_CLAUDE_MODEL` (forces a model; unset,
+`route.py` picks `haiku` for short questions and `sonnet` for everything else),
 `VA_SESSION_TTL`, `VA_OUT_DIR`, `ELEVENLABS_ENV_FILE`.
 
 ## Tasker setup (one time, on the phone)
@@ -61,6 +66,9 @@ questions and uses mcp-prompts, and says phone control is not set up.
 ```bash
 /root/voice-assistant/assistant.sh --new --text "What time is it?"   # prints the mp3 path
 /root/voice-assistant/assistant.sh /sdcard/VoiceAssistant/in.m4a      # full pipeline
+/root/voice-assistant/assistant.sh --speak --text "What time is it?" # stream the reply to the speaker
+/root/voice-assistant/listen.sh --new --wav question.wav            # hands-free turn from a file
+tail -3 /root/voice-assistant/logs/latency.log
 ```
 
 ## Tasker without Termux:Tasker: HTTP trigger
@@ -82,8 +90,9 @@ with the reason in the body.
 ## Hands-free: /listen (phone mic + speaker, no Tasker recording)
 
 `listen.sh` runs a whole turn on the phone: a high beep, then it records from the phone mic
-until you stop talking. A short beep confirms it heard you, then it runs `assistant.sh` and
-plays the reply on the speaker. If nothing was said, you hear a low beep. Audio goes through
+until you stop talking. A short beep confirms it heard you (played while speech-to-text runs),
+then `assistant.sh --speak` streams Claude's reply: the first sentence plays as soon as it is
+synthesized, the rest follows. stdout is the reply text, as before. If nothing was said, you hear a low beep. Audio goes through
 the mic server in `/root/phone`. Speech-to-text and text-to-speech use the ElevenLabs Python
 SDK (`eleven.py`, `requirements.txt`).
 

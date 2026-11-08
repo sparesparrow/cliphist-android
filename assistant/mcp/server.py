@@ -5,6 +5,8 @@ Runs in Debian PRoot on the phone. Composes existing pieces instead of reimpleme
   - phone-services for health (adb link, mic server, voice trigger, native sshd)
   - mosquitto_pub for MIA home/car MQTT (topic allowlist)
   - Tasker broadcast for named Tasker tasks
+  - voice/eleven.py (ElevenLabs STT/TTS) + SoX through the mic server for speak/listen, under
+    the same turn lock as the voice trigger (voice/turnlock.py)
 Clipboard history belongs to cliphist-android's own MCP server; prompts belong to mcp-prompts.
 
 Deliberately absent: raw shell, su, installing apps, granting permissions.
@@ -23,6 +25,8 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -36,6 +40,15 @@ MQTT_HOST = os.environ.get("MQTT_HOST", "127.0.0.1")
 STATE = Path(os.environ.get("ASSISTANT_STATE", "/root/phone/state"))
 CONFIRM_FILE = STATE / "pending-confirmations.json"
 CONFIRM_TTL = 300  # seconds
+VOICE_DIR = Path(os.environ.get("VOICE_DIR", Path(__file__).resolve().parent.parent / "voice"))
+ELEVEN = str(VOICE_DIR / "eleven.py")
+PULSE_ENV = {"PULSE_SERVER": "127.0.0.1", "PULSE_COOKIE": "/root/phone/pa/cookie",
+             "AUDIODRIVER": "pulseaudio"}
+SPEAK_MAX = 1000          # characters
+LISTEN_WAIT = 8           # seconds to wait for speech to start (as voice/listen.sh)
+
+sys.path.insert(0, str(VOICE_DIR))
+from turnlock import turn_lock  # noqa: E402  (shared with voice/http_trigger.py)
 
 KEYS = {"back", "home", "enter", "recent", "del", "tab", "space", "menu", "search",
         "volume_up", "volume_down", "power", "app_switch"}
@@ -67,6 +80,27 @@ def _run(cmd: list[str], timeout: int = 30, inp: str | None = None) -> tuple[int
         return 127, f"not found: {cmd[0]}"
     out = (p.stdout + (("\n" + p.stderr) if p.stderr.strip() else "")).strip()
     return p.returncode, out
+
+
+def _run_split(cmd: list[str], timeout: int = 60, inp: str | None = None) -> tuple[int, str, str]:
+    """Like _run but keeps stdout and stderr apart, with the phone's PulseAudio env set."""
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, input=inp,
+                           env={**os.environ, **PULSE_ENV})
+    except subprocess.TimeoutExpired:
+        return 124, "", f"timed out after {timeout}s: {cmd[0]}"
+    except FileNotFoundError:
+        return 127, "", f"not found: {cmd[0]}"
+    return p.returncode, p.stdout, p.stderr
+
+
+_KEYISH = re.compile(r"(sk_[A-Za-z0-9]{8,}|xi-api-key\S*|[A-Fa-f0-9]{32,}|[A-Za-z0-9_-]{40,})")
+
+
+def _err_line(text: str, fallback: str) -> str:
+    """Last non-empty line of an error, without anything that looks like key material."""
+    lines = [l.strip() for l in (text or "").splitlines() if l.strip()]
+    return _KEYISH.sub("[redacted]", lines[-1] if lines else fallback)[:300]
 
 
 def _droid(*args: str, timeout: int = 30) -> str:
@@ -295,6 +329,65 @@ def mqtt_publish(topic: str, payload: str, confirm: str = "") -> str:
         return "topic not allowed (allowed: mia/lights/*, or mia/* and zigbee2mqtt/* with confirmation)"
     rc, out = _run(["mosquitto_pub", "-h", MQTT_HOST, "-t", topic, "-m", payload], timeout=10)
     return f"published to {topic}" if rc == 0 else f"failed: {out}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+def speak(text: str) -> str:
+    """Say `text` out loud on the phone speaker (ElevenLabs voice). Text longer than 1000
+    characters is cut. Returns a short status; "busy" while a voice turn is running."""
+    text = " ".join(text.split())
+    if not text:
+        return "nothing to say"
+    cut = len(text) > SPEAK_MAX
+    text = text[:SPEAK_MAX]
+    with turn_lock(0) as got:
+        if not got:
+            return "busy"
+        with tempfile.TemporaryDirectory(prefix="speak-") as d:
+            mp3 = os.path.join(d, "speak.mp3")
+            rc, _, err = _run_split([ELEVEN, "tts", mp3], timeout=60, inp=text)
+            if rc != 0:
+                return "tts failed: " + _err_line(err, f"rc={rc}")
+            rc, _, err = _run_split(["play", "-q", mp3], timeout=180)
+            if rc != 0:
+                return "playback failed: " + _err_line(err, f"rc={rc}")
+    return f"spoke {len(text)} characters" + (f" (cut to {SPEAK_MAX})" if cut else "")
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+def listen(max_s: int = 8) -> str:
+    """Record from the phone mic after a beep until the speaker pauses (at most max_s seconds,
+    1..30) and return JSON {"text", "language"} (ElevenLabs speech-to-text). Returns
+    "no speech heard" on silence, "busy" while a voice turn is running."""
+    max_s = max(1, min(30, int(max_s)))
+    with turn_lock(0) as got:
+        if not got:
+            return "busy"
+        with tempfile.TemporaryDirectory(prefix="listen-") as d:
+            wav = os.path.join(d, "listen.wav")
+            _run_split(["play", "-q", "-n", "synth", "0.12", "sine", "880", "vol", "0.35"], timeout=10)
+            # Same silence trim as voice/listen.sh: start above 2 %, stop after 1.3 s below 2 %.
+            rc, _, err = _run_split(["timeout", str(LISTEN_WAIT + max_s), "rec", "-q", "-c1", "-r16000",
+                                     wav, "silence", "1", "0.1", "2%", "1", "1.3", "2%",
+                                     "trim", "0", str(max_s)], timeout=LISTEN_WAIT + max_s + 10)
+            if rc not in (0, 124):  # 124: timeout, nothing said
+                return "recording failed: " + _err_line(err, f"rc={rc}")
+            rc, dur, _ = _run_split(["soxi", "-D", wav], timeout=10)
+            try:
+                if rc != 0 or float(dur.strip() or 0) < 0.4:
+                    return "no speech heard"
+            except ValueError:
+                return "no speech heard"
+            rc, out, err = _run_split([ELEVEN, "stt", wav], timeout=60)
+            if rc != 0:
+                return "stt failed: " + _err_line(err, f"rc={rc}")
+    try:
+        r = json.loads(out)
+    except ValueError:
+        return "stt failed: unexpected output"
+    if not r.get("text"):
+        return "no speech heard"
+    return json.dumps({"text": r["text"], "language": r.get("language_code")}, ensure_ascii=False)
 
 
 if __name__ == "__main__":

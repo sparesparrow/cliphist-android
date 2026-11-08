@@ -10,18 +10,20 @@ HTTP Request action (no Termux:Tasker plugin needed).
                                           (listen.sh); reply: the spoken answer as text
 
 Listens on 127.0.0.1 only. Every request except /health needs header X-Token with the
-value in state/http-token (created on first start, mode 600). One request runs at a time.
+value in state/http-token (created on first start, mode 600). One turn runs at a time:
+the lock (turnlock.py, state/turn.lock) is shared with the MCP tools speak/listen.
 """
-import json, os, secrets, subprocess, threading
+import json, os, secrets, subprocess, sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)  # started with python -I: the script dir is not on sys.path
+from turnlock import turn_lock  # noqa: E402
 PORT = int(os.environ.get("VA_HTTP_PORT", "8780"))
 AUDIO_DIR = os.path.realpath(os.environ.get("VA_OUT_DIR", "/sdcard/VoiceAssistant"))
 TOKEN_FILE = os.path.join(HERE, "state", "http-token")
 TIMEOUT = 300
-LOCK = threading.Lock()
 
 
 def load_token():
@@ -52,14 +54,13 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(404, "not found")
 
     def run_locked(self, args):
-        if not LOCK.acquire(timeout=TIMEOUT):
-            return None, "busy"
-        try:
-            return subprocess.run(args, capture_output=True, text=True, timeout=TIMEOUT), None
-        except subprocess.TimeoutExpired:
-            return None, "assistant timed out"
-        finally:
-            LOCK.release()
+        with turn_lock(TIMEOUT) as got:
+            if not got:
+                return None, "busy"
+            try:
+                return subprocess.run(args, capture_output=True, text=True, timeout=TIMEOUT), None
+            except subprocess.TimeoutExpired:
+                return None, "assistant timed out"
 
     def do_POST(self):
         url = urlparse(self.path)

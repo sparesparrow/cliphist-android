@@ -36,6 +36,10 @@ cliphist, 8780 voice trigger (X-Token), 8000 MIA, 1883 MQTT.
 - `run_tasker_task(name, confirm)` and `mqtt_publish(topic, payload, confirm)` — first call
   returns a preview and a token; repeat with `confirm=<token>` only after the user's explicit yes.
   `mqtt_publish` to `mia/lights/*` runs directly.
+- `speak(text)` — say text on the phone speaker (ElevenLabs TTS, cut at 1000 characters).
+- `listen(max_s=8)` — beep, record the phone mic until a pause (1..30 s), return JSON
+  `{"text", "language"}` or "no speech heard".
+  Both return "busy" while a voice turn runs (they share its lock); errors come back as one line.
 
 There is no shell tool on purpose. In interactive Claude Code you still have Bash and `droid`;
 the voice assistant (`claude -p`) does not.
@@ -54,4 +58,6 @@ the voice assistant (`claude -p`) does not.
 - Health: `phone-services status`; fix with `phone-services ensure`. Details: `references/ops.md`.
 - Voice turn from the shell: `curl -X POST -H "X-Token: $(cat /root/voice-assistant/state/http-token)" 127.0.0.1:8780/listen`.
 - Text-only test without the mic: `/root/voice-assistant/assistant.sh --text "..."` (prints the reply mp3 path).
+- A whole turn from a file instead of the mic: `/root/voice-assistant/listen.sh --wav FILE`.
+- Latency per turn: `tail /root/voice-assistant/logs/latency.log`.
 - Tasker setup and the assistant gesture: `references/voice-pipeline.md`.
