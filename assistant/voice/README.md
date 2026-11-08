@@ -8,7 +8,8 @@ Tasker: Record Audio ─► /sdcard/VoiceAssistant/in.m4a
        └─ proot-distro debian ─► /root/voice-assistant/assistant.sh
             1. ElevenLabs Scribe (scribe_v2)       speech → text
             2. claude -p  + system prompt `phone-voice-assistant` from mcp-prompts
-                 tools: android-control `droid`, mcp-prompts, mosquitto_pub, web
+                 tools: android-assistant MCP, mcp-prompts, WebSearch, WebFetch only
+                 (dontAsk + --strict-mcp-config mcp.json; see the skill's voice-pipeline.md)
             3. ElevenLabs TTS (eleven_flash_v2_5)   text → mp3
        ◄─ %stdout = /sdcard/VoiceAssistant/reply-<time>.mp3
 Tasker: Music Play %stdout
@@ -26,7 +27,9 @@ Follow-ups within 10 minutes continue the same Claude conversation (`--resume`).
 | `/root/mcp-prompts/data/prompts/voice-intelligence/phone-voice-assistant.json` | System prompt: reply style and safety rules. `{{current_time}}` is filled in by the script. |
 | `/root/mia/apps/rpi-backend/.env.local` | `ELEVENLABS_API_KEY` (set up by `elevenlabs onboard`). Never commit or print. |
 | `logs/assistant.log` | Transcripts, replies, errors. |
-| `logs/latency.log` | One line per turn: model, mode, ms since the recording ended for STT done, first token, first audio, done. No text. |
+| `logs/latency.log` | One line per turn, also on failure: outcome, model, mode, ms since the recording ended for STT done, first text token (after any tool calls), first audio (player started), done. No text. |
+| `mcp.json` | The only MCP servers the voice turn's `claude -p` loads (android-assistant, mcp-prompts). |
+| `audio.env` | Pulse env, silence trim and beep, shared by `listen.sh`, `assistant.sh` and the MCP tools. |
 | `route.py` | Model routing for a transcript (tested in `assistant/mcp/test_voice.py`). |
 | `stream_speak.py` | Reads Claude's stream-json; speaks the first sentence early, then the rest. |
 | `turnlock.py` | One voice turn at a time, shared by `http_trigger.py` and the MCP tools `speak`/`listen`. |
@@ -67,7 +70,7 @@ questions and uses mcp-prompts, and says phone control is not set up.
 /root/voice-assistant/assistant.sh --new --text "What time is it?"   # prints the mp3 path
 /root/voice-assistant/assistant.sh /sdcard/VoiceAssistant/in.m4a      # full pipeline
 /root/voice-assistant/assistant.sh --speak --text "What time is it?" # stream the reply to the speaker
-/root/voice-assistant/listen.sh --new --wav question.wav            # hands-free turn from a file
+/root/voice-assistant/listen.sh --new --wav question.wav            # hands-free turn from a file (exit 4: busy)
 tail -3 /root/voice-assistant/logs/latency.log
 ```
 

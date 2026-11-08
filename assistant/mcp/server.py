@@ -42,8 +42,20 @@ CONFIRM_FILE = STATE / "pending-confirmations.json"
 CONFIRM_TTL = 300  # seconds
 VOICE_DIR = Path(os.environ.get("VOICE_DIR", Path(__file__).resolve().parent.parent / "voice"))
 ELEVEN = str(VOICE_DIR / "eleven.py")
-PULSE_ENV = {"PULSE_SERVER": "127.0.0.1", "PULSE_COOKIE": "/root/phone/pa/cookie",
-             "AUDIODRIVER": "pulseaudio"}
+
+
+def _audio_env(path: Path = VOICE_DIR / "audio.env") -> dict[str, str]:
+    """KEY=VALUE / KEY="VALUE" lines of voice/audio.env (also sourced by listen.sh)."""
+    env = {}
+    for line in path.read_text().splitlines():
+        m = re.match(r'\s*([A-Z_][A-Z0-9_]*)=(.*)$', line)
+        if m:
+            env[m.group(1)] = m.group(2).strip().strip('"')
+    return env
+
+
+AUDIO = _audio_env()
+PULSE_ENV = {k: AUDIO[k] for k in ("PULSE_SERVER", "PULSE_COOKIE", "AUDIODRIVER")}
 SPEAK_MAX = 1000          # characters
 LISTEN_WAIT = 8           # seconds to wait for speech to start (as voice/listen.sh)
 
@@ -354,21 +366,25 @@ def speak(text: str) -> str:
     return f"spoke {len(text)} characters" + (f" (cut to {SPEAK_MAX})" if cut else "")
 
 
-@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
 def listen(max_s: int = 8) -> str:
     """Record from the phone mic after a beep until the speaker pauses (at most max_s seconds,
-    1..30) and return JSON {"text", "language"} (ElevenLabs speech-to-text). Returns
-    "no speech heard" on silence, "busy" while a voice turn is running."""
+    1..30), upload the recording to ElevenLabs speech-to-text and return JSON
+    {"text", "language"}. Not read-only: it records the room and sends the audio off the
+    phone. Returns "no speech heard" on silence, "busy" while a voice turn is running."""
     max_s = max(1, min(30, int(max_s)))
     with turn_lock(0) as got:
         if not got:
             return "busy"
         with tempfile.TemporaryDirectory(prefix="listen-") as d:
             wav = os.path.join(d, "listen.wav")
-            _run_split(["play", "-q", "-n", "synth", "0.12", "sine", "880", "vol", "0.35"], timeout=10)
-            # Same silence trim as voice/listen.sh: start above 2 %, stop after 1.3 s below 2 %.
+            secs, hz, vol = AUDIO["VA_BEEP"].split()
+            rc, _, err = _run_split(["play", "-q", "-n", "synth", secs, "sine", hz, "vol", vol], timeout=10)
+            if rc != 0:  # no beep, no recording: the user must know the mic is live
+                return "beep failed, not recording: " + _err_line(err, f"rc={rc}")
+            # Same silence trim as voice/listen.sh (VA_REC_SILENCE in voice/audio.env).
             rc, _, err = _run_split(["timeout", str(LISTEN_WAIT + max_s), "rec", "-q", "-c1", "-r16000",
-                                     wav, "silence", "1", "0.1", "2%", "1", "1.3", "2%",
+                                     wav, *AUDIO["VA_REC_SILENCE"].split(),
                                      "trim", "0", str(max_s)], timeout=LISTEN_WAIT + max_s + 10)
             if rc not in (0, 124):  # 124: timeout, nothing said
                 return "recording failed: " + _err_line(err, f"rc={rc}")

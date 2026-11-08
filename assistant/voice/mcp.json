@@ -1,0 +1,6 @@
+{"mcpServers": {
+  "android-assistant": {"type": "stdio", "command": "/root/cliphist-android/assistant/mcp/.venv/bin/python",
+                        "args": ["/root/cliphist-android/assistant/mcp/server.py"], "env": {}},
+  "mcp-prompts": {"type": "stdio", "command": "/usr/local/bin/mcp-prompts", "args": [],
+                  "env": {"PROMPTS_DIR": "/root/mcp-prompts/data/prompts"}}
+}}

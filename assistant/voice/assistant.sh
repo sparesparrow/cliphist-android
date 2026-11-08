@@ -10,6 +10,12 @@
 # stdout: exactly one line, the path of the reply mp3 (Termux:Tasker passes it back as %stdout;
 # with --speak, the last part played). Everything else goes to logs/assistant.log and stderr.
 # Timing per turn goes to logs/latency.log (ms since VA_T0_MS, the end of the recording; no text).
+# --speak takes state/turn.lock unless the caller holds it (VA_TURN_LOCKED=1); exit 4 = busy.
+#
+# Claude runs isolated: --permission-mode dontAsk denies every tool not in ALLOWED_TOOLS, and
+# --strict-mcp-config loads only mcp.json (android-assistant, mcp-prompts), not the user's
+# claude.ai connectors or plugins; --setting-sources project,local skips user settings;
+# --tools leaves only WebSearch and WebFetch of the built-in tools.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -26,16 +32,26 @@ mkdir -p "$HERE/logs" "$HERE/state" "$OUT_DIR"
 LOG=$HERE/logs/assistant.log
 SESSION_FILE=$HERE/state/session
 log() { printf '%s %s\n' "$(date '+%F %T')" "$*" >>"$LOG"; printf '%s\n' "$*" >&2; }
-die() { log "ERROR: $*"; exit 1; }
 
 export PATH="$HOME/.local/bin:$PATH"
 PY=/root/mia-venv/bin/python
 ms() { date +%s%3N; }
 T0=${VA_T0_MS:-$(ms)}   # listen.sh passes the time the recording ended
-T_STT=""
+T_STT="" T_AUDIO="" CLAUDE_MODEL="" SPEAK=0 out=""
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+# One line per turn in logs/latency.log, also on failure. No transcript, no secrets.
+latency() {  # $1 = outcome: ok | tts_fallback | claude_failed | error
+  local tok rel_t
+  tok=$(jq -r '.t_first_token // empty' <<<"$out" 2>/dev/null || true)
+  rel_t() { [ -n "$1" ] && echo $(( $1 - T0 )) || echo -; }
+  printf '%s outcome=%s model=%s mode=%s t_rec_end=0 t_stt_done=%s t_first_token=%s t_first_audio=%s t_done=%s\n' \
+    "$(date '+%F %T')" "$1" "${CLAUDE_MODEL:--}" "$([ "$SPEAK" = 1 ] && echo speak || echo mp3)" \
+    "$(rel_t "$T_STT")" "${tok:--}" "${T_AUDIO:--}" "$(rel_t "$(ms)")" >>"$HERE/logs/latency.log"
+}
+die() { log "ERROR: $*"; latency error; exit 1; }
 
 # --- args -------------------------------------------------------------------
-NEW=0 TEXT="" AUDIO="" SPEAK=0
+NEW=0 TEXT="" AUDIO=""
 while [ $# -gt 0 ]; do
   case $1 in
     --new) NEW=1 ;;
@@ -46,9 +62,15 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-[ "$SPEAK" = 0 ] || export PULSE_SERVER=${PULSE_SERVER:-127.0.0.1} \
-  PULSE_COOKIE=${PULSE_COOKIE:-/root/phone/pa/cookie} AUDIODRIVER=${AUDIODRIVER:-pulseaudio}
 [ -n "$TEXT" ] || [ -n "$AUDIO" ] || die "usage: assistant.sh <audio-file> | --text \"...\""
+if [ "$SPEAK" = 1 ]; then
+  set -a; . "$HERE/audio.env"; set +a   # PULSE_SERVER, PULSE_COOKIE, AUDIODRIVER
+  if [ -z "${VA_TURN_LOCKED:-}" ]; then  # one voice turn at a time (http_trigger, listen.sh hold it)
+    exec 9>"${VA_LOCK_FILE:-$HERE/state/turn.lock}"
+    flock -n 9 || { echo "busy" >&2; exit 4; }
+    export VA_TURN_LOCKED=1
+  fi
+fi
 
 # --- key (read from the env file, never printed) ----------------------------
 if [ -z "${ELEVENLABS_API_KEY:-}" ] && [ -f "$ENV_FILE" ]; then
@@ -76,24 +98,30 @@ ALLOWED_TOOLS=(
   mcp__android-assistant__open mcp__android-assistant__notify
   mcp__android-assistant__run_tasker_task mcp__android-assistant__mqtt_publish
   mcp__mcp-prompts__list_prompts mcp__mcp-prompts__get_prompt mcp__mcp-prompts__apply_template
-  mcp__cliphist-android__search_clipboard mcp__cliphist-android__get_clipboard_history
   WebSearch WebFetch
 )
-ask_claude() {  # $1 = resume session id or empty; prints stream_speak.py's summary JSON
+ask_claude() {  # $1 = resume session id or empty; summary JSON -> $TMP/summary, rc -> $TMP/claude.rc
   local sys now args=() ss=(--t0-ms "$T0" --out-dir "$OUT_DIR")
   [ "$SPEAK" = 1 ] && ss+=(--play)
   now=$(date '+%A %-d %B %Y, %H:%M')
   sys=$(jq -r '.content' "$PROMPT_FILE")
   sys=${sys//\{\{current_time\}\}/$now}
   [ -n "$1" ] && args+=(--resume "$1")
-  (cd /root && claude -p "$TEXT" "${args[@]}" \
+  { rc=0; (cd /root && claude -p "$TEXT" "${args[@]}" \
       --model "$CLAUDE_MODEL" --output-format stream-json --verbose --include-partial-messages \
+      --permission-mode dontAsk --strict-mcp-config --mcp-config "$HERE/mcp.json" \
+      --setting-sources project,local --tools "WebSearch,WebFetch" \
       --append-system-prompt "$sys" \
       --allowedTools "${ALLOWED_TOOLS[@]}" \
       --disallowedTools Bash Edit Write NotebookEdit \
-      </dev/null 2>>"$LOG" | "$PY" -I "$HERE/stream_speak.py" "${ss[@]}" 2>>"$LOG")
+      </dev/null 2>>"$LOG") || rc=$?; echo "$rc" >"$TMP/claude.rc"; } \
+    | "$PY" -I "$HERE/stream_speak.py" "${ss[@]}" >"$TMP/summary" 2>>"$LOG" || true
+  out=$(cat "$TMP/summary" 2>/dev/null || true)
+  CLAUDE_RC=$(cat "$TMP/claude.rc" 2>/dev/null || echo 1)
 }
+heard() { [ -n "$(jq -r '.t_first_audio // empty' <<<"$out" 2>/dev/null)" ]; }
 
+OUTCOME=ok
 if [ -z "$TEXT" ]; then
   REPLY="Sorry, I didn't catch that."
 else
@@ -102,13 +130,20 @@ else
      [ $(( $(date +%s) - $(stat -c %Y "$SESSION_FILE") )) -lt "$SESSION_TTL" ]; then
     sid=$(cat "$SESSION_FILE")
   fi
-  out=$(ask_claude "$sid") || { [ -n "$sid" ] && log "resume failed, starting new session" && out=$(ask_claude ""); } || out=""
+  ask_claude "$sid"
+  # Run Claude again only if Claude itself failed on a resumed session and nobody heard
+  # anything yet: never because of TTS or playback, never twice after audio (no repeated actions).
+  if [ "$CLAUDE_RC" != 0 ] && [ -n "$sid" ] && ! heard; then
+    log "resume failed (rc=$CLAUDE_RC), starting new session"
+    ask_claude ""
+  fi
   REPLY=$(jq -r 'select(.is_error != true) | .result // empty' <<<"$out" 2>/dev/null || true)
   new_sid=$(jq -r '.session_id // empty' <<<"$out" 2>/dev/null || true)
   [ -n "$new_sid" ] && printf '%s' "$new_sid" >"$SESSION_FILE"
   if [ -z "$REPLY" ]; then
-    log "claude failed: $(head -c 500 <<<"$out")"
+    log "claude failed (rc=$CLAUDE_RC): $(head -c 500 <<<"$out")"
     REPLY="Sorry, I couldn't get an answer from Claude."
+    OUTCOME=claude_failed
   fi
 fi
 # Strip markdown that would be read out loud.
@@ -117,24 +152,24 @@ REPLY=$(sed -E 's/[*_`#>|]+//g; s/^[[:space:]]*-[[:space:]]+//; s/\[([^]]*)\]\([
 log "reply: $REPLY"
 
 # --- 3. text to speech -------------------------------------------------------
-# With --speak, stream_speak.py has already played the reply unless Claude or its TTS failed;
-# then (and without --speak) the whole reply is synthesized here as before.
-MP3=""; T_AUDIO=$(jq -r '.t_first_audio // empty' <<<"${out:-}" 2>/dev/null || true)
-if [ "$SPEAK" = 1 ] && [ -n "$(jq -r 'select(.is_error == false and .tts_failed == false) | .last_mp3 // empty' <<<"${out:-}" 2>/dev/null)" ]; then
-  MP3=$(jq -r '.last_mp3' <<<"$out")
-else
+# With --speak, stream_speak.py has played what it could; synthesize only what nobody heard
+# (all of it on a Claude failure). Without --speak, the whole reply becomes one mp3 as before.
+T_AUDIO=$(jq -r '.t_first_audio // empty' <<<"$out" 2>/dev/null || true)
+SAY=$REPLY MP3=""
+if [ "$SPEAK" = 1 ] && [ "$OUTCOME" = ok ]; then
+  SAY=$(jq -r '.unspoken // empty' <<<"$out" 2>/dev/null || true)
+  MP3=$(jq -r '.last_mp3 // empty' <<<"$out" 2>/dev/null || true)
+  [ -z "$SAY" ] || OUTCOME=tts_fallback
+fi
+if [ -n "$SAY" ]; then
   MP3="$OUT_DIR/reply-$(date +%Y%m%d-%H%M%S).mp3"
-  printf '%s' "$REPLY" | "$ELEVEN" tts "$MP3" 2>>"$LOG" || { rm -f "$MP3"; die "text-to-speech failed (see log)"; }
+  printf '%s' "$SAY" | "$ELEVEN" tts "$MP3" 2>>"$LOG" || { rm -f "$MP3"; die "text-to-speech failed (see log)"; }
   if [ "$SPEAK" = 1 ]; then
-    [ -n "$T_AUDIO" ] || T_AUDIO=$(( $(ms) - T0 ))
-    play -q "$MP3" 2>/dev/null || true
+    [ -n "$T_AUDIO" ] || T_AUDIO=$(( $(ms) - T0 ))   # as play starts
+    play -q "$MP3" 2>>"$LOG" || log "playback failed: $MP3"
   fi
 fi
-rel() { [ -n "$1" ] && echo $(( $1 - T0 )) || echo -; }
-T_TOK=$(jq -r '.t_first_token // empty' <<<"${out:-}" 2>/dev/null || true)
-printf '%s model=%s mode=%s t_rec_end=0 t_stt_done=%s t_first_token=%s t_first_audio=%s t_done=%s\n' \
-  "$(date '+%F %T')" "$CLAUDE_MODEL" "$([ "$SPEAK" = 1 ] && echo speak || echo mp3)" "$(rel "$T_STT")" \
-  "${T_TOK:--}" "${T_AUDIO:--}" "$(rel "$(ms)")" >>"$HERE/logs/latency.log"
+latency "$OUTCOME"
 
 printf '%s\n%s\n' "$TEXT" "$REPLY" >"$OUT_DIR/last.txt"
 ls -1t "$OUT_DIR"/reply-*.mp3 2>/dev/null | tail -n +11 | xargs -r rm -f   # keep the last 10

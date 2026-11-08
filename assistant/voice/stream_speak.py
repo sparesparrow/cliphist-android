@@ -6,8 +6,10 @@ streamed in; when the final result arrives, speak the rest of the reply.
   claude -p ... | stream_speak.py --t0-ms MS [--play --out-dir DIR]
 
 stdout: one JSON line {result, is_error, session_id, t_first_token, t_first_audio, last_mp3,
-tts_failed}; times are ms since --t0-ms (the end of the recording), null if it never happened.
-On an error result nothing more is spoken; assistant.sh retries or speaks its own fallback.
+unspoken}; times are ms since --t0-ms (the end of the recording), null if it never happened.
+t_first_token is the first text token, which may come after tool calls. t_first_audio is when
+the first player process started. unspoken is the cleaned reply text nobody heard ("" when it
+all played); assistant.sh synthesizes it once. On an error result nothing more is spoken.
 TTS goes through eleven.py (ElevenLabs SDK), playback through SoX `play` (PULSE_SERVER env).
 Without partial messages, whole `assistant` events are used instead of text deltas.
 """
@@ -24,7 +26,9 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ELEVEN = os.path.join(HERE, "eleven.py")
-_SENT_END = re.compile(r"[.!?…][\"')\]]*\s+")
+_SENT_END = re.compile(r"[.!?…][\"'”’)\]*_]*\s+")
+# A period after these is not a sentence end (lower case, without the final period).
+ABBREV = {"dr", "mr", "mrs", "vs", "e.g", "i.e", "např", "tj", "atd", "apod", "resp", "tzv"}
 
 
 def now_ms() -> int:
@@ -48,8 +52,12 @@ def split_first_sentence(buf: str) -> tuple[str, str] | None:
     sentence has a letter in it ("1. " alone is not a sentence); None while incomplete."""
     for m in _SENT_END.finditer(buf):
         head = buf[:m.end()].strip()
-        if re.search(r"[^\W\d_]", head):
-            return head, buf[m.end():]
+        if not re.search(r"[^\W\d_]", head):
+            continue
+        last = buf[:m.start()].split()[-1:] or [""]
+        if buf[m.start()] == "." and last[0].lstrip("([\"'*_“‘").lower() in ABBREV:
+            continue
+        return head, buf[m.end():]
     return None
 
 
@@ -74,6 +82,11 @@ def parse(lines, on_first_sentence, clock=now_ms):
         if not isinstance(ev, dict) or ev.get("parent_tool_use_id"):
             continue  # subagent output is not the reply
         t, flush = ev.get("type"), False
+        if t == "system" and ev.get("subtype") == "init":  # what this turn may use, to the log
+            print("stream_speak: init " + json.dumps({
+                "model": ev.get("model"), "permissionMode": ev.get("permissionMode"),
+                "mcp_servers": [f'{m.get("name")}:{m.get("status")}' for m in ev.get("mcp_servers") or []],
+                "tools": ev.get("tools")}), file=sys.stderr)
         if t == "stream_event":
             e = ev.get("event") or {}
             d = e.get("delta") or {}
@@ -104,47 +117,77 @@ def parse(lines, on_first_sentence, clock=now_ms):
 
 
 class Speaker:
-    """TTS + playback. tts(text, mp3) -> error string or None; play(mp3) -> None."""
+    """Plays a prefix of the reply, in order: the first sentence early, then the rest.
+
+    tts(text, mp3) -> error string or None; play(mp3, started) -> True if it played to the
+    end (calls started() once the player process is running). Anything that fails stops
+    playback; `unspoken` is then the part of the cleaned reply nobody has heard yet, for
+    assistant.sh to synthesize once. Nothing here raises on a TTS or player failure.
+    """
 
     def __init__(self, out_dir, t0, tts=None, play=None, clock=now_ms):
         self.out_dir, self.t0, self.clock = out_dir, t0, clock
         self.tts = tts or self._tts
         self.play = play or self._play
-        self.first_audio = None
-        self.spoken = None        # cleaned text actually played first
-        self.last_mp3 = None
-        self.failed = False       # True if the reply was not played to the end
+        self.first_audio = None   # clock() when the first player process started
+        self.first_text = None    # cleaned first sentence handed to TTS
+        self.first_ok = False     # ... and played to the end
+        self.last_mp3 = None      # last mp3 played to the end
+        self.unspoken = None      # set by rest(): "" when the whole reply was played
         self._thread = None
         self._stamp = time.strftime("%Y%m%d-%H%M%S")
 
     @staticmethod
     def _tts(text, mp3):
-        p = subprocess.run([ELEVEN, "tts", mp3], input=text, capture_output=True, text=True, timeout=60)
+        try:
+            p = subprocess.run([ELEVEN, "tts", mp3], input=text, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            return "tts timed out"
+        except OSError as e:
+            return f"tts could not run: {type(e).__name__}"
         return None if p.returncode == 0 else ((p.stderr.strip().splitlines() or ["tts failed"])[-1])
 
     @staticmethod
-    def _play(mp3):
-        subprocess.run(["play", "-q", mp3], capture_output=True, timeout=300)
+    def _play(mp3, started):
+        try:
+            p = subprocess.Popen(["play", "-q", mp3], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError as e:
+            print(f"stream_speak: play could not run: {type(e).__name__}", file=sys.stderr)
+            return False
+        started()
+        try:
+            return p.wait(timeout=300) == 0
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.wait()
+            return False
 
-    def _say(self, text, part):
+    def _synth(self, text, part):
         mp3 = os.path.join(self.out_dir, f"reply-{self._stamp}-{part}.mp3")
         err = self.tts(text, mp3)
         if err:
             print(f"stream_speak: {err}", file=sys.stderr)
+            return None
+        return mp3
+
+    def _playback(self, mp3):
+        def started():
+            self.first_audio = self.first_audio or self.clock()
+        if not self.play(mp3, started):
+            print("stream_speak: playback failed", file=sys.stderr)
             return False
-        self.first_audio = self.first_audio or self.clock()
         self.last_mp3 = mp3
-        self.play(mp3)
         return True
 
     def first(self, sentence):
         text = clean(sentence).strip()
         if not text:
             return
+        self.first_text = text
 
         def run():
-            if self._say(text, "a"):
-                self.spoken = text
+            mp3 = self._synth(text, "a")
+            self.first_ok = bool(mp3) and self._playback(mp3)
         self._thread = threading.Thread(target=run, daemon=True)
         self._thread.start()
 
@@ -153,10 +196,17 @@ class Speaker:
             self._thread.join()
 
     def rest(self, reply):
-        self.wait()  # the first sentence finishes playing; also tells what was spoken
-        rest = remainder(clean(reply), self.spoken)
-        # If the first sentence failed, rest is the whole reply: played once, not failed.
-        self.failed = not self._say(rest, "b") if rest else self.spoken is None
+        """Synthesize what follows the first sentence while it is still playing, then play it."""
+        reply = clean(reply).strip()
+        pending = remainder(reply, self.first_text)
+        mp3 = self._synth(pending, "b") if pending else None
+        self.wait()
+        if self.first_text and not self.first_ok:
+            self.unspoken = reply        # nothing was heard: say it all, once
+        elif not pending:
+            self.unspoken = ""
+        else:
+            self.unspoken = "" if mp3 and self._playback(mp3) else pending
 
 
 def main(argv=None):
@@ -166,19 +216,24 @@ def main(argv=None):
     ap.add_argument("--out-dir", default=os.environ.get("VA_OUT_DIR", "/sdcard/VoiceAssistant"))
     a = ap.parse_args(argv)
     sp = Speaker(a.out_dir, a.t0_ms)
-    result, first_token = parse(sys.stdin, sp.first if a.play else (lambda s: None))
-    result = result or {}
-    reply = "" if result.get("is_error") else (result.get("result") or "")
-    if a.play:
-        if reply:
-            sp.rest(reply)
-        else:
-            sp.wait()  # error: assistant.sh retries or speaks its fallback itself
+    result, first_token, reply = {}, None, ""
+    try:
+        result, first_token = parse(sys.stdin, sp.first if a.play else (lambda s: None))
+        result = result or {}
+        reply = "" if result.get("is_error") else (result.get("result") or "")
+        if a.play:
+            if reply:
+                sp.rest(reply)
+            else:
+                sp.wait()  # error: assistant.sh decides (retry only if nothing was played)
+    except Exception as e:  # never leave assistant.sh without a summary
+        print(f"stream_speak: {type(e).__name__}: {e}", file=sys.stderr)
     rel = lambda t: None if t is None else t - a.t0_ms  # noqa: E731
     print(json.dumps({
         "result": reply, "is_error": bool(result.get("is_error")) or not reply,
         "session_id": result.get("session_id"), "t_first_token": rel(first_token),
-        "t_first_audio": rel(sp.first_audio), "last_mp3": sp.last_mp3, "tts_failed": sp.failed,
+        "t_first_audio": rel(sp.first_audio), "last_mp3": sp.last_mp3,
+        "unspoken": clean(reply).strip() if sp.unspoken is None else sp.unspoken,
     }, ensure_ascii=False))
 
 

@@ -22,7 +22,7 @@ ACTION_WORDS = {
     "paste", "delete", "install", "enable", "disable", "mute", "volume",
     "otevři", "otevri", "pošli", "posli", "zavolej", "napiš", "napis", "zapni", "vypni",
     "spusť", "spust", "nastav", "rozsviť", "rozsvit", "zhasni", "pusť", "pust", "zamkni",
-    "odemkni", "připomeň", "pripomen",
+    "odemkni", "připomeň", "pripomen", "ztlum", "zavři", "zavri",
 }
 
 

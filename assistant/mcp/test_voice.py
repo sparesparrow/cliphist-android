@@ -106,10 +106,27 @@ def test_listen_clamps_max_s(srv, asked, used):
     assert json.loads(srv.listen(asked)) == {"text": "hello", "language": "eng"}
     cmd, timeout, _ = _rec_cmd(srv)
     assert cmd[1] == str(srv.LISTEN_WAIT + used) and cmd[-1] == str(used)
-    # same silence-trim settings as voice/listen.sh
+    # same silence-trim settings as voice/listen.sh (VA_REC_SILENCE in voice/audio.env)
     assert cmd[2:] == ["rec", "-q", "-c1", "-r16000", cmd[6], "silence", "1", "0.1", "2%", "1", "1.3", "2%",
                        "trim", "0", str(used)]
-    assert "silence 1 0.1 2% 1 1.3 2% trim 0" in (VOICE / "listen.sh").read_text()
+    assert srv.calls[0][0] == ["play", "-q", "-n", "synth", "0.12", "sine", "880", "vol", "0.35"]
+
+
+def test_listen_beep_failure_does_not_record(srv):
+    srv.script["play"] = (1, "", "play FAIL sox: Sorry, there is no default audio device configured\n")
+    assert srv.listen() == "beep failed, not recording: play FAIL sox: Sorry, there is no default audio device configured"
+    assert [c[0] for c in _cmds(srv)] == ["play"]
+
+
+def test_audio_env_is_the_one_source():
+    import server
+    env = server._audio_env()
+    assert server.PULSE_ENV == {"PULSE_SERVER": "127.0.0.1", "PULSE_COOKIE": "/root/phone/pa/cookie",
+                                "AUDIODRIVER": "pulseaudio"}
+    assert env["VA_REC_SILENCE"] == "silence 1 0.1 2% 1 1.3 2%" and env["VA_BEEP"] == "0.12 880 0.35"
+    for f in ("listen.sh", "assistant.sh"):
+        assert '. "$HERE/audio.env"' in (VOICE / f).read_text()
+    assert "$VA_REC_SILENCE trim 0" in (VOICE / "listen.sh").read_text()
 
 
 def test_listen_no_speech(srv):
@@ -141,18 +158,21 @@ def test_listen_stt_error_is_one_line_without_key(srv):
     assert out == "stt failed: stt failed: ApiError status=401: [redacted] rejected"
 
 
-@pytest.mark.parametrize("stdout", ["not json", '{"text": "", "language_code": "eng"}'])
-def test_listen_stt_bad_or_empty_output(srv, stdout):
+@pytest.mark.parametrize("stdout,want", [("not json", "stt failed: unexpected output"),
+                                         ('{"text": "", "language_code": "eng"}', "no speech heard")])
+def test_listen_stt_bad_or_empty_output(srv, stdout, want):
     srv.script["soxi"] = (0, "2.0\n", "")
     srv.script["eleven.py stt"] = (0, stdout, "")
-    assert srv.listen() in ("stt failed: unexpected output", "no speech heard")
+    assert srv.listen() == want
 
 
 def test_tool_annotations(srv):
     tools = {t.name: t for t in srv.mcp._tool_manager.list_tools()}
     assert tools["speak"].annotations.read_only_hint is False
     assert tools["speak"].annotations.destructive_hint is False
-    assert tools["listen"].annotations.read_only_hint is True
+    assert tools["listen"].annotations.read_only_hint is False  # records and uploads audio
+    assert tools["listen"].annotations.open_world_hint is True
+    assert "upload" in tools["listen"].description
 
 
 def test_run_split_reports_missing_binary_and_timeout(srv):
@@ -202,6 +222,19 @@ def test_route_actions_and_long_requests_go_to_default(text):
     assert route.choose_model(text, {}) == "sonnet"
 
 
+@pytest.mark.parametrize("text", ["ztlum hudbu", "zavři aplikaci", "spusť Spotify", "pusť rádio",
+                                  "rozsviť v kuchyni", "zhasni", "otevři mapy", "napiš Petrovi ahoj"])
+def test_route_czech_actions_go_to_default(text):
+    assert route.choose_model(text, {}) == "sonnet"
+
+
+def test_route_word_limit_boundary():
+    eight = "what is the capital city of the Czechia"
+    assert len(eight.split()) == 8 == route.SHORT_WORDS
+    assert route.choose_model(eight + "?", {}) == "haiku"
+    assert route.choose_model(eight + " today?", {}) == "sonnet"  # 9 words
+
+
 def test_route_empty_goes_to_default():
     assert route.choose_model("", {}) == "sonnet"
 
@@ -232,6 +265,15 @@ def test_fixture_is_real_partial_stream():
     ('He said "yes." Then', ('He said "yes."', "Then")),
     ("Hotovo. A dál", ("Hotovo.", "A dál")),
     ("", None),
+    ("Dr. Novák is in. Then", ("Dr. Novák is in.", "Then")),             # abbreviations
+    ("Mr. Smith, e.g. him. Ok", ("Mr. Smith, e.g. him.", "Ok")),
+    ("Use i.e. this. Ok", ("Use i.e. this.", "Ok")),
+    ("Třeba např. Petr, tj. on. A", ("Třeba např. Petr, tj. on.", "A")),
+    ("Jablka atd. a hrušky apod. Ano. Dál", ("Jablka atd. a hrušky apod. Ano.", "Dál")),
+    ("It is 3.5 degrees. Then", ("It is 3.5 degrees.", "Then")),       # number
+    ("**Done.** Next", ("**Done.**", "Next")),                         # markdown after the end
+    ("(Fine!) Next", ("(Fine!)", "Next")),
+    ("Dr. ", None),
 ])
 def test_split_first_sentence(buf, want):
     assert ss.split_first_sentence(buf) == want
@@ -298,15 +340,20 @@ def test_remainder():
 
 
 class FakeAudio:
-    def __init__(self, fail=()):
-        self.fail, self.said, self.played = set(fail), [], []
+    """tts/play for Speaker: records calls; texts in fail_tts / parts in fail_play fail."""
+
+    def __init__(self, fail_tts=(), fail_play=()):
+        self.fail_tts, self.fail_play, self.said, self.played = set(fail_tts), set(fail_play), [], []
 
     def tts(self, text, mp3):
         self.said.append((text, Path(mp3).name.rsplit("-", 1)[-1]))
-        return "tts failed: ApiError status=500" if text in self.fail else None
+        return "tts failed: ApiError status=500" if text in self.fail_tts else None
 
-    def play(self, mp3):
-        self.played.append(Path(mp3).name.rsplit("-", 1)[-1])
+    def play(self, mp3, started):
+        part = Path(mp3).name.rsplit("-", 1)[-1]
+        started()
+        self.played.append(part)
+        return part not in self.fail_play
 
 
 def _speak_fixture(fake, tmp_path, lines=FIXTURE):
@@ -320,21 +367,85 @@ def test_speaker_plays_first_sentence_then_rest(tmp_path):
     fake = FakeAudio()
     sp = _speak_fixture(fake, tmp_path)
     assert fake.said == [("Hi!", "a.mp3"), ("What can I help you with today?", "b.mp3")]
-    assert fake.played == ["a.mp3", "b.mp3"] and sp.first_audio == 1000 and not sp.failed
+    assert fake.played == ["a.mp3", "b.mp3"] and sp.first_audio == 1000 and sp.unspoken == ""
     assert sp.last_mp3.endswith("-b.mp3")
 
 
-def test_speaker_first_tts_failure_falls_back_to_whole_reply(tmp_path):
-    fake = FakeAudio(fail={"Hi!"})
-    sp = _speak_fixture(fake, tmp_path)
-    assert fake.said[-1] == ("Hi! What can I help you with today?", "b.mp3")
-    assert fake.played == ["b.mp3"] and not sp.failed  # whole reply played once: no re-synthesis
+def test_speaker_synthesizes_rest_while_first_sentence_plays(tmp_path):
+    import threading
+    order, gate = [], threading.Event()
+
+    def tts(text, mp3):
+        order.append("tts " + text)
+        if text != "Hi!":
+            gate.set()  # rest is being synthesized ...
+        return None
+
+    def play(mp3, started):
+        started()
+        if mp3.endswith("-a.mp3"):
+            assert gate.wait(5)  # ... while the first sentence is still playing
+        order.append("play " + mp3[-5:])
+        return True
+    sp = ss.Speaker(str(tmp_path), 0, tts=tts, play=play)
+    result, _ = ss.parse(FIXTURE, sp.first)
+    sp.rest(result["result"])
+    assert order[-2:] == ["play a.mp3", "play b.mp3"] and sp.unspoken == ""
 
 
-def test_speaker_rest_tts_failure_is_reported(tmp_path):
-    fake = FakeAudio(fail={"What can I help you with today?"})
+def test_speaker_first_tts_failure_leaves_whole_reply_unspoken(tmp_path):
+    fake = FakeAudio(fail_tts={"Hi!"})
     sp = _speak_fixture(fake, tmp_path)
-    assert fake.played == ["a.mp3"] and sp.failed
+    # nothing was heard: assistant.sh synthesizes the whole reply once (no double playback)
+    assert fake.played == [] and sp.unspoken == "Hi! What can I help you with today?"
+    assert sp.first_audio is None
+
+
+def test_speaker_rest_tts_failure_leaves_only_the_remainder(tmp_path):
+    fake = FakeAudio(fail_tts={"What can I help you with today?"})
+    sp = _speak_fixture(fake, tmp_path)
+    assert fake.played == ["a.mp3"] and sp.unspoken == "What can I help you with today?"
+
+
+def test_speaker_rest_playback_failure_leaves_the_remainder(tmp_path):
+    fake = FakeAudio(fail_play={"b.mp3"})
+    sp = _speak_fixture(fake, tmp_path)
+    assert sp.unspoken == "What can I help you with today?" and sp.last_mp3.endswith("-a.mp3")
+
+
+def test_speaker_rest_tts_timeout(tmp_path, monkeypatch):
+    calls = []
+
+    def run(cmd, **kw):
+        calls.append(kw["input"])
+        if kw["input"] != "Hi!":
+            raise subprocess.TimeoutExpired(cmd, kw["timeout"])
+        Path(cmd[2]).write_text("mp3")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+    monkeypatch.setattr(ss.subprocess, "run", run)
+    fake = FakeAudio()
+    sp = ss.Speaker(str(tmp_path), 0, play=fake.play)
+    result, _ = ss.parse(FIXTURE, sp.first)
+    sp.rest(result["result"])
+    assert calls == ["Hi!", "What can I help you with today?"]
+    assert fake.played == ["a.mp3"] and sp.unspoken == "What can I help you with today?"
+
+
+@pytest.mark.parametrize("exc", [FileNotFoundError(2, "No such file"), PermissionError(13, "denied")])
+def test_tts_cannot_run(exc, monkeypatch):
+    monkeypatch.setattr(ss.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(exc))
+    assert ss.Speaker._tts("hi", "/tmp/x.mp3") == f"tts could not run: {type(exc).__name__}"
+
+
+def test_play_missing_or_failing(tmp_path, monkeypatch):
+    started = []
+    monkeypatch.setenv("PATH", str(tmp_path))  # no `play` here
+    assert ss.Speaker._play("x.mp3", lambda: started.append(1)) is False and started == []
+    (tmp_path / "play").write_text("#!/bin/sh\nexit 2\n")
+    (tmp_path / "play").chmod(0o755)
+    assert ss.Speaker._play("x.mp3", lambda: started.append(1)) is False and started == [1]
+    (tmp_path / "play").write_text("#!/bin/sh\nexit 0\n")
+    assert ss.Speaker._play("x.mp3", lambda: started.append(1)) is True
 
 
 def test_main_summary_and_error_result(tmp_path, monkeypatch, capsys):
@@ -343,7 +454,8 @@ def test_main_summary_and_error_result(tmp_path, monkeypatch, capsys):
     s = json.loads(capsys.readouterr().out)
     assert s["result"] == "Hi! What can I help you with today?" and s["is_error"] is False
     assert s["session_id"] == "3e627f94-06d6-4b71-9fac-78d700b5aaaa"
-    assert s["t_first_token"] > 0 and s["t_first_audio"] is None and s["tts_failed"] is False
+    assert s["t_first_token"] > 0 and s["t_first_audio"] is None
+    assert s["unspoken"] == "Hi! What can I help you with today?"
 
     err = json.dumps({"type": "result", "subtype": "error_during_execution", "is_error": True,
                       "result": "No conversation found", "session_id": "x"})
@@ -356,6 +468,61 @@ def test_main_summary_and_error_result(tmp_path, monkeypatch, capsys):
     assert s["is_error"] is True and s["result"] == "" and fake.said == []  # nothing spoken on error
 
 
+def test_main_always_prints_summary(tmp_path, monkeypatch, capsys):
+    def boom(*a, **k):
+        raise RuntimeError("unexpected")
+    monkeypatch.setattr(ss, "parse", boom)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    ss.main(["--t0-ms", "0", "--play", "--out-dir", str(tmp_path)])
+    s = json.loads(capsys.readouterr().out)
+    assert s["is_error"] is True and s["t_first_audio"] is None
+
+
+def test_main_logs_init_tools(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(INIT) + "\n"))
+    ss.main(["--t0-ms", "0"])
+    err = capsys.readouterr().err
+    line = json.loads(err.split("stream_speak: init ", 1)[1])
+    assert line["mcp_servers"] == ["android-assistant:connected", "mcp-prompts:connected"]
+
+
+# ---------------------------------------------------------------- voice turn isolation (A)
+INIT = json.loads((HERE / "fixtures" / "claude-init-voice.json").read_text())
+
+
+def _allowed_tools():
+    text = (VOICE / "assistant.sh").read_text()
+    block = text.split("ALLOWED_TOOLS=(", 1)[1].split(")", 1)[0]
+    return block.split()
+
+
+def test_real_init_has_only_the_voice_servers_and_no_connectors():
+    # fields of the system/init event of a live voice turn with assistant.sh's flags, as
+    # stream_speak.py logged them (mcp_servers "name:status" expanded back to objects)
+    assert INIT["type"] == "system" and INIT["subtype"] == "init"
+    assert sorted(t for t in INIT["tools"] if not t.startswith("mcp__")) == ["WebFetch", "WebSearch"]  # --tools
+    assert INIT["permissionMode"] == "dontAsk"
+    assert sorted(m["name"] for m in INIT["mcp_servers"]) == ["android-assistant", "mcp-prompts"]
+    servers = {t.split("__")[1] for t in INIT["tools"] if t.startswith("mcp__")}
+    assert servers == {"android-assistant", "mcp-prompts"}  # no claude.ai connectors
+    assert not any(t.startswith("mcp__claude_ai") for t in INIT["tools"])
+    for tool in _allowed_tools():  # everything the turn may use exists
+        assert tool in INIT["tools"], tool
+
+
+def test_allowed_tools_exclude_voice_and_unconfigured_tools():
+    allowed = _allowed_tools()
+    assert not any("cliphist" in t for t in allowed)
+    assert "mcp__android-assistant__speak" not in allowed and "mcp__android-assistant__listen" not in allowed
+
+
+def test_mcp_json_matches_init_and_has_no_secrets():
+    cfg = json.loads((VOICE / "mcp.json").read_text())["mcpServers"]
+    assert sorted(cfg) == sorted(m["name"] for m in INIT["mcp_servers"])
+    envs = {k for c in cfg.values() for k in c.get("env", {})}
+    assert envs <= {"PROMPTS_DIR"}
+
+
 # ---------------------------------------------------------------- assistant.sh / listen.sh (stubbed)
 STUB_ELEVEN = """#!/bin/sh
 case $1 in
@@ -366,9 +533,16 @@ case $1 in
        echo mp3 >"$2" ;;
 esac
 """
+# The first sentence and the rest are synthesized concurrently: compare TTS calls unordered.
+# STUB_CLAUDE_RC != 0: print only STUB_PARTIAL lines of the stream (if set), then fail.
+# STUB_FAIL_ONCE: fail only on the first call (e.g. --resume of an expired session).
 STUB_CLAUDE = """#!/bin/sh
 printf '%s\\n' "$*" >>"$STUB_LOG/claude"
-[ "${STUB_CLAUDE_RC:-0}" = 0 ] || exit "$STUB_CLAUDE_RC"
+n=$(wc -l <"$STUB_LOG/claude")
+if [ "${STUB_CLAUDE_RC:-0}" != 0 ] && { [ -z "${STUB_FAIL_ONCE:-}" ] || [ "$n" = 1 ]; }; then
+  [ -n "${STUB_PARTIAL:-}" ] && head -n "$STUB_PARTIAL" "$STUB_STREAM"
+  exit "$STUB_CLAUDE_RC"
+fi
 cat "$STUB_STREAM"
 """
 STUB_PLAY = """#!/bin/sh
@@ -379,10 +553,10 @@ for a; do :; done; echo "${a##*-}" >>"$STUB_LOG/play"
 @pytest.fixture()
 def va(tmp_path):
     """A copy of voice/ with eleven.py, claude and play stubbed (HOME/.local/bin comes first
-    on assistant.sh's PATH). Logs and state stay in tmp_path."""
+    on assistant.sh's PATH). Logs, state and the turn lock stay in tmp_path."""
     v = tmp_path / "voice"
     v.mkdir()
-    for f in ("assistant.sh", "route.py", "stream_speak.py"):
+    for f in ("assistant.sh", "route.py", "stream_speak.py", "audio.env", "mcp.json"):
         (v / f).write_bytes((VOICE / f).read_bytes())
         (v / f).chmod(0o755)
     bindir = tmp_path / "home" / ".local" / "bin"
@@ -403,10 +577,12 @@ def va(tmp_path):
                            env={**env, **extra}, timeout=60)
         stub = lambda n: ((tmp_path / "stub" / n).read_text().splitlines()  # noqa: E731
                           if (tmp_path / "stub" / n).exists() else [])
-        lat = (v / "logs" / "latency.log").read_text().splitlines()
-        last = (tmp_path / "out" / "last.txt").read_text().splitlines()
+        latf, lastf = v / "logs" / "latency.log", tmp_path / "out" / "last.txt"
+        lat = latf.read_text().splitlines() if latf.exists() else []
+        last = lastf.read_text().splitlines() if lastf.exists() else []
         return p, stub, lat, last
     run.wav = str(tmp_path / "in.wav")
+    run.dir = v
     return run
 
 
@@ -418,35 +594,70 @@ def test_assistant_speak_streams_first_sentence_and_logs_latency(va):
     p, stub, lat, last = va("--speak", va.wav, VA_T0_MS="1000")
     assert p.returncode == 0, p.stderr
     assert p.stdout.strip().endswith("-b.mp3")
-    assert stub("tts") == ["Hi!", "What can I help you with today?"] and stub("play") == ["a.mp3", "b.mp3"]
+    assert sorted(stub("tts")) == sorted(["Hi!", "What can I help you with today?"]) and stub("play") == ["a.mp3", "b.mp3"]
     args = stub("claude")[0]
     assert "--output-format stream-json --verbose" in args and "--model haiku" in args
     assert last == ["What time is it?", "Hi! What can I help you with today?"]
     assert len(lat) == 1 and "What time" not in lat[0] and "dummy" not in lat[0]
     f = _fields(lat[0])
-    assert f["model"] == "haiku" and f["mode"] == "speak" and f["t_rec_end"] == "0"
+    assert f["outcome"] == "ok" and f["model"] == "haiku" and f["mode"] == "speak" and f["t_rec_end"] == "0"
     for k in ("t_stt_done", "t_first_token", "t_first_audio", "t_done"):
         assert int(f[k]) > 0
 
 
-def test_assistant_speak_falls_back_to_whole_reply_when_streamed_tts_fails(va):
-    # The rest of the reply failed: assistant.sh re-synthesizes the whole reply and plays it.
+def test_assistant_claude_runs_isolated(va):
+    p, stub, lat, last = va("--text", "hi")
+    args = stub("claude")[0]
+    for flag in ("--permission-mode dontAsk", "--strict-mcp-config",
+                 f"--mcp-config {va.dir}/mcp.json", "--setting-sources project,local",
+                 "--tools WebSearch,WebFetch", "--disallowedTools Bash Edit Write NotebookEdit"):
+        assert flag in args, flag
+    allowed = args.split("--allowedTools ", 1)[1].split(" --", 1)[0].split()
+    assert allowed == _allowed_tools()
+
+
+def test_assistant_speak_rest_tts_failure_synthesizes_only_the_remainder(va):
+    p, stub, lat, last = va("--speak", "--text", "What time is it?",
+                            STUB_TTS_FAIL="What can I help you with today?")
+    assert p.returncode != 0  # the stub fails that text every time: assistant.sh's retry fails too
+    assert sorted(stub("tts")) == sorted(["Hi!", "What can I help you with today?", "What can I help you with today?"])
+    assert stub("play") == ["a.mp3"] and len(stub("claude")) == 1
+    assert _fields(lat[0])["outcome"] == "error"
+
+
+def test_assistant_speak_rest_fallback_plays_remainder(va, tmp_path):
+    # rest TTS fails once in stream_speak, then works in assistant.sh: only the remainder is said again
+    (va.dir / "eleven.py").write_text(STUB_ELEVEN.replace(
+        '[ "$text" = "$STUB_TTS_FAIL" ]; then',
+        '[ "$text" = "$STUB_TTS_FAIL" ] && [ ! -e "$STUB_LOG/failed" ]; then touch "$STUB_LOG/failed";'))
     p, stub, lat, last = va("--speak", "--text", "What time is it?",
                             STUB_TTS_FAIL="What can I help you with today?")
     assert p.returncode == 0, p.stderr
-    assert stub("tts") == ["Hi!", "What can I help you with today?", "Hi! What can I help you with today?"]
+    assert sorted(stub("tts")) == sorted(["Hi!", "What can I help you with today?", "What can I help you with today?"])
     plays = stub("play")
-    assert len(plays) == 2 and plays[0] == "a.mp3" and plays[1] != "b.mp3"  # b failed: never played
-    assert p.stdout.strip().endswith(plays[1])  # the re-synthesized reply-<time>.mp3
+    assert len(plays) == 2 and plays[0] == "a.mp3" and plays[1] != "b.mp3"
+    assert p.stdout.strip().endswith(plays[1]) and len(stub("claude")) == 1
     f = _fields(lat[0])
-    assert f["t_stt_done"] == "-" and int(f["t_first_audio"]) >= 0
+    assert f["outcome"] == "tts_fallback" and int(f["t_first_audio"]) >= 0
+    assert last[1] == "Hi! What can I help you with today?"
 
 
 def test_assistant_speak_first_sentence_tts_failure_plays_reply_once(va):
     p, stub, lat, last = va("--speak", "--text", "What time is it?", STUB_TTS_FAIL="Hi!")
     assert p.returncode == 0, p.stderr
-    assert stub("tts") == ["Hi!", "Hi! What can I help you with today?"]
-    assert stub("play") == ["b.mp3"] and p.stdout.strip().endswith("-b.mp3")
+    # stream_speak: "Hi!" failed and the rest was synthesized ahead but not played;
+    # assistant.sh says the whole reply once.
+    assert sorted(stub("tts")) == sorted(["Hi!", "What can I help you with today?", "Hi! What can I help you with today?"])
+    assert len(stub("play")) == 1 and stub("play")[0] not in ("a.mp3", "b.mp3")
+    assert len(stub("claude")) == 1 and _fields(lat[0])["outcome"] == "tts_fallback"
+
+
+def test_assistant_play_missing_does_not_rerun_claude(va, tmp_path):
+    (tmp_path / "home" / ".local" / "bin" / "play").write_text("#!/bin/sh\nexit 127\n")
+    p, stub, lat, last = va("--speak", "--text", "What time is it?")
+    assert p.returncode == 0, p.stderr
+    assert len(stub("claude")) == 1
+    assert last[1] == "Hi! What can I help you with today?"
 
 
 def test_assistant_mp3_mode_keeps_old_output(va):
@@ -456,7 +667,7 @@ def test_assistant_mp3_mode_keeps_old_output(va):
     assert stub("tts") == ["Hi! What can I help you with today?"]
     assert "--model sonnet" in stub("claude")[0]
     f = _fields(lat[0])
-    assert f["mode"] == "mp3" and f["model"] == "sonnet" and f["t_first_audio"] == "-"
+    assert f["outcome"] == "ok" and f["mode"] == "mp3" and f["model"] == "sonnet" and f["t_first_audio"] == "-"
 
 
 def test_assistant_claude_failure_speaks_apology(va):
@@ -465,7 +676,56 @@ def test_assistant_claude_failure_speaks_apology(va):
     assert last[1] == "Sorry, I couldn't get an answer from Claude."
     assert stub("tts") == [last[1]] and len(stub("play")) == 1
     f = _fields(lat[0])
-    assert f["model"] == "opus" and f["t_first_token"] == "-"
+    assert f["outcome"] == "claude_failed" and f["model"] == "opus" and f["t_first_token"] == "-"
+
+
+def _session(va):
+    (va.dir / "state").mkdir(exist_ok=True)
+    (va.dir / "state" / "session").write_text("old-session")
+
+
+def test_assistant_resume_failure_retries_when_nothing_was_heard(va):
+    _session(va)
+    p, stub, lat, last = va("--speak", "--text", "hi", STUB_CLAUDE_RC="1", STUB_FAIL_ONCE="1")
+    assert p.returncode == 0, p.stderr
+    calls = stub("claude")
+    assert len(calls) == 2 and "--resume old-session" in calls[0] and "--resume" not in calls[1]
+    assert last[1] == "Hi! What can I help you with today?" and stub("play") == ["a.mp3", "b.mp3"]
+
+
+def test_assistant_resume_failure_after_spoken_sentence_does_not_rerun(va):
+    _session(va)
+    # Claude streams "Hi! What" (first sentence spoken), then dies without a result.
+    p, stub, lat, last = va("--speak", "--text", "hi", STUB_CLAUDE_RC="1", STUB_FAIL_ONCE="1", STUB_PARTIAL="6")
+    assert p.returncode == 0, p.stderr
+    assert len(stub("claude")) == 1  # no second answer, no repeated tool actions
+    assert stub("play")[0] == "a.mp3" and last[1] == "Sorry, I couldn't get an answer from Claude."
+    assert _fields(lat[0])["outcome"] == "claude_failed"
+
+
+def test_assistant_die_writes_latency_line(va):
+    p, stub, lat, last = va("--text", "Open WhatsApp", STUB_TTS_FAIL="Hi! What can I help you with today?")
+    assert p.returncode == 1 and "text-to-speech failed" in p.stderr
+    f = _fields(lat[0])
+    assert f["outcome"] == "error" and f["model"] == "sonnet" and f["t_done"] != "-"
+
+
+def test_assistant_speak_busy_and_inherited_lock(va):
+    lock = va.dir / "state" / "turn.lock"
+    lock.parent.mkdir(exist_ok=True)
+    holder = subprocess.Popen(["flock", str(lock), "sleep", "10"])
+    try:
+        import time
+        time.sleep(0.5)
+        p, stub, lat, last = va("--speak", "--text", "hi")
+        assert p.returncode == 4 and p.stderr.strip() == "busy" and stub("claude") == []
+        # a caller that holds the lock (http_trigger, listen.sh) says so: no deadlock
+        p, stub, lat, last = va("--speak", "--text", "hi", VA_TURN_LOCKED="1")
+        assert p.returncode == 0, p.stderr
+        # mp3 mode (Tasker /ask) is serialized by http_trigger alone
+    finally:
+        holder.kill()
+        holder.wait()
 
 
 def test_listen_sh_wav_must_exist(tmp_path):
@@ -474,11 +734,45 @@ def test_listen_sh_wav_must_exist(tmp_path):
     assert p.returncode == 2 and "no such file" in p.stderr
 
 
+def test_listen_sh_busy(tmp_path):
+    lock, wav = tmp_path / "turn.lock", tmp_path / "q.wav"
+    wav.write_bytes(b"RIFF")
+    holder = subprocess.Popen(["flock", str(lock), "sleep", "10"])
+    try:
+        import time
+        time.sleep(0.5)
+        p = subprocess.run([str(VOICE / "listen.sh"), "--wav", str(wav)], capture_output=True, text=True,
+                           timeout=10, env={**os.environ, "VA_LOCK_FILE": str(lock), "VA_OUT_DIR": str(tmp_path)})
+        assert p.returncode == 4 and p.stderr.strip() == "busy"
+    finally:
+        holder.kill()
+        holder.wait()
+
+
 def test_http_trigger_busy_while_a_turn_holds_the_lock(tmp_path, monkeypatch):
     monkeypatch.setenv("VA_LOCK_FILE", str(tmp_path / "turn.lock"))
     import http_trigger
     monkeypatch.setattr(http_trigger, "TIMEOUT", 0.3)
     with turnlock.turn_lock(0):
         assert http_trigger.Handler.run_locked(None, ["true"]) == (None, "busy")
-    p, err = http_trigger.Handler.run_locked(None, ["true"])
-    assert err is None and p.returncode == 0
+    p, err = http_trigger.Handler.run_locked(None, ["sh", "-c", "echo locked=$VA_TURN_LOCKED"])
+    assert err is None and p.returncode == 0 and p.stdout.strip() == "locked=1"
+
+
+def test_http_trigger_timeout_kills_the_process_group(tmp_path, monkeypatch):
+    monkeypatch.setenv("VA_LOCK_FILE", str(tmp_path / "turn.lock"))
+    import http_trigger
+    monkeypatch.setattr(http_trigger, "TIMEOUT", 1)
+    pidf = tmp_path / "grandchild.pid"
+    p, err = http_trigger.Handler.run_locked(None, ["sh", "-c", f"sleep 60 & echo $! >{pidf}; wait"])
+    assert (p, err) == (None, "assistant timed out")
+    pid = int(pidf.read_text())
+    import time
+    for _ in range(20):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.1)
+    else:
+        pytest.fail("grandchild sleep survived the timeout")

@@ -13,7 +13,7 @@ Listens on 127.0.0.1 only. Every request except /health needs header X-Token wit
 value in state/http-token (created on first start, mode 600). One turn runs at a time:
 the lock (turnlock.py, state/turn.lock) is shared with the MCP tools speak/listen.
 """
-import json, os, secrets, subprocess, sys
+import json, os, secrets, signal, subprocess, sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -57,10 +57,20 @@ class Handler(BaseHTTPRequestHandler):
         with turn_lock(TIMEOUT) as got:
             if not got:
                 return None, "busy"
+            # The child knows we hold the lock (no deadlock in listen.sh / assistant.sh --speak)
+            # and gets its own process group, so a timeout also stops claude, play, rec ...
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                 env={**os.environ, "VA_TURN_LOCKED": "1"}, start_new_session=True)
             try:
-                return subprocess.run(args, capture_output=True, text=True, timeout=TIMEOUT), None
+                out, err = p.communicate(timeout=TIMEOUT)
             except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                p.communicate()
                 return None, "assistant timed out"
+            return subprocess.CompletedProcess(args, p.returncode, out, err), None
 
     def do_POST(self):
         url = urlparse(self.path)

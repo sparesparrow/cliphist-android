@@ -4,6 +4,7 @@
 #
 #   listen.sh [--new]             stdout: the reply text (one line); exit 3 if no speech was heard
 #   listen.sh [--new] --wav FILE  same turn, but FILE stands in for the recording (latency tests)
+#   exit 4 "busy" if another voice turn (HTTP trigger, MCP speak/listen) holds state/turn.lock
 #
 # The reply starts playing as soon as Claude's first sentence is synthesized (assistant.sh
 # --speak); per-turn timing goes to logs/latency.log.
@@ -14,9 +15,9 @@ OUT=${VA_OUT_DIR:-/sdcard/VoiceAssistant}
 IN=$OUT/listen.wav
 MAX=${VA_LISTEN_MAX:-20}        # seconds of speech at most
 WAIT=${VA_LISTEN_WAIT:-8}       # seconds to wait for speech to start
-export PULSE_SERVER=127.0.0.1 PULSE_COOKIE=/root/phone/pa/cookie AUDIODRIVER=pulseaudio
-mkdir -p "$OUT"
-beep() { play -q -n synth "$1" sine "$2" vol 0.35 2>/dev/null || true; }
+set -a; . "$HERE/audio.env"; set +a   # PULSE_*, AUDIODRIVER, VA_REC_SILENCE, VA_BEEP
+mkdir -p "$OUT" "$HERE/logs" "$HERE/state"
+beep() { play -q -n synth "$1" sine "$2" vol "${VA_BEEP##* }" 2>/dev/null || true; }
 ms() { date +%s%3N; }
 ARGS=() WAV=""
 while [ $# -gt 0 ]; do
@@ -27,14 +28,22 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-/root/phone/phone-services ensure
+# One turn at a time. http_trigger.py already holds the lock for us (VA_TURN_LOCKED=1).
+if [ -z "${VA_TURN_LOCKED:-}" ]; then
+  exec 9>"${VA_LOCK_FILE:-$HERE/state/turn.lock}"
+  flock -n 9 || { echo "busy" >&2; exit 4; }
+  export VA_TURN_LOCKED=1
+fi
+
+/root/phone/phone-services ensure 9>&-   # daemons it starts must not inherit the lock
 if [ -n "$WAV" ]; then
   IN=$WAV
 else
-  beep 0.12 880
+  read -r b_s b_hz _ <<<"$VA_BEEP"; beep "$b_s" "$b_hz"
   rm -f "$IN"
-  # Start on sound above 2 %, stop after 1.3 s below 2 %, cap at $MAX s.
-  rc=0; timeout $((WAIT + MAX)) rec -q -c1 -r16000 "$IN" silence 1 0.1 2% 1 1.3 2% trim 0 "$MAX" 2>"$HERE/logs/rec.err" || rc=$?
+  # $VA_REC_SILENCE (audio.env) ends the recording on a pause; cap at $MAX s.
+  # shellcheck disable=SC2086
+  rc=0; timeout $((WAIT + MAX)) rec -q -c1 -r16000 "$IN" $VA_REC_SILENCE trim 0 "$MAX" 2>"$HERE/logs/rec.err" || rc=$?
   if [ "$rc" != 0 ] && [ "$rc" != 124 ]; then   # 124 = timeout (no speech) is fine
     beep 0.4 220
     echo "recording failed: $(tail -1 "$HERE/logs/rec.err")" >&2; exit 1
