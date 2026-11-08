@@ -11,12 +11,12 @@
 #   phone-services native <cmd...>   run a command in NATIVE Termux (outside PRoot) over ssh
 #   phone-services ssh-key           create the PRoot key and authorize it in Termux
 set -u
-P=/root/phone
+P=${PHONE_DIR:-/root/phone}   # overridable for tests (test_phone_services.py)
 T=/data/data/com.termux/files
 TH=$T/home
 SERIAL=127.0.0.1:5555
 A="adb -s $SERIAL"
-KEY=/root/.ssh/termux_ed25519
+KEY=${PHONE_SSH_KEY:-/root/.ssh/termux_ed25519}
 DEV=/data/local/tmp/pa
 mkdir -p "$P/logs"
 export PULSE_SERVER=127.0.0.1 PULSE_COOKIE=$P/pa/cookie
@@ -59,7 +59,7 @@ pa_start() {
   for _ in 1 2 3 4 5 6 7 8; do sleep 1; pa_up && return 0; done
   echo "mic server did not come up; log:" >&2; $A shell "tail -5 $DEV/pa.log" >&2; return 1
 }
-VA=/root/voice-assistant
+VA=${VA_DIR:-/root/voice-assistant}
 va_up() { timeout 3 curl -fsS http://127.0.0.1:8780/health >/dev/null 2>&1; }
 va_start() {  # voice-assistant HTTP trigger for Tasker's HTTP Request action
   [ -f "$VA/http_trigger.py" ] || return 1

@@ -85,3 +85,48 @@ def test_open_rejects_non_package_non_url(srv, bad):
 def test_act_rejects_unknown_key_and_action(srv):
     assert srv.act("key", "reboot").startswith("unknown key")
     assert srv.act("sh", "id").startswith("unknown action")
+
+
+PS_OUT = """\
+  PID  PPID    STIME     ELAPSED NAME                        ARGS
+    1     0 07:03:58    11:32:10 init                        init second_stage
+16471     1 18:22:24       18:50 pulseaudio                  pulseaudio -n --dl-search-path=/data/local/tmp/pa/mod -F /data/local/tmp/pa/mic.pa
+18064     1 18:35:07       06:07 adbd                        adbd --root_seclabel=u:r:su:s0
+20001 18064 18:40:00       00:01 pulseaudio                  pulseaudio --start
+"""
+
+
+def _status_with_ps(srv, monkeypatch, ps_out, ps_rc=0):
+    def fake_run(cmd, timeout=30, inp=None):
+        srv.calls.append(cmd)
+        if cmd[-1] == srv.PS_CMD:
+            return ps_rc, ps_out
+        return 0, "ok"
+    monkeypatch.setattr(srv, "_run", fake_run)
+    return srv.phone_status().splitlines()
+
+
+def test_phone_status_reports_mic_server_and_adbd(srv, monkeypatch):
+    lines = _status_with_ps(srv, monkeypatch, PS_OUT)
+    assert "mic-server: pid 16471 ppid 1 uptime 18:50 (started 18:22:24)" in lines
+    assert "adbd: pid 18064 started 18:35:07 (uptime 06:07)" in lines
+    assert ["adb", "-s", srv.ADB_SERIAL, "shell", srv.PS_CMD] in srv.calls
+
+
+def test_phone_status_warns_when_mic_server_is_adbd_child(srv, monkeypatch):
+    ps = PS_OUT.replace("16471     1 18:22:24", "16471 18064 18:22:24")
+    mic = [l for l in _status_with_ps(srv, monkeypatch, ps) if l.startswith("mic-server:")]
+    assert mic and "ppid 18064" in mic[0] and "WARNING: child of adbd" in mic[0]
+
+
+def test_phone_status_without_processes_or_ps(srv, monkeypatch):
+    lines = _status_with_ps(srv, monkeypatch, PS_OUT.splitlines()[0] + "\n")
+    assert "mic-server: no process" in lines and "adbd: no process" in lines
+    assert any(l.startswith("processes: ps failed") for l in _status_with_ps(srv, monkeypatch, "err", ps_rc=1))
+
+
+def test_parse_ps_ignores_header_and_short_lines(srv):
+    rows = srv._parse_ps(PS_OUT + "garbage\n")
+    assert [r["pid"] for r in rows] == [1, 16471, 18064, 20001]
+    assert rows[2] == {"pid": 18064, "ppid": 1, "stime": "18:35:07", "elapsed": "06:07",
+                       "name": "adbd", "args": "adbd --root_seclabel=u:r:su:s0"}

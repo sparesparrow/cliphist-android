@@ -120,15 +120,51 @@ def _consume_confirmation(token: str, kind: str, params: dict) -> bool:
     return bool(entry) and entry["kind"] == kind and entry["params"] == params
 
 
+MIC_SERVER_DIR = "/data/local/tmp/pa"  # mic server bundle; its pulseaudio runs as uid 2000
+PS_CMD = "ps -A -o PID,PPID,STIME,ELAPSED,NAME,ARGS"
+
+
+def _parse_ps(text: str) -> list[dict]:
+    """Parse `ps -A -o PID,PPID,STIME,ELAPSED,NAME,ARGS` (toybox) into dicts; skips the header."""
+    rows = []
+    for line in text.splitlines():
+        f = line.split(None, 5)
+        if len(f) < 5 or not f[0].isdigit():
+            continue
+        rows.append({"pid": int(f[0]), "ppid": int(f[1]), "stime": f[2], "elapsed": f[3],
+                     "name": f[4], "args": f[5] if len(f) > 5 else ""})
+    return rows
+
+
+def _proc_lines(rows: list[dict]) -> list[str]:
+    """Mic server and adbd process lines for phone_status. adbd restarts kill its children, so
+    the mic server must have PPID 1 (started via Magisk su), never adbd's pid."""
+    adbd = next((r for r in rows if r["name"] == "adbd"), None)
+    mic = next((r for r in rows if r["name"] == "pulseaudio" and MIC_SERVER_DIR in r["args"]), None)
+    if mic:
+        line = f"mic-server: pid {mic['pid']} ppid {mic['ppid']} uptime {mic['elapsed']} (started {mic['stime']})"
+        if adbd and mic["ppid"] == adbd["pid"]:
+            line += " WARNING: child of adbd, dies on the next adbd restart"
+    else:
+        line = "mic-server: no process"
+    out = [line]
+    out.append(f"adbd: pid {adbd['pid']} started {adbd['stime']} (uptime {adbd['elapsed']})"
+               if adbd else "adbd: no process")
+    return out
+
+
 # ---------------------------------------------------------------- tools
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False))
 def phone_status() -> str:
     """Health of the phone integration (adb link, mic/speaker server, voice trigger, native ssh)
-    plus battery, screen state and the foreground app. Call first when something fails."""
+    plus battery, screen state, the foreground app, the mic server's pid/ppid/uptime and adbd's
+    start time (adbd restarts on every screen lock/unlock). Call first when something fails."""
     parts = [_run([PHONE_SERVICES, "status"], timeout=40)[1]]
     _, batt = _adb("dumpsys battery | grep -E 'level|status|AC powered|USB powered'")
     _, power = _adb("dumpsys power 2>/dev/null | grep -m2 -E 'mWakefulness=|mHoldingDisplaySuspendBlocker'")
     _, locked = _adb("dumpsys window 2>/dev/null | grep -m1 -E 'mDreamingLockscreen|isKeyguardShowing|mShowingLockscreen'")
+    rc, ps = _adb(PS_CMD)
+    parts += _proc_lines(_parse_ps(ps)) if rc == 0 else [f"processes: ps failed: {ps}"]
     parts += ["battery: " + " ".join(batt.split()), "power: " + " ".join(power.split()),
               "lock: " + " ".join(locked.split()), "foreground: " + _droid("fg")]
     return "\n".join(parts)
