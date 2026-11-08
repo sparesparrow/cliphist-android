@@ -71,7 +71,11 @@ va_start() {  # voice-assistant HTTP trigger for Tasker's HTTP Request action
 }
 va_stop() {  # by pid file: pkill -f patterns can match the caller's own command line
   local pid; pid=$(cat "$VA/state/http.pid" 2>/dev/null) || return 0
-  [ -n "$pid" ] && kill "$pid" 2>/dev/null; rm -f "$VA/state/http.pid"; sleep 1
+  rm -f "$VA/state/http.pid"
+  case "$pid" in ''|*[!0-9]*) return 0 ;; esac
+  # a stale pid file may name an unrelated process by now: only kill the trigger itself
+  tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null | grep -q 'http_trigger\.py' || return 0
+  kill "$pid" 2>/dev/null; sleep 1
 }
 native() {
   [ -f "$KEY" ] || { echo "no key; run: phone-services ssh-key" >&2; return 1; }

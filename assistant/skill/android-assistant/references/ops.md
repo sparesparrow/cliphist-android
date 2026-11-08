@@ -29,50 +29,66 @@
 - Claude starts the MCP servers itself (`claude mcp get android-assistant`).
 
 ## Why adbd restarts
-**Conclusion (supported by logs, not yet confirmed by a controlled lock/unlock test):** adbd is
-restarted by Android itself every time the screen locks or unlocks, not by our tooling. On lock,
-`UsbDeviceManager` switches the USB functions to none and sets the OEM USB secure mode; on unlock
-it switches back to `mtp`. Init restarts adbd on every `sys.usb.config` change, and the TCP
-listener on 5555 goes down with it. Everything started as a child of adbd dies.
+**Conclusion.** adbd restarts each time the keyguard (lock screen) is shown or dismissed. It does
+not restart when the screen merely turns on or off. The logs below show this directly. The
+mechanism is a hypothesis. On every keyguard change, `UsbDeviceManager` switches the USB
+functions: none plus `sys.usb.secure_mode` true when the lock screen shows, `mtp` plus secure
+mode false when it is dismissed. Init probably restarts adbd on each `sys.usb.config` change,
+which would take the TCP listener on 5555 down with it. The init side is not logged (logcat has
+no `init` lines here), and the OEM setting behind `sys.usb.secure_mode` has not been found.
 
-Evidence from 2026-11-08 (`logcat -d -b all -v time`; adbd PIDs 16641, 17115, 18064 from
-`ps -A -o PID,PPID,STIME,NAME`). Each adbd start matches a keyguard change within 0.2 s:
-```
-18:22:39.124 I/wm_set_keyguard_shown( 1851): [0,1,0,0,0,setKeyguardShown]    <- screen locked
-18:22:39.131 I/UsbDeviceManager( 1851): Setting USB config to
-18:22:39.222 E/UsbDeviceManager( 1851): Set USB secure = true by sys.usb.secure_mode
-18:22:39.244 W/AdbDebuggingManager( 1851): Read failed with count -1         <- old adbd gone
-18:22:41.250 D/AdbDebuggingManager( 1851): Received connected key message: ...@localhost
-18:25:11.514 I/PowerManagerService( 1851): Waking up from Asleep (... WAKE_REASON_BIOMETRIC)
-18:25:11.880 I/UsbDeviceManager( 1851): Setting USB config to mtp             <- unlocked
-18:25:11.928 E/UsbDeviceManager( 1851): Set USB secure = false by sys.usb.secure_mode
-18:25:11.960 W/AdbDebuggingManager( 1851): Read failed with count -1
-18:35:05.906 I/PowerManagerService( 1851): Going to sleep due to power_button
-18:35:06.894 I/UsbDeviceManager( 1851): Setting USB config to
-18:35:06.995 W/AdbDebuggingManager( 1851): Read failed with count -1         <- adbd 18064, STIME 18:35:06
-18:35:07.714 I/UsbDeviceManager( 1851): Setting USB config to mtp
-```
-The 18:19:40 restart falls just before the start of the system/events buffers; the first event
-logged is an unlock (`18:19:41.960 wm_set_keyguard_shown [0,0,0,1,0]`), which fits the pattern.
+Evidence from 2026-11-08 (`logcat -d -b all -v time`, `ps -A -o PID,PPID,STIME,NAME`). An adbd
+start is the `Read failed` line (the old adbd is gone) followed about 2 s later by
+`Received connected key message`. ps STIME can differ from the log time by about 1 s.
+
+| adbd PID | ps STIME | log: old adbd gone | Keyguard event just before it |
+|---|---|---|---|
+| (before 16641) | ~18:19:40 | before the buffer start | missing: the system/events buffers begin at 18:19:41. The first event logged is an unlock, `18:19:41.960 wm_set_keyguard_shown [0,0,0,1,0]` |
+| 16641 | 18:22:4x | 18:22:39.244 | `18:22:39.124 wm_set_keyguard_shown [0,1,0,0,0,setKeyguardShown]` (lock), `18:22:39.131 UsbDeviceManager: Setting USB config to` (empty), `18:22:39.222 Set USB secure = true` |
+| 17115 | 18:25:1x | 18:25:11.960 | `18:25:11.514 Waking up ... WAKE_REASON_BIOMETRIC`, `18:25:11.871 wm_set_keyguard_shown [0,0,0,1,0]` (unlock), `18:25:11.880 Setting USB config to mtp`, `18:25:11.928 Set USB secure = false` |
+| 18064 | 18:35:06 | 18:35:06.995 | `18:35:05.906 Going to sleep due to power_button`, `18:35:06.863 setKeyguardShown [0,1,0,0,0]` (lock), `18:35:06.894 Setting USB config to` (empty) |
+| 20461 | 18:45:33 | 18:45:34.409 | `18:45:29.289 Going to sleep due to timeout`, `18:45:34.360 setKeyguardShown [0,1,0,0,0]` (lock), `18:45:34.362 Setting USB config to` (empty) |
+| 25599 | 19:09:30 | 19:09:30.823 | `19:09:30.737 setKeyguardShown [0,0,0,1,0]` (unlock), `19:09:30.747 Setting USB config to mtp`, `19:09:30.780 Set USB secure = false` |
+
+Two observations support the keyguard explanation:
+- **18:35.** The phone was locked and then unlocked within one second
+  (`18:35:06.894 Setting USB config to`, then `18:35:07.714 Setting USB config to mtp`). The log
+  shows only one adbd drop (`Read failed` at 18:35:06.995) and one reconnect (18:35:09.010).
+  Probably the unlock arrived while the new adbd was still starting, so the two restarts merged
+  into one. This is not verified.
+- **19:03 and 19:04.** The screen turned on and off twice while it stayed locked
+  (`19:03:53 Waking up ... POWER_BUTTON`, `19:03:57 Going to sleep`, `19:04:11 Waking up`,
+  `19:04:16 Going to sleep`). There was no keyguard change and no USB config change, and adbd
+  20461 survived. It was replaced only at the unlock at 19:09:30.
+
 Properties: `init.svc.adbd=running`, `persist.sys.usb.config=adb`, `sys.usb.config=mtp,adb`,
-`sys.usb.secure_mode=0` (while unlocked), `service.adb.tcp.port=5555`, `adb_wifi_enabled=0`.
+`sys.usb.secure_mode=0` (unlocked), `service.adb.tcp.port=5555`, global `adb_wifi_enabled=0`.
 
-Our tooling is ruled out as the trigger:
-- No AdbDebuggingManager disconnect or adbd start appears without a USB config change next to it.
-- droid's `adb connect` and `phone-services`' `adb_connect` are client-side calls to the adb
-  server (PID 15637, running since 07:12). They do not restart adbd on the phone.
-  `phone-services` only calls `adb connect` when `adb shell true` fails.
+**Our tooling is ruled out as the trigger (hypothesis, supported by logs):**
+- Every adbd drop above has a keyguard and USB config change within 0.2 s of it.
+- No drop occurs at any other time, although droid and `phone-services watch` call adb all the
+  time.
+- `adb connect` from droid or `phone-services` talks to the local adb server (PID 15637, running
+  since 07:12). Nothing in the logs suggests it restarts adbd.
 - `/data/adb/service.d/99-droid-adb.sh` (`stop adbd; start adbd`) runs only at boot.
-- Nothing in the tooling runs `adb kill-server` or writes `adb_enabled`.
+- The tooling never runs `adb kill-server` and never writes `adb_enabled`.
 
-Consequences and mitigation:
-- Long-lived processes must not be children of adbd. The mic server is started through Magisk
-  su with PPID 1, and it survived all three restarts above (pid 16471, started 18:22:24).
-  `phone_status` prints the mic server's pid, ppid and uptime, plus adbd's start time. It warns if
-  the mic server's ppid is adbd's pid.
-- Expect `adb -s 127.0.0.1:5555` to fail for 1 to 3 s after each lock or unlock. The
-  `phone-services watch` loop reconnects.
-- To confirm: note the adbd PID, lock the screen with the power button, unlock it, and check the
-  PID again (`ps -A -o PID,STIME,NAME | grep adbd`, `logcat -b events | grep keyguard`). A new
-  PID after each lock and none while the screen stays locked confirms the cause. The OEM USB
-  secure-mode setting that drives `sys.usb.secure_mode` has not been identified yet.
+**What keeps the mic server alive.** The mic server survives because of its SELinux domain, not
+its PPID. When it is started through Magisk su (at boot, or by `phone-services pa-restart`), it runs
+as user shell with label `u:r:magisk:s0`, outside adbd's session. It survived every restart above:
+pid 16471, started 18:22:23. A server started by the plain `adb shell nohup` fallback runs in
+`u:r:shell:s0`. It dies at the next adbd restart even when it has been reparented to PPID 1.
+`phone_status` prints the mic server's pid, ppid, user, label and uptime, plus adbd's start time.
+It warns on label `u:r:shell:s0`, on a user other than shell or root, and on more than one
+process running `/data/local/tmp/pa/bin/pulseaudio`. The mic server is identified by
+`/proc/<pid>/exe`, because pulseaudio rewrites its argv[0].
+
+**Recovery.** The adb link drops for about 2 s at each lock or unlock. An adb-spawned mic server
+would not come back until the next `phone-services watch` pass. That loop runs every 60 s, so
+recovery can take up to about 60 s plus restart time.
+
+**How to confirm the mechanism:** note the adbd PID, lock the screen, check it, unlock, and
+check again (`ps -A -o PID,STIME,NAME | grep adbd`; `logcat -b events | grep keyguard`). Expect a
+new PID after each lock and each unlock, and none while the screen only turns on and off. Reading
+init's log (`dmesg` as root, or `logcat -b kernel`) at the moment of a restart would show whether
+init stops adbd because `sys.usb.config` changed.

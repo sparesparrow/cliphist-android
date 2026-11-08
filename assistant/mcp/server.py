@@ -120,34 +120,59 @@ def _consume_confirmation(token: str, kind: str, params: dict) -> bool:
     return bool(entry) and entry["kind"] == kind and entry["params"] == params
 
 
-MIC_SERVER_DIR = "/data/local/tmp/pa"  # mic server bundle; its pulseaudio runs as uid 2000
-PS_CMD = "ps -A -o PID,PPID,STIME,ELAPSED,NAME,ARGS"
+MIC_SERVER_BIN = "/data/local/tmp/pa/bin/pulseaudio"  # the mic server binary (phone-services)
+ADBD_ARGV0 = {"adbd", "/apex/com.android.adbd/bin/adbd"}
+# -w: no 80-column truncation without a tty. NAME is left out: ARGS is everything after ELAPSED.
+# pulseaudio rewrites its argv[0] to "pulseaudio", so the mic server is identified by
+# /proc/<pid>/exe (readable by uid 2000 for its own processes), listed after the EXE marker.
+EXE_MARK = "---exe---"
+PS_CMD = ("ps -A -w -o PID,PPID,USER,LABEL,STIME,ELAPSED,ARGS; echo " + EXE_MARK + "; "
+          "for p in $(pgrep -x pulseaudio); do echo \"$p $(readlink /proc/$p/exe)\"; done")
+_PS_ROW = re.compile(r"^\s*(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(.+?)\s+((?:\d+-)?(?:\d+:)?\d+:\d+)(?:\s+(.*?))?\s*$")
 
 
-def _parse_ps(text: str) -> list[dict]:
-    """Parse `ps -A -o PID,PPID,STIME,ELAPSED,NAME,ARGS` (toybox) into dicts; skips the header."""
+def _parse_ps(text: str) -> tuple[list[dict], dict[int, str]]:
+    """Parse PS_CMD output into (rows, {pid: exe}). Rows whose PID/PPID are not numeric or that
+    lack an ELAPSED field are skipped. STIME may contain a space (e.g. "Nov 07" after 24 h)."""
+    head, _, tail = text.partition(EXE_MARK)
     rows = []
-    for line in text.splitlines():
-        f = line.split(None, 5)
-        if len(f) < 5 or not f[0].isdigit():
+    for line in head.splitlines():
+        m = _PS_ROW.match(line)
+        if not m:
             continue
-        rows.append({"pid": int(f[0]), "ppid": int(f[1]), "stime": f[2], "elapsed": f[3],
-                     "name": f[4], "args": f[5] if len(f) > 5 else ""})
-    return rows
+        args = m.group(7) or ""
+        argv0 = args.split(" ", 1)[0]
+        rows.append({"pid": int(m.group(1)), "ppid": int(m.group(2)), "user": m.group(3),
+                     "label": m.group(4), "stime": m.group(5), "elapsed": m.group(6),
+                     "argv0": argv0, "args": args})
+    exes = {}
+    for line in tail.splitlines():
+        f = line.split(None, 1)
+        if len(f) == 2 and f[0].isdigit():
+            exes[int(f[0])] = f[1].strip()
+    return rows, exes
 
 
-def _proc_lines(rows: list[dict]) -> list[str]:
-    """Mic server and adbd process lines for phone_status. adbd restarts kill its children, so
-    the mic server must have PPID 1 (started via Magisk su), never adbd's pid."""
-    adbd = next((r for r in rows if r["name"] == "adbd"), None)
-    mic = next((r for r in rows if r["name"] == "pulseaudio" and MIC_SERVER_DIR in r["args"]), None)
-    if mic:
-        line = f"mic-server: pid {mic['pid']} ppid {mic['ppid']} uptime {mic['elapsed']} (started {mic['stime']})"
-        if adbd and mic["ppid"] == adbd["pid"]:
-            line += " WARNING: child of adbd, dies on the next adbd restart"
-    else:
-        line = "mic-server: no process"
-    out = [line]
+def _proc_lines(rows: list[dict], exes: dict[int, str]) -> list[str]:
+    """Mic server and adbd lines for phone_status. adbd restarts on every screen lock/unlock and
+    takes adb-spawned processes (SELinux u:r:shell:s0) with it; the boot/su-started mic server
+    runs in u:r:magisk:s0, which is what keeps it alive. PPID 1 alone proves nothing."""
+    mics = [r for r in rows if exes.get(r["pid"]) == MIC_SERVER_BIN]
+    out = []
+    for r in mics:
+        line = (f"mic-server: pid {r['pid']} ppid {r['ppid']} user {r['user']} label {r['label']} "
+                f"uptime {r['elapsed']} (started {r['stime']})")
+        warn = []
+        if r["label"] == "u:r:shell:s0":
+            warn.append("adb-spawned (u:r:shell:s0), dies on the next adbd restart")
+        if r["user"] not in ("shell", "root"):
+            warn.append(f"unexpected user {r['user']}")
+        out.append(line + ("  WARNING: " + "; ".join(warn) if warn else ""))
+    if len(mics) > 1:
+        out.append(f"mic-server: WARNING: {len(mics)} processes run {MIC_SERVER_BIN}")
+    if not mics:
+        out.append("mic-server: no process")
+    adbd = next((r for r in rows if r["argv0"] in ADBD_ARGV0), None)
     out.append(f"adbd: pid {adbd['pid']} started {adbd['stime']} (uptime {adbd['elapsed']})"
                if adbd else "adbd: no process")
     return out
@@ -164,7 +189,7 @@ def phone_status() -> str:
     _, power = _adb("dumpsys power 2>/dev/null | grep -m2 -E 'mWakefulness=|mHoldingDisplaySuspendBlocker'")
     _, locked = _adb("dumpsys window 2>/dev/null | grep -m1 -E 'mDreamingLockscreen|isKeyguardShowing|mShowingLockscreen'")
     rc, ps = _adb(PS_CMD)
-    parts += _proc_lines(_parse_ps(ps)) if rc == 0 else [f"processes: ps failed: {ps}"]
+    parts += _proc_lines(*_parse_ps(ps)) if rc == 0 else [f"processes: ps failed: {ps}"]
     parts += ["battery: " + " ".join(batt.split()), "power: " + " ".join(power.split()),
               "lock: " + " ".join(locked.split()), "foreground: " + _droid("fg")]
     return "\n".join(parts)
