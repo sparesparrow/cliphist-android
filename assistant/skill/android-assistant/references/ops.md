@@ -6,6 +6,7 @@
 | Anything | `phone-services status` | `phone-services ensure` (the watchdog runs it every 60 s) |
 | adb DOWN | port 5555 closed? | the Magisk boot script `/data/adb/service.d/99-droid-adb.sh` restarts adbd at boot; manually: `phone-services native 'sudo sh /data/adb/service.d/99-droid-adb.sh'` |
 | mic DOWN | `phone-services status` | `phone-services pa-restart` (`--push` after a Termux pulseaudio upgrade) |
+| mic indicator always on | `pactl list short sources` shows OpenSL_ES_source IDLE, not SUSPENDED | `mic.pa` must load `module-suspend-on-idle`; `phone-services pa-restart --push` |
 | mic up but silence | `phone-services test-mic 3` | max amplitude around 0.001 means silence; speech gives roughly 0.1 or more |
 | va-http DOWN | `curl 127.0.0.1:8780/health` | `phone-services va-restart`; log in `voice/logs/http.log` |
 | native sshd down | port 8022 | open a new Termux session (its `.bashrc` starts sshd), or reboot (boot script) |

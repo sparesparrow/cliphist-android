@@ -10,7 +10,7 @@ B=$HERE/bundle
 M=$T/lib/pulseaudio/modules
 rm -rf "$B"; mkdir -p "$B/lib" "$B/mod" "$B/bin"
 cp "$T/bin/pulseaudio" "$B/bin/"
-for m in module-sles-source module-sles-sink module-native-protocol-tcp; do cp "$M/$m.so" "$B/mod/"; done
+for m in module-sles-source module-sles-sink module-native-protocol-tcp module-suspend-on-idle; do cp "$M/$m.so" "$B/mod/"; done
 cp "$HERE/mic.pa" "$HERE/run.sh" "$B/"
 # Auth cookie: loopback is shared by every Android app, so the mic server must not be anonymous.
 # Clients (PRoot) read it via PULSE_COOKIE; on the phone it is mode 600, owned by uid 2000.

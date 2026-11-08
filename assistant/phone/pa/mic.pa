@@ -3,3 +3,5 @@ load-module module-sles-source
 load-module module-native-protocol-tcp auth-anonymous=0 auth-cookie-enabled=1 auth-cookie=/data/local/tmp/pa/cookie
 set-default-sink speaker
 set-default-source OpenSL_ES_source
+# Release the Android mic and speaker when nothing records or plays (otherwise the mic indicator stays on).
+load-module module-suspend-on-idle timeout=2
