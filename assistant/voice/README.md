@@ -102,16 +102,9 @@ SDK (`eleven.py`, `requirements.txt`).
 `POST http://127.0.0.1:8780/listen` (header `X-Token`; add `?new=1` to start a new
 conversation) runs one turn and returns the reply text.
 
-### Tasker: one task, three triggers
-Task **Claude Listen** has one action, HTTP Request:
-- Method POST, URL `http://127.0.0.1:8780/listen`
-- Headers `X-Token:<contents of state/http-token>`, Timeout 300 s
-
-Triggers:
-1. **Quick Settings tile**: Tasker ▸ Preferences ▸ Action ▸ Quick Setting Tasks. Pick
-   Claude Listen, then add the tile from the Quick Settings editor.
-2. **Android assistant** (long-press power or home, or the corner swipe): Android Settings ▸
-   Apps ▸ Default apps ▸ Digital assistant app ▸ Tasker. Then add a Tasker profile that runs
-   Claude Listen on Event ▸ Tasker ▸ "Assistant" (the exact name differs by Tasker version).
-   This replaces the current default, Perplexity.
-3. **Home screen**: a Tasker task widget or shortcut for Claude Listen.
+### Tasker: profile import (no UI navigation)
+Run `assistant/phone/tasker/import-claude-listen.sh` and tap YES twice in Tasker's
+"Import Data" dialog. That installs profile **Claude Listen**: Event "Assistance Request"
+(long-press power while Tasker is the default digital assistant) → a JavaScriptlet that sends
+`POST /listen` with the X-Token through `nc`. Details and gotchas:
+`skill/android-assistant/references/voice-pipeline.md`.

@@ -42,11 +42,15 @@ TOKEN = load_token()
 class Handler(BaseHTTPRequestHandler):
     def reply(self, code, text):
         body = (text + "\n").encode()
-        self.send_response(code)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            # Tasker's fire-and-forget `nc -q 1` hangs up before a turn ends.
+            pass
 
     def do_GET(self):
         if urlparse(self.path).path == "/health":

@@ -52,16 +52,32 @@ Follow-ups within 10 minutes continue the same Claude session. That is how "shal
 confirmations reach the same conversation. `?new=1` starts a fresh one.
 
 ## Tasker setup
-1. Task **Claude Listen**, one action: Net ▸ HTTP Request.
-   - Method POST. URL `http://127.0.0.1:8780/listen`.
-   - Headers `X-Token:<contents of /root/voice-assistant/state/http-token>`. Timeout 300.
-   - Optional: Alert ▸ Flash `%http_data`.
-2. Assistant gesture: Tasker is the default digital assistant. To set it, run
-   `settings put secure assistant` and `settings put secure voice_interaction_service` with
-   `net.dinglisch.android.taskerm/com.joaomgcd.taskerm.assistant.ServiceVoiceInteractionTasker`.
-   The previous values are in `/root/phone/logs/assistant-before.txt`. Add a profile on
-   Event ▸ Tasker ▸ Assistant (the name differs by version) → Claude Listen.
-3. Quick Settings: Tasker ▸ Preferences ▸ Action ▸ Quick Setting Tasks → Claude Listen.
+Tasker is the default digital assistant: `settings put secure assistant` and
+`settings put secure voice_interaction_service` with
+`net.dinglisch.android.taskerm/com.joaomgcd.taskerm.assistant.ServiceVoiceInteractionTasker`.
+The previous values are in `/root/phone/logs/assistant-before.txt`.
+
+Import the profile with `assistant/phone/tasker/import-claude-listen.sh`, then tap YES twice
+on Tasker's own "Import Data" dialog. The script writes the XML (it holds the token), starts
+Tasker's `ActivityImportTaskerDataFromXml` on it, waits for `autobackup.xml` to change, and
+deletes the file. What gets imported:
+- Profile **Claude Listen**: Event 201 "Assistance Request". Long-press power fires it
+  (`mLongPressOnPowerBehavior=5`).
+- Task **Claude Listen**: one JavaScriptlet that does `shell("printf 'POST /listen …X-Token…' | nc -q 1 127.0.0.1 8780")`.
+  It fires and forgets, so Tasker needs no HTTP Request action and no plugins. The trigger
+  ignores the early hang-up.
+
+Gotchas:
+- Opening a `.prf.xml` through `IntentHandler` with `file://` only copies it into `Tasker/profiles`.
+  It does not import it.
+- `input keyevent KEYCODE_ASSIST` is dropped when the press is under 150 ms. To test, use
+  `input keyevent --duration 900 KEYCODE_POWER`; with behavior 5 that opens the assistant.
+  Event 2093 "assistant_action" is the Google App Actions path, not the gesture.
+- Other profiles on event 201 (old ChatGPT projects) fire on the same gesture. Disable them in Tasker.
+- Profiles that need AutoInput, AutoNotification, AutoApps or AutoCast log "non-existing plugin
+  code" warnings when those apps are missing. The warnings don't affect Claude Listen.
+
+Quick Settings (optional): Tasker ▸ Preferences ▸ Action ▸ Quick Setting Tasks → Claude Listen.
 
 ## Later: realtime (phase 3)
 An ElevenLabs Agent session from the Python SDK with a pulse AudioInterface. The agent's own
