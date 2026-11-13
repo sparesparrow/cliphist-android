@@ -352,7 +352,7 @@ def speak(text: str) -> str:
         return "nothing to say"
     cut = len(text) > SPEAK_MAX
     text = text[:SPEAK_MAX]
-    with turn_lock(0) as got:
+    with turn_lock(1) as got:  # 1 s grace: the panel's GET /status probes the lock briefly
         if not got:
             return "busy"
         with tempfile.TemporaryDirectory(prefix="speak-") as d:
@@ -373,7 +373,7 @@ def listen(max_s: int = 8) -> str:
     {"text", "language"}. Not read-only: it records the room and sends the audio off the
     phone. Returns "no speech heard" on silence, "busy" while a voice turn is running."""
     max_s = max(1, min(30, int(max_s)))
-    with turn_lock(0) as got:
+    with turn_lock(1) as got:  # 1 s grace: the panel's GET /status probes the lock briefly
         if not got:
             return "busy"
         with tempfile.TemporaryDirectory(prefix="listen-") as d:

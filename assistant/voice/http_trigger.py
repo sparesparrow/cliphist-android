@@ -8,12 +8,18 @@ HTTP Request action (no Termux:Tasker plugin needed).
                                           reply (text/plain): path of the reply mp3
   POST /listen [?new=1]                -> hands-free turn on the phone mic + speaker
                                           (listen.sh); reply: the spoken answer as text
+  POST /ask, /listen with ?async=1     -> 202 "started" at once (or 503 busy); the turn runs
+                                          in the background, GET /status shows how it went
+  /ask body {"speak": true}            -> play the reply on the phone speaker (assistant.sh --speak)
+  GET  /status                         -> JSON {phase, busy, heard, reply, last, session_age_s}
+                                          phase: idle | listening | thinking | speaking
+  POST /stop                           -> end the running turn (its process group): "stopped" | "idle"
 
 Listens on 127.0.0.1 only. Every request except /health needs header X-Token with the
 value in state/http-token (created on first start, mode 600). One turn runs at a time:
 the lock (turnlock.py, state/turn.lock) is shared with the MCP tools speak/listen.
 """
-import json, os, secrets, signal, subprocess, sys
+import json, os, secrets, signal, subprocess, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -22,8 +28,155 @@ sys.path.insert(0, HERE)  # started with python -I: the script dir is not on sys
 from turnlock import turn_lock  # noqa: E402
 PORT = int(os.environ.get("VA_HTTP_PORT", "8780"))
 AUDIO_DIR = os.path.realpath(os.environ.get("VA_OUT_DIR", "/sdcard/VoiceAssistant"))
-TOKEN_FILE = os.path.join(HERE, "state", "http-token")
+STATE = os.environ.get("VA_STATE_DIR") or os.path.join(HERE, "state")
+LOGS = os.environ.get("VA_LOG_DIR") or os.path.join(HERE, "logs")
+TOKEN_FILE = os.path.join(STATE, "http-token")
+SESSION_FILE = os.path.join(STATE, "session")
 TIMEOUT = 300
+STOP_GRACE = 2.0     # seconds between SIGTERM and SIGKILL on /stop
+TEXT_CAP = 2000      # characters of heard/reply in /status
+
+# The running turn: its process group, so /stop ends claude, rec, play ... and nothing else.
+_turn_mu = threading.Lock()
+_turn = {"pgid": None}
+_last = {"result": None, "code": None, "at": None}   # outcome of the latest turn
+
+
+def phase_file():
+    """Read per call (VA_PHASE_FILE), so tests and scripts agree on the path."""
+    return os.environ.get("VA_PHASE_FILE") or os.path.join(STATE, "phase")
+
+
+def set_phase(name):
+    path = phase_file()
+    try:
+        tmp = f"{path}.{os.getpid()}"
+        with open(tmp, "w") as f:
+            f.write(name + "\n")
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def read_phase():
+    try:
+        with open(phase_file()) as f:
+            return f.read().strip() or "idle"
+    except OSError:
+        return "idle"
+
+
+def lock_busy():
+    """True while any voice turn (this server, or the MCP speak/listen tools) holds the lock."""
+    with turn_lock(0) as got:
+        return not got
+
+
+def last_exchange(path=None, window=32768):
+    """The latest `heard [..]: ...` and `reply: ...` from assistant.log (tail only)."""
+    path = path or os.path.join(LOGS, "assistant.log")
+    heard = reply = ""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - window))
+            lines = f.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return heard, reply
+    for line in reversed(lines):
+        body = line[20:] if len(line) > 20 and line[4] == "-" and line[19] == " " else line
+        if not reply and body.startswith("reply: "):
+            reply = body[7:]
+        elif not heard and body.startswith("heard ["):
+            heard = body.split("]: ", 1)[-1] if "]: " in body else ""
+        if heard and reply:
+            break
+    return heard[:TEXT_CAP], reply[:TEXT_CAP]
+
+
+def status():
+    running = _turn["pgid"] is not None
+    busy = running or lock_busy()
+    phase = read_phase()
+    if not busy and phase != "idle":   # a turn died without its exit trap
+        phase = "idle"
+    heard, reply = last_exchange()
+    try:
+        age = int(time.time() - os.path.getmtime(SESSION_FILE))
+    except OSError:
+        age = None
+    return {"phase": phase, "busy": busy, "heard": heard, "reply": reply,
+            "last": dict(_last), "session_age_s": age}
+
+
+def run_turn(args, lock_timeout=None):
+    """Run one voice turn under the shared lock. Returns (CompletedProcess, None) or (None, err)."""
+    with turn_lock(TIMEOUT if lock_timeout is None else lock_timeout) as got:
+        if not got:
+            return None, "busy"
+        # The child knows we hold the lock (no deadlock in listen.sh / assistant.sh --speak)
+        # and gets its own process group, so a timeout or /stop also ends claude, play, rec ...
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                             env={**os.environ, "VA_TURN_LOCKED": "1"}, start_new_session=True)
+        with _turn_mu:
+            _turn["pgid"] = p.pid
+        try:
+            out, err = p.communicate(timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            p.communicate()
+            return None, "assistant timed out"
+        finally:
+            with _turn_mu:
+                _turn["pgid"] = None
+            set_phase("idle")
+        return subprocess.CompletedProcess(args, p.returncode, out, err), None
+
+
+def stop_turn():
+    """SIGTERM the running turn's process group, SIGKILL it after STOP_GRACE s if still there."""
+    with _turn_mu:
+        pgid = _turn["pgid"]
+    if pgid is None:
+        return "idle"
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return "idle"
+
+    def reap():
+        time.sleep(STOP_GRACE)
+        with _turn_mu:
+            same = _turn["pgid"] == pgid
+        if same:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+    threading.Thread(target=reap, daemon=True).start()
+    set_phase("idle")
+    return "stopped"
+
+
+def summarize(p, err, listen):
+    """(http code, text) for a finished turn, shared by the sync reply and /status `last`."""
+    if err:
+        return (503 if err == "busy" else 504), err
+    lines = p.stdout.strip().splitlines()
+    if p.returncode == 0 and (lines or listen):
+        return 200, (lines or [""])[-1]
+    if listen and p.returncode == 3:
+        return 200, "no speech heard"
+    if p.returncode < 0:
+        return 200, "stopped"
+    return 500, (p.stderr.strip().splitlines() or ["assistant failed"])[-1]
+
+
+def record(code, text):
+    _last.update(result=text[:TEXT_CAP], code=code, at=int(time.time()))
 
 
 def load_token():
@@ -40,11 +193,11 @@ TOKEN = load_token()
 
 
 class Handler(BaseHTTPRequestHandler):
-    def reply(self, code, text):
+    def reply(self, code, text, ctype="text/plain"):
         body = (text + "\n").encode()
         try:
             self.send_response(code)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Type", f"{ctype}; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -52,80 +205,77 @@ class Handler(BaseHTTPRequestHandler):
             # Tasker's fire-and-forget `nc -q 1` hangs up before a turn ends.
             pass
 
-    def do_GET(self):
-        if urlparse(self.path).path == "/health":
-            return self.reply(200, "ok")
-        self.reply(404, "not found")
+    def authorized(self):
+        if secrets.compare_digest(self.headers.get("X-Token", ""), TOKEN):
+            return True
+        self.reply(403, "bad token")
+        return False
 
-    def run_locked(self, args):
-        with turn_lock(TIMEOUT) as got:
-            if not got:
-                return None, "busy"
-            # The child knows we hold the lock (no deadlock in listen.sh / assistant.sh --speak)
-            # and gets its own process group, so a timeout also stops claude, play, rec ...
-            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                 env={**os.environ, "VA_TURN_LOCKED": "1"}, start_new_session=True)
-            try:
-                out, err = p.communicate(timeout=TIMEOUT)
-            except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(p.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                p.communicate()
-                return None, "assistant timed out"
-            return subprocess.CompletedProcess(args, p.returncode, out, err), None
+    def do_GET(self):
+        path = urlparse(self.path).path
+        if path == "/health":
+            return self.reply(200, "ok")
+        if path == "/status":
+            if self.authorized():
+                self.reply(200, json.dumps(status(), ensure_ascii=False), "application/json")
+            return
+        self.reply(404, "not found")
 
     def do_POST(self):
         url = urlparse(self.path)
-        if url.path not in ("/ask", "/listen"):
+        if url.path not in ("/ask", "/listen", "/stop"):
             return self.reply(404, "not found")
-        if not secrets.compare_digest(self.headers.get("X-Token", ""), TOKEN):
-            return self.reply(403, "bad token")
-        if url.path == "/listen":  # hands-free: record on the phone mic, speak the reply
+        if not self.authorized():
+            return
+        if url.path == "/stop":
+            return self.reply(200, stop_turn())
+        query = parse_qs(url.query)
+        listen = url.path == "/listen"
+        if listen:  # hands-free: record on the phone mic, speak the reply
             args = [os.path.join(HERE, "listen.sh")]
-            if parse_qs(url.query).get("new") == ["1"]:
+            if query.get("new") == ["1"]:
                 args.append("--new")
-            p, err = self.run_locked(args)
-            if err:
-                return self.reply(503 if err == "busy" else 504, err)
-            out = (p.stdout.strip().splitlines() or [""])[-1]
-            if p.returncode == 0:
-                return self.reply(200, out)
-            if p.returncode == 3:
-                return self.reply(200, "no speech heard")
-            return self.reply(500, (p.stderr.strip().splitlines() or ["listen failed"])[-1])
-        try:
-            n = int(self.headers.get("Content-Length", "0"))
-            data = json.loads(self.rfile.read(min(n, 65536)) or b"{}")
-        except (ValueError, json.JSONDecodeError):
-            return self.reply(400, "body must be JSON")
-        args = [os.path.join(HERE, "assistant.sh")]
-        if parse_qs(url.query).get("new") == ["1"] or data.get("new"):
-            args.append("--new")
-        if isinstance(data.get("text"), str) and data["text"].strip():
-            args += ["--text", data["text"].strip()]
-        elif isinstance(data.get("audio"), str):
-            audio = os.path.realpath(data["audio"])
-            if not audio.startswith(AUDIO_DIR + os.sep):
-                return self.reply(400, f"audio must be under {AUDIO_DIR}")
-            args.append(audio)
         else:
-            return self.reply(400, 'need "audio" or "text"')
-        p, err = self.run_locked(args)
-        if err:
-            return self.reply(503 if err == "busy" else 504, err)
-        out = p.stdout.strip().splitlines()
-        if p.returncode == 0 and out:
-            return self.reply(200, out[-1])
-        err = (p.stderr.strip().splitlines() or ["assistant failed"])[-1]
-        self.reply(500, err)
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                data = json.loads(self.rfile.read(min(n, 65536)) or b"{}")
+            except (ValueError, json.JSONDecodeError):
+                return self.reply(400, "body must be JSON")
+            if not isinstance(data, dict):
+                return self.reply(400, "body must be a JSON object")
+            args = [os.path.join(HERE, "assistant.sh")]
+            if data.get("speak") is True:
+                args.append("--speak")
+            if query.get("new") == ["1"] or data.get("new"):
+                args.append("--new")
+            if isinstance(data.get("text"), str) and data["text"].strip():
+                args += ["--text", data["text"].strip()[:4000]]
+            elif isinstance(data.get("audio"), str):
+                audio = os.path.realpath(data["audio"])
+                if not audio.startswith(AUDIO_DIR + os.sep):
+                    return self.reply(400, f"audio must be under {AUDIO_DIR}")
+                args.append(audio)
+            else:
+                return self.reply(400, 'need "audio" or "text"')
+        if query.get("async") == ["1"]:
+            if _turn["pgid"] is not None or lock_busy():
+                return self.reply(503, "busy")
+
+            def work():
+                p, err = run_turn(args, lock_timeout=2)
+                record(*summarize(p, err, listen))
+            threading.Thread(target=work, daemon=True).start()
+            return self.reply(202, "started")
+        p, err = run_turn(args)
+        code, text = summarize(p, err, listen)
+        record(code, text)
+        self.reply(code, text)
 
     def log_message(self, fmt, *a):
-        with open(os.path.join(HERE, "logs", "http.log"), "a") as f:
+        with open(os.path.join(LOGS, "http.log"), "a") as f:
             f.write("%s %s\n" % (self.log_date_time_string(), fmt % a))
 
 
 if __name__ == "__main__":
-    os.makedirs(os.path.join(HERE, "logs"), exist_ok=True)
+    os.makedirs(LOGS, exist_ok=True)
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

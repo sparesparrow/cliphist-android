@@ -38,7 +38,10 @@ PY=/root/mia-venv/bin/python
 ms() { date +%s%3N; }
 T0=${VA_T0_MS:-$(ms)}   # listen.sh passes the time the recording ended
 T_STT="" T_AUDIO="" CLAUDE_MODEL="" SPEAK=0 out=""
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"; [ "$SPEAK" = 1 ] && phase idle; true' EXIT
+# Stage for the Tasker panel (GET /status): one word in state/phase, replaced atomically.
+PHASE_FILE=${VA_PHASE_FILE:-$HERE/state/phase}
+phase() { printf '%s\n' "$1" >"$PHASE_FILE.$$" && mv -f "$PHASE_FILE.$$" "$PHASE_FILE" || true; }
 # One line per turn in logs/latency.log, also on failure. No transcript, no secrets.
 latency() {  # $1 = outcome: ok | tts_fallback | claude_failed | error
   local tok rel_t
@@ -70,6 +73,7 @@ if [ "$SPEAK" = 1 ]; then
     flock -n 9 || { echo "busy" >&2; exit 4; }
     export VA_TURN_LOCKED=1
   fi
+  phase thinking
 fi
 
 # --- key (read from the env file, never printed) ----------------------------
@@ -166,6 +170,7 @@ if [ -n "$SAY" ]; then
   printf '%s' "$SAY" | "$ELEVEN" tts "$MP3" 2>>"$LOG" || { rm -f "$MP3"; die "text-to-speech failed (see log)"; }
   if [ "$SPEAK" = 1 ]; then
     [ -n "$T_AUDIO" ] || T_AUDIO=$(( $(ms) - T0 ))   # as play starts
+    phase speaking
     play -q "$MP3" 2>>"$LOG" || log "playback failed: $MP3"
   fi
 fi

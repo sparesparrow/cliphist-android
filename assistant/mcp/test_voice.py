@@ -68,7 +68,7 @@ def test_speak_empty(srv):
 
 
 def test_speak_and_listen_busy_while_a_turn_holds_the_lock(srv):
-    with turnlock.turn_lock(0) as got:  # what http_trigger.run_locked holds during a turn
+    with turnlock.turn_lock(0) as got:  # what http_trigger.run_turn holds during a turn
         assert got
         assert srv.speak("hello") == "busy"
         assert srv.listen() == "busy"
@@ -754,8 +754,8 @@ def test_http_trigger_busy_while_a_turn_holds_the_lock(tmp_path, monkeypatch):
     import http_trigger
     monkeypatch.setattr(http_trigger, "TIMEOUT", 0.3)
     with turnlock.turn_lock(0):
-        assert http_trigger.Handler.run_locked(None, ["true"]) == (None, "busy")
-    p, err = http_trigger.Handler.run_locked(None, ["sh", "-c", "echo locked=$VA_TURN_LOCKED"])
+        assert http_trigger.run_turn(["true"]) == (None, "busy")
+    p, err = http_trigger.run_turn(["sh", "-c", "echo locked=$VA_TURN_LOCKED"])
     assert err is None and p.returncode == 0 and p.stdout.strip() == "locked=1"
 
 
@@ -764,7 +764,7 @@ def test_http_trigger_timeout_kills_the_process_group(tmp_path, monkeypatch):
     import http_trigger
     monkeypatch.setattr(http_trigger, "TIMEOUT", 1)
     pidf = tmp_path / "grandchild.pid"
-    p, err = http_trigger.Handler.run_locked(None, ["sh", "-c", f"sleep 60 & echo $! >{pidf}; wait"])
+    p, err = http_trigger.run_turn(["sh", "-c", f"sleep 60 & echo $! >{pidf}; wait"])
     assert (p, err) == (None, "assistant timed out")
     pid = int(pidf.read_text())
     import time

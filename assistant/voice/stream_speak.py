@@ -31,6 +31,18 @@ _SENT_END = re.compile(r"[.!?…][\"'”’)\]*_]*\s+")
 ABBREV = {"dr", "mr", "mrs", "vs", "e.g", "i.e", "např", "tj", "atd", "apod", "resp", "tzv"}
 
 
+def set_phase(name: str) -> None:
+    """Stage for the Tasker panel (http_trigger GET /status); never fails the turn."""
+    path = os.environ.get("VA_PHASE_FILE") or os.path.join(HERE, "state", "phase")
+    try:
+        tmp = f"{path}.{os.getpid()}"
+        with open(tmp, "w") as f:
+            f.write(name + "\n")
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
 def now_ms() -> int:
     return int(time.time() * 1000)
 
@@ -172,6 +184,8 @@ class Speaker:
 
     def _playback(self, mp3):
         def started():
+            if self.first_audio is None:
+                set_phase("speaking")
             self.first_audio = self.first_audio or self.clock()
         if not self.play(mp3, started):
             print("stream_speak: playback failed", file=sys.stderr)

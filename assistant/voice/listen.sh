@@ -19,6 +19,9 @@ set -a; . "$HERE/audio.env"; set +a   # PULSE_*, AUDIODRIVER, VA_REC_SILENCE, VA
 mkdir -p "$OUT" "$HERE/logs" "$HERE/state"
 beep() { play -q -n synth "$1" sine "$2" vol "${VA_BEEP##* }" 2>/dev/null || true; }
 ms() { date +%s%3N; }
+# Stage for the Tasker panel (GET /status): one word in state/phase, replaced atomically.
+PHASE_FILE=${VA_PHASE_FILE:-$HERE/state/phase}
+phase() { printf '%s\n' "$1" >"$PHASE_FILE.$$" && mv -f "$PHASE_FILE.$$" "$PHASE_FILE" || true; }
 ARGS=() WAV=""
 while [ $# -gt 0 ]; do
   case $1 in
@@ -36,10 +39,12 @@ if [ -z "${VA_TURN_LOCKED:-}" ]; then
 fi
 
 /root/phone/phone-services ensure 9>&-   # daemons it starts must not inherit the lock
+trap 'phase idle' EXIT
 if [ -n "$WAV" ]; then
   IN=$WAV
 else
   read -r b_s b_hz _ <<<"$VA_BEEP"; beep "$b_s" "$b_hz"
+  phase listening
   rm -f "$IN"
   # $VA_REC_SILENCE (audio.env) ends the recording on a pause; cap at $MAX s.
   # shellcheck disable=SC2086
