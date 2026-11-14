@@ -256,3 +256,11 @@ def test_send_checks_the_draft_first(draft, said):
         assert flashes == [said] and n == 1
     else:
         assert n == 2   # GET /status, then POST /dispatch
+
+
+def test_scene_elements_are_numbered_without_gaps():
+    """Tasker stops reading a scene's elements at the first missing elementsN."""
+    sc = root().find("Scene")
+    els = [e for e in sc if e.tag.endswith("Element") and e.tag != "PropertiesElement"]
+    assert [e.get("sr") for e in els] == [f"elements{i}" for i in range(len(els))]
+    assert els[0].tag == "RectElement" and els[0].find("Str").text == "Panel"

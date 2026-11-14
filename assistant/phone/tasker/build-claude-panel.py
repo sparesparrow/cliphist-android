@@ -371,6 +371,10 @@ def build(token: str) -> ET.Element:
         for i, (name, label, task) in enumerate(buttons):
             button_el(sc, k, name, label, (40 + i * (bw + gap), y, bw, 130), TASK_IDS[task], 17)
             k += 1
+    # Tasker reads elements0, elements1, ... and stops at the first gap: number them in
+    # document order (the Panel backdrop first, so it is drawn underneath).
+    for i, e in enumerate(x for x in sc if x.tag.endswith("Element")):
+        e.set("sr", f"elements{i}")
     sub(sc, "widthLand", "-1")
     sub(sc, "widthPort", W)
     sub(sc, "heightLand", "-1")
