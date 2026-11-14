@@ -13,13 +13,20 @@ XMLHttpRequest with the X-Token header would need a CORS preflight, which the tr
 answer.) Typed text never reaches a shell command line: it goes into a body file that nc
 reads with cat.
 
+Router (../../router): Dictate records + transcribes only (POST /dictate?async=1), Template ▾
+and Repo ▾ pick an mcp-prompts template and a repo (GET /templates, /repos -> List Dialog ->
+POST /draft), the Prompt row previews the filled template and where it would be posted, and
+Send (POST /dispatch) lets the router agent hand it to GitHub @claude or the phone assistant.
+The Jobs row follows the issue to its draft PR.
+
 Gesture: this project's profile "Claude Panel Gesture" (event 201, Assistance Request) only
 opens the panel; the existing profile "Claude Listen" (import-claude-listen.sh) starts the
 turn. Long-press power therefore opens the panel and listens. A second gesture while a turn
 runs stops it.
 
 Formats follow Tasker 6.7.6 as exported on this phone: action 129 = JavaScriptlet,
-360 = Input Dialog (sets %input); TextElement arg2 size, arg4 colour, arg7 1 = top-left,
+360 = Input Dialog (sets %input), 378 = List Dialog (items from a variable, sets
+%ld_selected); TextElement arg2 size, arg4 colour, arg7 1 = top-left,
 arg8 1 = long text; ButtonElement clickTask + arg1 label.
 """
 from __future__ import annotations
@@ -35,7 +42,7 @@ from pathlib import Path
 SCENE = "Claude Panel"
 PROJECT = "Claude Assistant"
 PORT = 8780
-W, H = 1000, 1060
+W, H = 1000, 1380
 BODY_FILE = "/sdcard/Tasker/.claude-panel-body.json"
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 DEFAULT_TOKEN_FILE = Path("/root/voice-assistant/state/http-token")
@@ -68,6 +75,24 @@ function cpOpen() {
   performTask("CP Poll", 4, "", "");
 }
 function cpShow() { showScene(CP.scene, "OverBlocking", 0, 22, false, false); }
+function cpPick(path, key) {
+  var r = cpReq("GET", path), items = [];
+  try { items = JSON.parse(r.text).map(function (x) { return String(x[key]).replace(/,/g, " "); }); } catch (e) {}
+  if (!items.length) cpSay("Claude: no list (" + (r.code || "trigger not reachable") + ")");
+  setLocal("cp_items", items.join(","));
+  if (global("CP_OPEN") == "1") cpTry(function () { hideScene(CP.scene); });
+}
+function cpPicked(field) {
+  var sel = "";
+  try { sel = local("ld_selected") || ""; } catch (e) {}
+  if (sel && sel.charAt(0) != "%") {
+    var body = {}; body[field] = sel;
+    var r = cpReq("POST", "/draft", body);
+    if (r.code != 200) cpSay("Claude: " + (r.code ? r.code + " " + r.text : "trigger not reachable"));
+  }
+  setGlobal("CP_SIG", "");
+  if (global("CP_OPEN") == "1") cpTry(cpShow);
+}
 function cpStart(path, obj) {
   var r = cpReq("POST", path, obj);
   if (r.code == 503) cpSay("Claude is busy - Stop first");
@@ -82,7 +107,9 @@ JS = {
     # here would starve the button tasks until it ended.
     "CP Poll": r"""
 var LOOK = {idle: ["\u25CF Ready", "#FF9E9E9E"], listening: ["\u25CF Listening\u2026", "#FF66BB6A"],
-            thinking: ["\u25CF Thinking\u2026", "#FFFFCA28"], speaking: ["\u25CF Speaking\u2026", "#FF42A5F5"]};
+            thinking: ["\u25CF Thinking\u2026", "#FFFFCA28"], speaking: ["\u25CF Speaking\u2026", "#FF42A5F5"],
+            transcribing: ["\u25CF Transcribing\u2026", "#FF66BB6A"]};
+var DSP = {routing: "\u23F3 Routing\u2026", posting: "\u23F3 Posting\u2026", failed: "\u26A0 ", done: "\u2714 "};
 var t0 = parseInt(global("CP_T0") || "0", 10);
 if (!t0 || Date.now() - t0 > 600000) {   // open for 10 min: close the panel
   setGlobal("CP_OPEN", "");
@@ -96,10 +123,20 @@ if (!t0 || Date.now() - t0 > 600000) {   // open for 10 min: close the panel
     var last = s.last || {};
     if (s.phase == "idle" && last.result && last.at && Date.now() / 1000 - last.at < 20 &&
         last.result != s.reply) label += " \u2014 " + last.result;
-    st = [label, col, "You: " + (s.heard || "\u2026"), "Claude: " + (s.reply || "\u2026")];
+    var d = s.draft || {}, prompt;
+    if (!d.transcript) prompt = "📄 " + (d.template || "-") + " \u00B7 📦 " + (d.repo || "pick a repo") + "\nDictate a request first.";
+    else if (!d.repo) prompt = "📄 " + d.template + " \u00B7 📦 pick a repo\n\u201C" + d.transcript + "\u201D";
+    else prompt = "📄 " + d.template + " \u00B7 📦 " + d.repo + "\nSend will post to github.com/" + d.slug +
+                  " (public)\n" + (d.filled || "").replace(/\s+/g, " ").substring(0, 260);
+    var jl = (s.jobs || []).slice(-2).reverse().map(function (j) { return j.line; });
+    var ds = s.dispatch || {};
+    if (ds.state && ds.state != "idle" && ds.at && Date.now() / 1000 - ds.at < 120)
+      jl.unshift((DSP[ds.state] || "") + (ds.result || ""));
+    st = [label, col, "You: " + (s.heard || "\u2026"), "Claude: " + (s.reply || "\u2026"),
+          prompt, jl.length ? jl.join("\n") : "Jobs: none yet"];
   } else {
     st = [r.code == 200 ? "\u25CF Bad status reply" : "\u25CF Offline (" + (r.code || "no answer") + ")",
-          "#FFEF5350", "", ""];
+          "#FFEF5350", "", "", "", ""];
   }
   var sig = st.join("\n");
   if (sig != global("CP_SIG")) {
@@ -108,6 +145,8 @@ if (!t0 || Date.now() - t0 > 600000) {   // open for 10 min: close the panel
     cpTry(function () { elemTextColour(CP.scene, "Status", st[1]); });
     if (st[2]) cpTry(function () { elemText(CP.scene, "Heard", "repl", st[2]); });
     if (st[3]) cpTry(function () { elemText(CP.scene, "Reply", "repl", st[3]); });
+    if (st[4]) cpTry(function () { elemText(CP.scene, "Prompt", "repl", st[4]); });
+    if (st[5]) cpTry(function () { elemText(CP.scene, "Jobs", "repl", st[5]); });
   }
 }
 """,
@@ -122,6 +161,20 @@ var q = (typeof input === "undefined" || !input || String(input).charAt(0) == "%
 if (q) cpStart("/ask?async=1", {text: q, speak: true});
 if (global("CP_OPEN") == "1") cpTry(cpShow);
 """,
+    "CP Dictate": 'cpStart("/dictate?async=1");',
+    "CP Send": r"""
+var r = cpReq("GET", "/status"), d = null;
+try { d = JSON.parse(r.text).draft; } catch (e) {}
+if (!d || !d.transcript) cpSay("Dictate a request first");
+else if (!d.repo) cpSay("Pick a repo first");
+else cpStart("/dispatch");
+""",
+    # Template / Repo: fetch the list (and hide the panel, see CP Type), List Dialog, then
+    # save the pick in the draft and show the panel again.
+    "CP Template list": 'cpPick("/templates", "id");',
+    "CP Repo list": 'cpPick("/repos", "name");',
+    "CP Template pick": 'cpPicked("template");',
+    "CP Repo pick": 'cpPicked("repo");',
     "CP Close": 'setGlobal("CP_OPEN", ""); cpTry(function () { destroyScene(CP.scene); });',
     "CP Gesture": r"""
 var r = cpReq("GET", "/status"), busy = false;
@@ -197,6 +250,25 @@ def input_dialog(task, n, title, text, timeout=120):
     s_arg(a, 8)
 
 
+def list_dialog(task, n, title, items_var, timeout=60):
+    """Action 378 List Dialog, shaped like the user's own exports (items from a variable,
+    single choice); the pick lands in %ld_selected."""
+    a = sub(task, "Action", sr=f"act{n}", ve="7")
+    sub(a, "code", "378")
+    i_arg(a, 1, 1)
+    s_arg(a, 2, title)
+    s_arg(a, 3, items_var)
+    s_arg(a, 4)
+    s_arg(a, 5)
+    s_arg(a, 6, "OK")
+    s_arg(a, 7, "cancel")
+    s_arg(a, 8)
+    i_arg(a, 9, timeout)
+    for k in (10, 11, 12):
+        i_arg(a, k, 0)
+    s_arg(a, 13)
+
+
 def text_el(scene, n, name, text, geom, size, colour="#FFFFFFFF", align=1, long_text=0):
     e = sub(scene, "TextElement", sr=f"elements{n}", ve="3")
     s_arg(e, 0, name)
@@ -243,7 +315,9 @@ def rect_el(scene, n, name, geom, colour):
 
 # ----------------------------------------------------------------------------- build
 TASK_IDS = {name: 9101 + i for i, name in enumerate(
-    ["CP Open", "CP Poll", "CP Talk", "CP New", "CP Stop", "CP Type", "CP Close", "CP Gesture"])}
+    ["CP Open", "CP Poll", "CP Talk", "CP New", "CP Stop", "CP Type", "CP Close", "CP Gesture",
+     "CP Dictate", "CP Template", "CP Repo", "CP Send"])}
+PICKERS = {"CP Template": "Prompt template", "CP Repo": "Repository"}
 PROFILE_ID = 9150
 
 
@@ -281,15 +355,22 @@ def build(token: str) -> ET.Element:
     rect_el(sc, 10, "Divider", (40, 150, W - 80, 4), "#33FFFFFF")
     text_el(sc, 1, "Title", "Claude", (40, 30, 520, 110), 30)
     text_el(sc, 2, "Status", "● …", (480, 40, W - 520, 100), 18, "#FF9E9E9E")
-    text_el(sc, 3, "Heard", "You: …", (40, 175, W - 80, 170), 17, "#FFB0BEC5", long_text=1)
-    text_el(sc, 4, "Reply", "Claude: …", (40, 350, W - 80, 450), 19, long_text=1)
-    bw, gap, y = (W - 80 - 3 * 20) // 4, 20, 830
-    for i, (name, label, task) in enumerate([("TalkBtn", "\U0001F3A4 Talk", "CP Talk"),
-                                              ("NewBtn", "➕ New", "CP New"),
-                                              ("StopBtn", "⏹ Stop", "CP Stop"),
-                                              ("TypeBtn", "⌨ Type", "CP Type")]):
-        button_el(sc, 5 + i, name, label, (40 + i * (bw + gap), y, bw, 120), TASK_IDS[task])
-    button_el(sc, 9, "CloseBtn", "✕", (W - 140, 930, 100, 100), TASK_IDS["CP Close"], 22)
+    text_el(sc, 3, "Heard", "You: …", (40, 170, W - 80, 120), 16, "#FFB0BEC5", long_text=1)
+    text_el(sc, 4, "Reply", "Claude: …", (40, 295, W - 80, 270), 18, long_text=1)
+    rect_el(sc, 11, "Divider2", (40, 575, W - 80, 4), "#33FFFFFF")
+    text_el(sc, 12, "Prompt", "\U0001F4C4 …", (40, 595, W - 80, 300), 15, "#FFFFE082", long_text=1)
+    text_el(sc, 13, "Jobs", "Jobs: …", (40, 905, W - 80, 110), 15, "#FF80CBC4", long_text=1)
+    gap = 20
+    rows = [(1030, [("DictateBtn", "\U0001F399 Dictate", "CP Dictate"), ("TemplateBtn", "\U0001F4C4 Template ▾", "CP Template"),
+                    ("RepoBtn", "\U0001F4E6 Repo ▾", "CP Repo"), ("SendBtn", "\U0001F680 Send", "CP Send")]),
+            (1180, [("TalkBtn", "\U0001F3A4 Talk", "CP Talk"), ("NewBtn", "➕ New", "CP New"),
+                    ("StopBtn", "⏹ Stop", "CP Stop"), ("TypeBtn", "⌨ Type", "CP Type"), ("CloseBtn", "✕", "CP Close")])]
+    k = 20
+    for y, buttons in rows:
+        bw = (W - 80 - (len(buttons) - 1) * gap) // len(buttons)
+        for i, (name, label, task) in enumerate(buttons):
+            button_el(sc, k, name, label, (40 + i * (bw + gap), y, bw, 130), TASK_IDS[task], 17)
+            k += 1
     sub(sc, "widthLand", "-1")
     sub(sc, "widthPort", W)
     sub(sc, "heightLand", "-1")
@@ -312,6 +393,11 @@ def build(token: str) -> ET.Element:
         for tag, val in (("cdate", TIME), ("edate", TIME), ("id", tid), ("nme", name), ("pri", "100")):
             sub(t, tag, val)
         n = 0
+        if name in PICKERS:
+            javascriptlet(t, 0, js_for(name + " list", token), 20)
+            list_dialog(t, 1, PICKERS[name], "%cp_items")
+            javascriptlet(t, 2, js_for(name + " pick", token), 20)
+            continue
         if name == "CP Type":
             javascriptlet(t, 0, js_for("CP Type hide", token), 10)
             input_dialog(t, 1, "Ask Claude", "Type a question; Claude answers out loud.")

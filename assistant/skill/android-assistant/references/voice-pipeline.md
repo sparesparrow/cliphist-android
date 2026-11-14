@@ -79,6 +79,25 @@ Gotchas:
 
 Quick Settings (optional): Tasker ▸ Preferences ▸ Action ▸ Quick Setting Tasks → Claude Listen.
 
+## Claude Panel router (mcp-prompts → GitHub @claude)
+Scene **Claude Panel** (`phone/tasker/build-claude-panel.py`, imported by
+`import-claude-panel.sh`) is a frontend to mcp-prompts. Dictate → Template ▾ → Repo ▾ → Send.
+The trigger endpoints are `/dictate`, `/templates`, `/repos`, `/draft` and `/dispatch`;
+`/status` also carries `draft`, `dispatch` and `jobs`.
+
+- The code is in `assistant/router/`: `prompts.py` (JSON-RPC over stdio to `mcp-prompts`,
+  falling back to the JSON files), `router.py`, `repos.json`, `claude-workflow.yml`,
+  `setup-github-claude.sh` and `say.sh`.
+- The templates are in mcp-prompts `data/prompts/panel/`. Tasker XML knowledge is in
+  `cross-platform/tasker-scene-xml`.
+- The router prompt is `panel-router`, run with `claude -p --model haiku --tools ""`. Startup
+  takes 30–95 s here, so the timeout is 150 s (`PANEL_ROUTE_TIMEOUT`).
+- Nothing reaches GitHub unless the repo already has `.github/workflows/claude.yml`.
+- Writing that file needs the gh token's `workflow` scope.
+- The Tasker dropdowns use List Dialog (378): a JS action hides the scene and puts the items
+  in `%cp_items`, then the List Dialog runs, then JS posts `%ld_selected` to `/draft` and shows
+  the scene again. A blocking overlay cancels dialogs, so the scene has to be hidden first.
+
 ## Later: realtime (phase 3)
 An ElevenLabs Agent session from the Python SDK with a pulse AudioInterface. The agent's own
 fast LLM handles small talk and barge-in. A client tool `ask_claude(request)` runs `claude -p`

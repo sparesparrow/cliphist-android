@@ -6,6 +6,8 @@
 #   assistant.sh --new ...           # start a new conversation instead of continuing
 #   assistant.sh --speak ...         # play the reply on the phone speaker while it streams in:
 #                                    # the first sentence as soon as Claude has written it
+#   assistant.sh --transcribe-only <audio-file>   # STT only: print the transcript, no Claude
+#                                    # (the panel's Dictate); exit 3 if nothing was heard
 #
 # stdout: exactly one line, the path of the reply mp3 (Termux:Tasker passes it back as %stdout;
 # with --speak, the last part played). Everything else goes to logs/assistant.log and stderr.
@@ -54,13 +56,14 @@ latency() {  # $1 = outcome: ok | tts_fallback | claude_failed | error
 die() { log "ERROR: $*"; latency error; exit 1; }
 
 # --- args -------------------------------------------------------------------
-NEW=0 TEXT="" AUDIO=""
+NEW=0 TEXT="" AUDIO="" STT_ONLY=0
 while [ $# -gt 0 ]; do
   case $1 in
     --new) NEW=1 ;;
     --text) shift; TEXT=${1:-} ;;
     --speak) SPEAK=1 ;;
-    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+    --transcribe-only) STT_ONLY=1 ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     *) AUDIO=$1 ;;
   esac
   shift
@@ -91,6 +94,11 @@ if [ -z "$TEXT" ]; then
   TEXT=$(jq -r '.text // empty' <<<"$stt" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   log "heard [$(jq -r '.language_code // "?"' <<<"$stt")]: $TEXT"
   T_STT=$(ms)
+fi
+if [ "$STT_ONLY" = 1 ]; then
+  [ -n "$TEXT" ] || { echo "no speech heard" >&2; exit 3; }
+  printf '%s\n' "$TEXT" | tr '\n' ' ' | sed 's/ *$//'; echo
+  exit 0
 fi
 CLAUDE_MODEL=$("$PY" -I "$HERE/route.py" "$TEXT")   # VA_CLAUDE_MODEL wins; short question -> haiku
 

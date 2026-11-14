@@ -108,3 +108,35 @@ Run `assistant/phone/tasker/import-claude-listen.sh` and tap YES twice in Tasker
 (long-press power while Tasker is the default digital assistant) → a JavaScriptlet that sends
 `POST /listen` with the X-Token through `nc`. Details and gotchas:
 `skill/android-assistant/references/voice-pipeline.md`.
+
+### Claude Panel: a frontend to mcp-prompts and the GitHub @claude agent
+`assistant/phone/tasker/import-claude-panel.sh` imports the Tasker scene **Claude Panel**.
+Long-press power opens it.
+
+- **Rows**: status, what you said, Claude's reply, the **prompt preview** (template, repo,
+  where Send will post, and the start of the filled prompt), and **jobs**.
+- **🎙 Dictate**: `POST /dictate?async=1`. It runs `listen.sh --transcribe-only`, which records
+  and transcribes but does not run Claude. The transcript becomes the draft's `{{request}}`.
+- **📄 Template ▾ / 📦 Repo ▾**: List Dialogs fed by `GET /templates` (mcp-prompts templates
+  tagged `panel`) and `GET /repos` (`assistant/router/repos.json`). The pick goes to
+  `POST /draft`, which re-fills the template with `{request, repo}`.
+- **🚀 Send**: `POST /dispatch`. The router agent (mcp-prompts `panel-router` through
+  `claude -p --model haiku`, no tools, 30–95 s on this phone) answers `github-claude`,
+  `phone-assistant` or `none`:
+  - `github-claude` opens an issue in the repo with the label `voice-panel` and the body
+    `@claude` + the filled template. **The repos are public, so the issue is public.**
+  - `phone-assistant` runs a spoken `/ask` turn with the transcript.
+  - Nothing is posted if the repo has no `.github/workflows/claude.yml`. The panel then
+    shows "@claude not set up in <repo>".
+- **Jobs**: a watcher in the trigger checks each issue once a minute for 2 h. When a PR that
+  says `Closes #N` appears, or Claude's comment finishes (with a branch link or an answer),
+  the phone speaks it (`router/say.sh`) and posts a notification with the link.
+
+Setting up @claude in a repo (one time per repo):
+1. `gh auth refresh -h github.com -s workflow`. The gh token needs the `workflow` scope to
+   write workflow files.
+2. `assistant/router/setup-github-claude.sh --all` (or `owner/repo …`). It opens a PR that
+   adds `claude.yml` (`anthropics/claude-code-action@v1`, which runs only for @claude from
+   sparesparrow and ends with a draft PR).
+3. `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R owner/repo`, or run
+   `/install-github-app` in that repo. Then merge the PR.

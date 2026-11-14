@@ -44,13 +44,14 @@ def test_every_button_runs_an_existing_task():
     names = {t.findtext("id"): t.findtext("nme") for t in r.iter("Task")}
     got = {b.find("Str").text: names[b.findtext("clickTask")] for b in r.iter("ButtonElement")}
     assert got == {"TalkBtn": "CP Talk", "NewBtn": "CP New", "StopBtn": "CP Stop",
-                   "TypeBtn": "CP Type", "CloseBtn": "CP Close"}
+                   "TypeBtn": "CP Type", "CloseBtn": "CP Close", "DictateBtn": "CP Dictate",
+                   "TemplateBtn": "CP Template", "RepoBtn": "CP Repo", "SendBtn": "CP Send"}
 
 
 def test_poll_targets_existing_elements():
     r = root()
     els = {e.find("Str").text for e in r.find("Scene") if e.tag.endswith("Element") and e.find("Str") is not None}
-    for name in ("Status", "Heard", "Reply"):
+    for name in ("Status", "Heard", "Reply", "Prompt", "Jobs"):
         assert name in els and f'"{name}"' in js_of(r, "CP Poll")
 
 
@@ -98,6 +99,7 @@ function writeFile(p, d) { calls.push("write " + p + " " + d); }
 function global(n) { return globals[n] || ""; } function setGlobal(n, v) { globals[n] = v; }
 function flash() {} function showScene() {} function performTask() {} function destroyScene() {}
 function elemText() {} function elemTextColour() {} function wait() {} function hideScene() {}
+var locals = {}; function setLocal(n, v) { locals[n] = v; } function local(n) { return locals[n] || ""; }
 """
 
 
@@ -174,7 +176,9 @@ def test_poll_survives_a_garbled_status_body():
 def test_poll_shows_phase_and_exchange_and_skips_unchanged_repaints():
     body = json.dumps({"phase": "thinking", "busy": True, "heard": "hi", "reply": "yo", "last": {}})
     out = poll_once("HTTP/1.0 200 OK\n\n" + body)
-    assert out["texts"] == [["Status", "\u25CF Thinking\u2026"], ["Heard", "You: hi"], ["Reply", "Claude: yo"]]
+    assert out["texts"][:3] == [["Status", "\u25CF Thinking\u2026"], ["Heard", "You: hi"], ["Reply", "Claude: yo"]]
+    assert out["texts"][3] == ["Prompt", "📄 - · 📦 pick a repo\nDictate a request first."]
+    assert out["texts"][4] == ["Jobs", "Jobs: none yet"]
     assert out["open"] == "1"
 
 
@@ -182,3 +186,73 @@ def test_poll_shows_phase_and_exchange_and_skips_unchanged_repaints():
 def test_poll_closes_the_panel_after_ten_minutes():
     out = poll_once("HTTP/1.0 200 OK\n\n{}", t0="Date.now() - 601000")
     assert out == {"texts": [], "open": ""}
+
+
+def all_js(r, task):
+    t = next(t for t in r.iter("Task") if t.findtext("nme") == task)
+    return [next(x.text for x in a.findall("Str") if x.get("sr") == "arg0")
+            for a in t.iter("Action") if a.findtext("code") == "129"]
+
+
+@pytest.mark.parametrize("task,path,field", [("CP Template", "/templates", "template"), ("CP Repo", "/repos", "repo")])
+def test_pickers_hide_list_dialog_then_save_and_show(task, path, field):
+    r = root()
+    t = next(t for t in r.iter("Task") if t.findtext("nme") == task)
+    acts = list(t.iter("Action"))
+    assert [a.findtext("code") for a in acts] == ["129", "378", "129"]
+    ld = {x.get("sr"): (x.text if x.tag == "Str" else x.get("val")) for x in acts[1] if x.get("sr")}
+    assert ld["arg1"] == "1" and ld["arg3"] == "%cp_items" and ld["arg6"] == "OK" and ld["arg9"] == "60"
+    first, last = all_js(r, task)
+    assert first.endswith(f'cpPick("{path}", "{"id" if field == "template" else "name"}");')
+    assert last.endswith(f'cpPicked("{field}");')
+
+
+@node
+def test_cppick_lists_ids_and_hides_the_panel():
+    lib = js_of(root(), "CP Stop").split("\nvar r = cpReq")[0]
+    body = json.dumps([{"id": "panel-bug-fix"}, {"id": "a,b"}])
+    out = run_js(STUBS + lib + f"\nreply = {json.dumps('HTTP/1.0 200 OK' + chr(10) + chr(10) + body)};"
+                 "var hidden = 0; hideScene = function () { hidden++; }; globals.CP_OPEN = '1';"
+                 "cpPick('/templates', 'id'); console.log(JSON.stringify([locals.cp_items, hidden]));")
+    assert out == ["panel-bug-fix,a b", 1]
+
+
+@node
+@pytest.mark.parametrize("sel,posted", [("cliphist-android", True), ("%ld_selected", False), ("", False)])
+def test_cppicked_posts_the_choice_and_shows_the_panel(sel, posted):
+    lib = js_of(root(), "CP Stop").split("\nvar r = cpReq")[0]
+    out = run_js(STUBS + lib + f"\nlocals.ld_selected = {json.dumps(sel)}; reply = 'HTTP/1.0 200 OK\\n\\n{{}}';"
+                 "var shown = 0; showScene = function () { shown++; }; globals.CP_OPEN = '1';"
+                 "cpPicked('repo'); console.log(JSON.stringify([calls, shown]));")
+    calls, shown = out
+    assert shown == 1
+    assert any('"repo":"cliphist-android"' in c for c in calls) == posted
+
+
+@node
+def test_poll_previews_the_prompt_and_where_it_goes():
+    body = json.dumps({"phase": "idle", "busy": False, "heard": "h", "reply": "r", "last": {},
+                       "draft": {"transcript": "add x", "template": "panel-coding-task", "repo": "mia",
+                                 "slug": "sparesparrow/mia", "filled": "Implement   this"},
+                       "dispatch": {"state": "done", "result": "mia#4: waiting", "at": 9e12},
+                       "jobs": [{"line": "mia#3 \u2192 draft PR ready"}]})
+    out = poll_once("HTTP/1.0 200 OK\n\n" + body)
+    texts = dict(out["texts"])
+    assert texts["Prompt"] == "📄 panel-coding-task · 📦 mia\nSend will post to github.com/sparesparrow/mia (public)\nImplement this"
+    assert texts["Jobs"] == "\u2714 mia#4: waiting\nmia#3 \u2192 draft PR ready"
+
+
+@node
+@pytest.mark.parametrize("draft,said", [({}, "Dictate a request first"), ({"transcript": "x"}, "Pick a repo first"),
+                                        ({"transcript": "x", "repo": "mia"}, None)])
+def test_send_checks_the_draft_first(draft, said):
+    code = js_of(root(), "CP Send")
+    body = json.dumps({"draft": draft})
+    out = run_js(STUBS + "var flashes = []; flash = function (m) { flashes.push(m); };"
+                 f"reply = {json.dumps('HTTP/1.0 200 OK' + chr(10) + chr(10) + body)};\n" + code +
+                 "\nconsole.log(JSON.stringify([flashes, calls.length]));")
+    flashes, n = out
+    if said:
+        assert flashes == [said] and n == 1
+    else:
+        assert n == 2   # GET /status, then POST /dispatch

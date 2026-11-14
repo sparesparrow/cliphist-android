@@ -4,6 +4,8 @@
 #
 #   listen.sh [--new]             stdout: the reply text (one line); exit 3 if no speech was heard
 #   listen.sh [--new] --wav FILE  same turn, but FILE stands in for the recording (latency tests)
+#   listen.sh --transcribe-only [--wav FILE]   record + speech-to-text only (the panel's Dictate):
+#                                 stdout: the transcript; no Claude, nothing is played back
 #   exit 4 "busy" if another voice turn (HTTP trigger, MCP speak/listen) holds state/turn.lock
 #
 # The reply starts playing as soon as Claude's first sentence is synthesized (assistant.sh
@@ -22,9 +24,10 @@ ms() { date +%s%3N; }
 # Stage for the Tasker panel (GET /status): one word in state/phase, replaced atomically.
 PHASE_FILE=${VA_PHASE_FILE:-$HERE/state/phase}
 phase() { printf '%s\n' "$1" >"$PHASE_FILE.$$" && mv -f "$PHASE_FILE.$$" "$PHASE_FILE" || true; }
-ARGS=() WAV=""
+ARGS=() WAV="" STT_ONLY=0
 while [ $# -gt 0 ]; do
   case $1 in
+    --transcribe-only) STT_ONLY=1 ;;
     --wav) shift; WAV=${1:-}; [ -s "$WAV" ] || { echo "--wav: no such file: $WAV" >&2; exit 2; } ;;
     *) ARGS+=("$1") ;;
   esac
@@ -61,6 +64,11 @@ else
 fi
 export VA_T0_MS; VA_T0_MS=$(ms)   # recording ended: latency.log times count from here
 beep 0.08 660 &                   # earcon "heard you", in parallel with speech-to-text
+if [ "$STT_ONLY" = 1 ]; then
+  phase transcribing
+  rc=0; "$HERE/assistant.sh" --transcribe-only "$IN" || rc=$?
+  wait; exit "$rc"
+fi
 "$HERE/assistant.sh" --speak "${ARGS[@]}" "$IN" >/dev/null
 wait
 sed -n 2p "$OUT/last.txt"

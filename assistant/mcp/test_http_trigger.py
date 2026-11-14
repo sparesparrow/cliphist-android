@@ -201,3 +201,115 @@ def test_busy_when_another_process_holds_the_lock(trig):
         assert got
         assert status(trig)["busy"] is True
         assert call(trig, "POST", "/listen?async=1") == (503, "busy")
+
+
+# --- Claude Panel router endpoints ------------------------------------------
+FIXP = Path(__file__).parent / "fixtures" / "panel-prompts"
+
+
+@pytest.fixture()
+def rtrig(trig, tmp_path, monkeypatch):
+    import prompts
+    pdir = tmp_path / "prompts" / "panel"
+    import shutil
+    shutil.copytree(FIXP, pdir)
+    monkeypatch.setattr(prompts, "PROMPTS_DIR", str(tmp_path / "prompts"))
+    monkeypatch.setattr(prompts, "SERVER", "/nonexistent/mcp-prompts")   # file fallback: fast
+    return trig
+
+
+def test_router_endpoints_need_the_token(rtrig):
+    for method, path in (("GET", "/templates"), ("GET", "/repos"), ("POST", "/draft"),
+                         ("POST", "/dictate"), ("POST", "/dispatch")):
+        assert call(rtrig, method, path, token="nope")[0] == 403, path
+
+
+def test_templates_and_repos_lists(rtrig):
+    code, body = call(rtrig, "GET", "/templates")
+    assert code == 200
+    assert [t["id"] for t in json.loads(body)] == ["panel-bug-fix", "panel-coding-task", "panel-repo-question"]
+    code, body = call(rtrig, "GET", "/repos")
+    assert code == 200 and json.loads(body)[0]["slug"] == "sparesparrow/cliphist-android"
+
+
+def test_draft_endpoint_fills_and_validates(rtrig):
+    code, body = call(rtrig, "POST", "/draft", {"transcript": "add tests", "repo": "mia"})
+    d = json.loads(body)
+    assert code == 200 and d["slug"] == "sparesparrow/mia" and "> add tests" in d["filled"]
+    assert call(rtrig, "POST", "/draft", {"template": "panel-router"})[0] == 400
+    assert call(rtrig, "POST", "/draft", {"repo": "someone/else"})[0] == 400
+    assert call(rtrig, "POST", "/draft", ["x"])[0] == 400
+    s = status(rtrig)
+    assert s["draft"]["repo"] == "mia" and len(s["draft"]["filled"]) <= 600
+    assert s["dispatch"]["state"] == "idle" and s["jobs"] == []
+
+
+def test_dictate_puts_the_transcript_in_the_draft(rtrig):
+    rtrig.script("listen.sh", '[ "$1" = --transcribe-only ] || exit 9\necho "make the panel blue"\n')
+    assert call(rtrig, "POST", "/dictate?async=1") == (202, "started")
+    assert wait_for(lambda: status(rtrig)["draft"]["transcript"] == "make the panel blue")
+    assert wait_for(lambda: status(rtrig)["last"]["result"] == "dictated: make the panel blue")
+
+
+def test_dictate_no_speech_keeps_the_draft(rtrig):
+    call(rtrig, "POST", "/draft", {"transcript": "keep me"})
+    rtrig.script("listen.sh", "echo 'no speech heard'; exit 3\n")
+    assert call(rtrig, "POST", "/dictate") == (200, "no speech heard")
+    assert status(rtrig)["draft"]["transcript"] == "keep me"
+
+
+def test_dispatch_routes_then_posts(rtrig, monkeypatch):
+    import router
+    posted = []
+    monkeypatch.setattr(router, "route", lambda d: ("github-claude", "code work"))
+    monkeypatch.setattr(router, "dispatch_github",
+                        lambda d: posted.append(d) or {"id": "mia#3"})
+    call(rtrig, "POST", "/draft", {"transcript": "x", "repo": "mia"})
+    assert call(rtrig, "POST", "/dispatch") == (202, "started")
+    assert wait_for(lambda: status(rtrig)["dispatch"]["state"] == "done")
+    assert status(rtrig)["dispatch"]["result"] == "mia#3: waiting for @claude (code work)"
+    assert posted[0]["repo"] == "mia"
+
+
+def test_dispatch_not_set_up_and_none(rtrig, monkeypatch):
+    import router
+    def no(d):
+        raise router.DispatchError("@claude not set up in mia")
+    monkeypatch.setattr(router, "route", lambda d: ("github-claude", "r"))
+    monkeypatch.setattr(router, "dispatch_github", no)
+    call(rtrig, "POST", "/dispatch")
+    assert wait_for(lambda: status(rtrig)["dispatch"]["state"] == "failed")
+    assert status(rtrig)["dispatch"]["result"] == "@claude not set up in mia"
+    monkeypatch.setattr(router, "route", lambda d: ("none", "unclear"))
+    call(rtrig, "POST", "/dispatch")
+    assert wait_for(lambda: status(rtrig)["dispatch"]["result"] == "not sent: unclear")
+
+
+def test_dispatch_phone_route_runs_a_spoken_turn(rtrig, monkeypatch):
+    import router
+    monkeypatch.setattr(router, "route", lambda d: ("phone-assistant", "weather"))
+    rtrig.script("assistant.sh", 'echo "$@" > "$(dirname "$0")/args"; echo ok\n')
+    call(rtrig, "POST", "/draft", {"transcript": "is it raining", "repo": "mia"})
+    call(rtrig, "POST", "/dispatch")
+    args = rtrig.bin / "args"
+    assert wait_for(lambda: args.exists() and args.read_text().strip())
+    assert args.read_text().strip() == "--speak --text is it raining"
+
+
+def test_watch_once_saves_and_announces(rtrig, monkeypatch):
+    import router
+    router.save_jobs([{"id": "mia#1", "state": "waiting"}, {"id": "mia#2", "state": "pr"}])
+    def poll(j):
+        if j["state"] != "waiting":
+            return False
+        j.update(state="pr", repo="mia", issue=1, title="T", url="u", note="draft PR ready", issue_url="i")
+        return True
+    said = []
+    monkeypatch.setattr(router, "poll_job", poll)
+    monkeypatch.setattr(rtrig, "notify", lambda t, x: said.append(("notify", t)))
+    monkeypatch.setattr(rtrig, "run_turn", lambda args, lock_timeout=None: said.append(("say", args[-1])) or (None, None))
+    changed = rtrig.watch_once()
+    assert [j["id"] for j in changed] == ["mia#1"]
+    assert [j["state"] for j in router.jobs()] == ["pr", "pr"]
+    assert said == [("notify", "Claude: draft PR ready (mia)"), ("say", "Draft PR ready in mia: T")]
+    assert status(rtrig)["jobs"][0]["line"] == "mia#1 → draft PR ready"
