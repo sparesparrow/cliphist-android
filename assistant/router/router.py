@@ -183,7 +183,9 @@ def save_jobs(js):
 
 
 def _is_claude(login):
-    return login in ("claude", "claude[bot]") or login.startswith("claude")
+    """Claude's comments: the Claude GitHub App, or github-actions when the workflow runs the
+    action with its own GITHUB_TOKEN (claude-workflow.yml)."""
+    return login.startswith("claude") or login in ("github-actions", "github-actions[bot]", "app/github-actions")
 
 
 def poll_job(job, run=None, now=None):

@@ -172,6 +172,12 @@ def test_watch_branch_link_and_answer():
     assert j["state"] == "answered" and "polls /status every 2 s" in j["note"]
 
 
+def test_watch_accepts_github_actions_as_claude():
+    f = Fake({"gh pr list": (0, "[]"), "gh issue view": (0, comments(("github-actions", "**Claude finished** It is fine.")))})
+    j = job()
+    assert router.poll_job(j, run=f, now=1100) and j["state"] == "answered"
+
+
 def test_watch_ignores_other_people_and_times_out():
     f = Fake({"gh pr list": (0, "[]"), "gh issue view": (0, comments(("mallory", "Claude finished: merged!")))})
     j = job()

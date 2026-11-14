@@ -138,5 +138,9 @@ Setting up @claude in a repo (one time per repo):
 2. `assistant/router/setup-github-claude.sh --all` (or `owner/repo …`). It opens a PR that
    adds `claude.yml` (`anthropics/claude-code-action@v1`, which runs only for @claude from
    sparesparrow and ends with a draft PR).
-3. `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R owner/repo`, or run
-   `/install-github-app` in that repo. Then merge the PR.
+3. The repo needs the secret `ANTHROPIC_API_KEY` (API billing) or `CLAUDE_CODE_OAUTH_TOKEN`
+   (subscription: run `claude setup-token` in a real terminal, then
+   `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R owner/repo` and paste the token at its prompt.
+   Neither command works from Claude Code's `!` prompt, which gives a command no input).
+   The workflow uses its own `GITHUB_TOKEN`, so the Claude GitHub App is optional.
+   Then merge the PR.
