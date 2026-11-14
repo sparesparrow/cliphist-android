@@ -1,0 +1,10 @@
+# >>> phone-services >>>
+# Installed by /root/phone (Debian PRoot). Remove this block to undo.
+export PATH="$HOME/bin:$PATH"
+# Native sshd on loopback only, key auth only. Lets Claude Code inside PRoot run commands in
+# native Termux (real su, termux-am, proot-distro): /root/phone/phone-services native <cmd>
+if [ -z "${PROOT_DISTRO:-}${PROOT_L2S_DIR:-}" ] && ! (echo > /dev/tcp/127.0.0.1/8022) 2>/dev/null; then
+  sshd -p 8022 -o ListenAddress=127.0.0.1 -o PasswordAuthentication=no \
+       -o KbdInteractiveAuthentication=no 2>/dev/null
+fi
+# <<< phone-services <<<

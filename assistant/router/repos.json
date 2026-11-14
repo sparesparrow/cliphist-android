@@ -1,0 +1,7 @@
+[
+ {"name": "cliphist-android", "slug": "sparesparrow/cliphist-android", "path": "/root/cliphist-android"},
+ {"name": "mcp-prompts", "slug": "sparesparrow/mcp-prompts", "path": "/root/mcp-prompts"},
+ {"name": "mia", "slug": "sparesparrow/mia", "path": "/root/mia"},
+ {"name": "elevenlabs-agents", "slug": "sparesparrow/elevenlabs-agents"},
+ {"name": "mcp-router", "slug": "sparesparrow/mcp-router"}
+]

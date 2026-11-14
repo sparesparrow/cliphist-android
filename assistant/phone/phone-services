@@ -1,0 +1,119 @@
+#!/bin/bash
+# Phone services for Claude Code running in Debian PRoot inside Termux. See /root/phone/README.md.
+#
+#   phone-services ensure            start whatever is down (adb link, mic server); quiet, idempotent
+#   phone-services watch [secs]      loop `ensure` every 60 s (started by /etc/profile.d on login)
+#   phone-services status            show adb / mic server / native sshd
+#   phone-services pa-restart [--push]   restart the mic server (--push: rebuild + re-upload bundle)
+#   phone-services pa-stop
+#   phone-services va-restart        restart the voice-assistant HTTP trigger (127.0.0.1:8780)
+#   phone-services test-mic [secs]   record from the mic and print levels
+#   phone-services native <cmd...>   run a command in NATIVE Termux (outside PRoot) over ssh
+#   phone-services ssh-key           create the PRoot key and authorize it in Termux
+set -u
+P=${PHONE_DIR:-/root/phone}   # overridable for tests (test_phone_services.py)
+T=/data/data/com.termux/files
+TH=$T/home
+SERIAL=127.0.0.1:5555
+A="adb -s $SERIAL"
+KEY=${PHONE_SSH_KEY:-/root/.ssh/termux_ed25519}
+DEV=/data/local/tmp/pa
+mkdir -p "$P/logs"
+export PULSE_SERVER=127.0.0.1 PULSE_COOKIE=$P/pa/cookie
+
+port_open() { timeout 2 bash -c "echo > /dev/tcp/127.0.0.1/$1" 2>/dev/null; }
+adb_up()    { timeout 8 $A shell true >/dev/null 2>&1; }
+adb_connect() {
+  adb_up && return 0
+  port_open 5555 || return 1
+  adb connect "$SERIAL" >/dev/null 2>&1; sleep 1; adb_up
+}
+pa_up() {
+  port_open 4713 && PULSE_SERVER=127.0.0.1 timeout 4 pactl list short sources 2>/dev/null | grep -q OpenSL_ES_source
+}
+termux_pa_kill() {  # Termux's own PulseAudio can't use the mic; make sure it doesn't hold 4713.
+  env -i PATH=$T/usr/bin HOME=$TH PREFIX=$T/usr TMPDIR=$T/usr/tmp $T/usr/bin/pulseaudio --kill >/dev/null 2>&1 || true
+}
+pa_kill() {  # boot-started server runs in Magisk's SELinux domain: shell can't signal it, so fall back to su
+  $A shell "pkill -f '[/]data/local/tmp/pa/bin/pulseaudio'" >/dev/null 2>&1
+  $A shell "pgrep -f '[/]data/local/tmp/pa/bin/pulseaudio'" >/dev/null 2>&1 &&
+    $A shell "su -c \"pkill -f '[/]data/local/tmp/pa/bin/pulseaudio'\"" >/dev/null 2>&1
+  sleep 1; ! $A shell "pgrep -f '[/]data/local/tmp/pa/bin/pulseaudio'" >/dev/null 2>&1
+}
+pa_push() {
+  "$P/pa/build-bundle.sh" >&2 || return 1
+  pa_kill || { echo "could not stop the old mic server" >&2; return 1; }
+  $A shell "rm -rf $DEV && mkdir -m 700 $DEV" || return 1
+  $A push "$P"/pa/bundle/* "$DEV/" >/dev/null || return 1
+  $A shell "cd $DEV && chmod 700 . bin lib mod && chmod 755 bin/pulseaudio run.sh && chmod 600 cookie mic.pa && chmod 644 lib/* mod/*"
+  $A shell "test -f $DEV/cookie && test -x $DEV/bin/pulseaudio" || { echo "push incomplete" >&2; return 1; }
+}
+pa_start() {
+  adb_connect || { echo "adb: not reachable on $SERIAL" >&2; return 1; }
+  if [ "${1:-}" = --push ] || ! $A shell "test -x $DEV/bin/pulseaudio" 2>/dev/null; then pa_push || return 1; fi
+  pa_up || termux_pa_kill
+  # Start it as uid 2000 via Magisk su, so it is not in adbd's process group: every adbd restart
+  # kills adb-spawned children. Fall back to a plain adb child if su is not granted to Shell.
+  $A shell "su -c \"su 2000 -c 'nohup sh $DEV/run.sh >/dev/null 2>&1 &'\"" >/dev/null 2>&1 ||
+    $A shell "nohup sh $DEV/run.sh >/dev/null 2>&1 &"
+  for _ in 1 2 3 4 5 6 7 8; do sleep 1; pa_up && return 0; done
+  echo "mic server did not come up; log:" >&2; $A shell "tail -5 $DEV/pa.log" >&2; return 1
+}
+VA=${VA_DIR:-/root/voice-assistant}
+va_up() { timeout 3 curl -fsS http://127.0.0.1:8780/health >/dev/null 2>&1; }
+va_start() {  # voice-assistant HTTP trigger for Tasker's HTTP Request action
+  [ -f "$VA/http_trigger.py" ] || return 1
+  # 8>&- 9>&-: don't let the long-lived server inherit the ensure/watch lock fds (it would hold them forever)
+  mkdir -p "$VA/state" "$VA/logs"
+  setsid nohup /root/mia-venv/bin/python -I "$VA/http_trigger.py" >>"$VA/logs/http.log" 2>&1 8>&- 9>&- &
+  echo $! >"$VA/state/http.pid"
+  for _ in 1 2 3 4 5; do sleep 1; va_up && return 0; done; return 1
+}
+va_stop() {  # by pid file: pkill -f patterns can match the caller's own command line
+  local pid; pid=$(cat "$VA/state/http.pid" 2>/dev/null) || return 0
+  rm -f "$VA/state/http.pid"
+  case "$pid" in ''|*[!0-9]*) return 0 ;; esac
+  # a stale pid file may name an unrelated process by now: only kill the trigger itself
+  tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null | grep -q 'http_trigger\.py' || return 0
+  kill "$pid" 2>/dev/null; sleep 1
+}
+native() {
+  [ -f "$KEY" ] || { echo "no key; run: phone-services ssh-key" >&2; return 1; }
+  port_open 8022 || { echo "native sshd not running (open a new Termux session to start it)" >&2; return 1; }
+  ssh -q -p 8022 -i "$KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+      -o UserKnownHostsFile="$P/known_hosts" 127.0.0.1 "$@"
+}
+
+case "${1:-status}" in
+  ensure)
+    exec 9>"$P/logs/.lock"; flock -n 9 || exit 0
+    { echo "== $(date '+%F %T') ensure"
+      adb_connect && echo "adb ok" || echo "adb down"
+      pa_up && echo "mic ok" || { pa_start && echo "mic started" || echo "mic FAILED"; }
+      va_up && echo "va-http ok" || { va_start && echo "va-http started" || echo "va-http FAILED"; }
+    } >>"$P/logs/ensure.log" 2>&1 ;;
+  watch)  # keep things up while Debian runs (adbd restarts kill the mic server); one instance
+    exec 8>"$P/logs/.watch.lock"; flock -n 8 || exit 0
+    while :; do "$0" ensure; sleep "${2:-60}"; done ;;
+  status)
+    adb_up && echo "adb      : OK ($SERIAL)" || echo "adb      : DOWN (port 5555 $(port_open 5555 && echo open || echo closed))"
+    pa_up && echo "mic      : OK (pulse 127.0.0.1:4713, OpenSL_ES_source)" || echo "mic      : DOWN"
+    va_up && echo "va-http  : OK (127.0.0.1:8780, token in $VA/state/http-token)" || echo "va-http  : DOWN"
+    port_open 8022 && echo "native   : sshd on 8022$( native true 2>/dev/null && echo ', key login OK' || echo ', key login FAILED')" \
+                   || echo "native   : sshd not running" ;;
+  pa-restart) shift; pa_start "${1:-}" && echo "mic server up" ;;
+  pa-stop) pa_kill && echo stopped || echo "still running" ;;
+  va-restart) va_stop; va_start && echo "va-http up on 8780" ;;
+  test-mic)
+    f=$P/logs/test-mic.wav; s=${2:-3}
+    PULSE_SERVER=127.0.0.1 AUDIODRIVER=pulseaudio timeout $((s+4)) rec -q -c1 -r16000 "$f" trim 0 "$s" &&
+      sox "$f" -n stat 2>&1 | grep -E 'Length|Maximum amplitude|RMS +amplitude' ;;
+  native) shift; native "$@" ;;
+  ssh-key)
+    mkdir -p /root/.ssh; chmod 700 /root/.ssh
+    [ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -C proot-claude -f "$KEY"
+    AK=$TH/.ssh/authorized_keys
+    grep -qF "$(cut -d' ' -f2 "$KEY.pub")" "$AK" 2>/dev/null || { cat "$KEY.pub" >> "$AK"; chmod 600 "$AK"; }
+    echo "key authorized in $AK" ;;
+  *) sed -n '2,12p' "$0"; exit 2 ;;
+esac

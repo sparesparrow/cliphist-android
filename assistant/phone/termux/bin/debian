@@ -1,0 +1,6 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# Log into the Debian PRoot with Termux's app dir bound, so termux-am (intents) works inside it.
+# Usage: debian            -> login shell
+#        debian -- <cmd>   -> run a command
+exec proot-distro login debian --shared-tmp \
+  --bind /data/data/com.termux/files/apps:/data/data/com.termux/files/apps "$@"

@@ -1,0 +1,11 @@
+# Runtime state and secrets: never commit
+phone/pa/cookie
+phone/pa/bundle/
+phone/logs/
+phone/known_hosts
+phone/state/
+mcp/.venv/
+voice/logs/
+voice/state/
+__pycache__/
+.pytest_cache/
