@@ -15,14 +15,15 @@ HTTP Request action (no Termux:Tasker plugin needed).
                                           phase: idle | listening | thinking | speaking
   POST /stop                           -> end the running turn (its process group): "stopped" | "idle"
 
-Claude Panel router (../router, mcp-prompts templates -> GitHub @claude):
+Claude Panel router (../router, mcp-prompts templates -> Claude Code here -> draft PR):
   POST /dictate?async=1                -> record + speech-to-text only (listen.sh --transcribe-only);
                                           the transcript becomes the draft's request
   GET  /templates, GET /repos          -> JSON lists for the panel's dropdowns
   POST /draft {transcript?, template?, repo?} -> the re-filled draft (JSON)
-  POST /dispatch                       -> 202: router agent, then a public GitHub issue for
-                                          @claude (or a spoken assistant turn); see /status
-  GET  /status also has draft, dispatch and jobs (a watcher follows each issue to its PR)
+  POST /dispatch                       -> 202: router agent, then Claude Code in a worktree of the
+                                          repo -> a pushed branch + public draft PR (or a spoken
+                                          assistant turn); see /status
+  GET  /status also has draft, dispatch and jobs; a finished job is spoken + notified
 
 Listens on 127.0.0.1 only. Every request except /health needs header X-Token with the
 value in state/http-token (created on first start, mode 600). One turn runs at a time:
@@ -52,10 +53,8 @@ TEXT_CAP = 2000      # characters of heard/reply in /status
 _turn_mu = threading.Lock()
 _turn = {"pgid": None}
 _last = {"result": None, "code": None, "at": None}   # outcome of the latest turn
-_dispatch = {"state": "idle", "result": "", "at": None}  # idle | routing | posting | done | failed
+_dispatch = {"state": "idle", "result": "", "at": None}  # idle | routing | working | done | failed
 _dispatch_mu = threading.Lock()
-_jobs_mu = threading.Lock()
-WATCH_EVERY = 60
 ADB_SERIAL = os.environ.get("DROID_SERIAL", "127.0.0.1:5555")
 
 
@@ -124,8 +123,7 @@ def status():
         age = None
     d = router.draft()
     d["filled"] = d.get("filled", "")[:600]
-    with _jobs_mu:
-        jobs = [dict(j, line=router.summary(j)) for j in router.jobs()[-3:]]
+    jobs = [dict(j, line=router.summary(j)) for j in router.jobs()[-3:]]
     return {"phase": phase, "busy": busy, "heard": heard, "reply": reply,
             "last": dict(_last), "session_age_s": age, "draft": d,
             "dispatch": dict(_dispatch), "jobs": jobs}
@@ -158,10 +156,12 @@ def dispatch():
         d = router.draft()
         set_dispatch("routing")
         where, reason = router.route(d)
-        if where == "github-claude":
-            set_dispatch("posting", f"posting to github.com/{d['slug']}")
-            job = router.dispatch_github(d)
-            set_dispatch("done", f"{job['id']}: waiting for @claude ({reason})")
+        if where == "coding-agent":
+            job = router.new_job(d)
+            set_dispatch("working", f"{job['id']}: Claude Code working in {d['repo']} ({reason})")
+            job = router.run_job(d, job)
+            set_dispatch("failed" if job["state"] == "failed" else "done", router.summary(job))
+            announce(job)
         elif where == "phone-assistant":
             set_dispatch("done", f"asking the phone assistant ({reason})")
             p, err = run_turn([os.path.join(HERE, "assistant.sh"), "--speak", "--text", d["transcript"]],
@@ -169,7 +169,7 @@ def dispatch():
             record(*summarize(p, err, False))
         else:
             set_dispatch("failed", f"not sent: {reason}")
-    except (router.DispatchError, ValueError, KeyError, OSError, subprocess.SubprocessError) as e:
+    except (router.AgentError, ValueError, KeyError, OSError, subprocess.SubprocessError) as e:
         set_dispatch("failed", str(e))
     finally:
         _dispatch_mu.release()
@@ -190,36 +190,6 @@ def announce(job):
     except (OSError, subprocess.SubprocessError):
         pass
     run_turn([os.path.join(os.path.normpath(ROUTER_DIR), "say.sh"), line], lock_timeout=120)
-
-
-def watch_once():
-    """Poll every waiting job once; announce the ones that changed."""
-    with _jobs_mu:
-        js = router.jobs()
-    changed = []
-    for j in js:
-        try:
-            if router.poll_job(j):
-                changed.append(j)
-        except (OSError, subprocess.SubprocessError, ValueError, KeyError):
-            continue
-    if changed:
-        with _jobs_mu:   # merge by id: a dispatch may have added a job meanwhile
-            cur = router.jobs()
-            by_id = {j["id"]: j for j in changed}
-            router.save_jobs([by_id.get(j["id"], j) for j in cur])
-        for j in changed:
-            announce(j)
-    return changed
-
-
-def watcher():
-    while True:
-        time.sleep(WATCH_EVERY)
-        try:
-            watch_once()
-        except Exception:  # noqa: BLE001 - the watcher must outlive one bad poll
-            pass
 
 
 def run_turn(args, lock_timeout=None):
@@ -432,5 +402,4 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.makedirs(LOGS, exist_ok=True)
-    threading.Thread(target=watcher, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

@@ -109,38 +109,30 @@ Run `assistant/phone/tasker/import-claude-listen.sh` and tap YES twice in Tasker
 `POST /listen` with the X-Token through `nc`. Details and gotchas:
 `skill/android-assistant/references/voice-pipeline.md`.
 
-### Claude Panel: a frontend to mcp-prompts and the GitHub @claude agent
+### Claude Panel: a frontend to mcp-prompts and a local coding agent
 `assistant/phone/tasker/import-claude-panel.sh` imports the Tasker scene **Claude Panel**.
 Long-press power opens it.
 
-- **Rows**: status, what you said, Claude's reply, the **prompt preview** (template, repo,
-  where Send will post, and the start of the filled prompt), and **jobs**.
+- **Rows**: status, what you said, Claude's reply, the **prompt preview** (template, repo, the
+  GitHub repo the draft PR will go to, and the start of the filled prompt), and **jobs**.
 - **🎙 Dictate**: `POST /dictate?async=1`. It runs `listen.sh --transcribe-only`, which records
   and transcribes but does not run Claude. The transcript becomes the draft's `{{request}}`.
 - **📄 Template ▾ / 📦 Repo ▾**: List Dialogs fed by `GET /templates` (mcp-prompts templates
   tagged `panel`) and `GET /repos` (`assistant/router/repos.json`). The pick goes to
   `POST /draft`, which re-fills the template with `{request, repo}`.
 - **🚀 Send**: `POST /dispatch`. The router agent (mcp-prompts `panel-router` through
-  `claude -p --model haiku`, no tools, 30–95 s on this phone) answers `github-claude`,
-  `phone-assistant` or `none`:
-  - `github-claude` opens an issue in the repo with the label `voice-panel` and the body
-    `@claude` + the filled template. **The repos are public, so the issue is public.**
+  `claude -p --model haiku`, no tools, 30–95 s on this phone) answers `coding-agent`,
+  `phone-assistant` or `none`.
+  - `coding-agent` runs **Claude Code here in PRoot**, with your own login and no API key:
+    1. a git worktree of the repo on a new branch `panel/<date-time>` under `/root/panel-work`
+       (from the local clone in `repos.json`, or a clone made there);
+    2. `claude -p` with file tools only (Read, Edit, Write, Glob, Grep, read-only git, test
+       runners), `--permission-mode dontAsk`, no MCP servers, so it cannot commit, push or
+       reach the phone;
+    3. the router then commits, refuses files that look like secrets or runtime state,
+       pushes the branch and opens a **draft** PR. **The repos are public.**
+  - `panel-repo-question` only answers; nothing is pushed.
   - `phone-assistant` runs a spoken `/ask` turn with the transcript.
-  - Nothing is posted if the repo has no `.github/workflows/claude.yml`. The panel then
-    shows "@claude not set up in <repo>".
-- **Jobs**: a watcher in the trigger checks each issue once a minute for 2 h. When a PR that
-  says `Closes #N` appears, or Claude's comment finishes (with a branch link or an answer),
-  the phone speaks it (`router/say.sh`) and posts a notification with the link.
-
-Setting up @claude in a repo (one time per repo):
-1. `gh auth refresh -h github.com -s workflow`. The gh token needs the `workflow` scope to
-   write workflow files.
-2. `assistant/router/setup-github-claude.sh --all` (or `owner/repo …`). It opens a PR that
-   adds `claude.yml` (`anthropics/claude-code-action@v1`, which runs only for @claude from
-   sparesparrow and ends with a draft PR).
-3. The repo needs the secret `ANTHROPIC_API_KEY` (API billing) or `CLAUDE_CODE_OAUTH_TOKEN`
-   (subscription: run `claude setup-token` in a real terminal, then
-   `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R owner/repo` and paste the token at its prompt.
-   Neither command works from Claude Code's `!` prompt, which gives a command no input).
-   The workflow uses its own `GITHUB_TOKEN`, so the Claude GitHub App is optional.
-   Then merge the PR.
+- **Jobs**: when the job ends (draft PR, answer, no changes, failed), the phone speaks it
+  (`router/say.sh`) and posts a notification. Settings: `PANEL_AGENT_TIMEOUT` (default
+  1800 s), `PANEL_AGENT_MODEL` and `PANEL_WORK_DIR`.

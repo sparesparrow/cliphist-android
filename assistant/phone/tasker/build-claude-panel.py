@@ -16,8 +16,8 @@ reads with cat.
 Router (../../router): Dictate records + transcribes only (POST /dictate?async=1), Template ▾
 and Repo ▾ pick an mcp-prompts template and a repo (GET /templates, /repos -> List Dialog ->
 POST /draft), the Prompt row previews the filled template and where it would be posted, and
-Send (POST /dispatch) lets the router agent hand it to GitHub @claude or the phone assistant.
-The Jobs row follows the issue to its draft PR.
+Send (POST /dispatch) lets the router agent hand it to Claude Code running here (a worktree,
+then a pushed branch and a draft PR) or to the phone assistant. The Jobs row shows the job.
 
 Gesture: this project's profile "Claude Panel Gesture" (event 201, Assistance Request) only
 opens the panel; the existing profile "Claude Listen" (import-claude-listen.sh) starts the
@@ -109,7 +109,7 @@ JS = {
 var LOOK = {idle: ["\u25CF Ready", "#FF9E9E9E"], listening: ["\u25CF Listening\u2026", "#FF66BB6A"],
             thinking: ["\u25CF Thinking\u2026", "#FFFFCA28"], speaking: ["\u25CF Speaking\u2026", "#FF42A5F5"],
             transcribing: ["\u25CF Transcribing\u2026", "#FF66BB6A"]};
-var DSP = {routing: "\u23F3 Routing\u2026", posting: "\u23F3 Posting\u2026", failed: "\u26A0 ", done: "\u2714 "};
+var DSP = {routing: "\u23F3 Routing\u2026", working: "\u2699 ", failed: "\u26A0 ", done: "\u2714 "};
 var t0 = parseInt(global("CP_T0") || "0", 10);
 if (!t0 || Date.now() - t0 > 600000) {   // open for 10 min: close the panel
   setGlobal("CP_OPEN", "");
@@ -126,7 +126,7 @@ if (!t0 || Date.now() - t0 > 600000) {   // open for 10 min: close the panel
     var d = s.draft || {}, prompt;
     if (!d.transcript) prompt = "📄 " + (d.template || "-") + " \u00B7 📦 " + (d.repo || "pick a repo") + "\nDictate a request first.";
     else if (!d.repo) prompt = "📄 " + d.template + " \u00B7 📦 pick a repo\n\u201C" + d.transcript + "\u201D";
-    else prompt = "📄 " + d.template + " \u00B7 📦 " + d.repo + "\nSend will post to github.com/" + d.slug +
+    else prompt = "📄 " + d.template + " \u00B7 📦 " + d.repo + "\nSend: Claude Code here, then a draft PR on github.com/" + d.slug +
                   " (public)\n" + (d.filled || "").replace(/\s+/g, " ").substring(0, 260);
     var jl = (s.jobs || []).slice(-2).reverse().map(function (j) { return j.line; });
     var ds = s.dispatch || {};

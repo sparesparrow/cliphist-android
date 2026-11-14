@@ -238,7 +238,7 @@ def test_poll_previews_the_prompt_and_where_it_goes():
                        "jobs": [{"line": "mia#3 \u2192 draft PR ready"}]})
     out = poll_once("HTTP/1.0 200 OK\n\n" + body)
     texts = dict(out["texts"])
-    assert texts["Prompt"] == "📄 panel-coding-task · 📦 mia\nSend will post to github.com/sparesparrow/mia (public)\nImplement this"
+    assert texts["Prompt"] == "📄 panel-coding-task · 📦 mia\nSend: Claude Code here, then a draft PR on github.com/sparesparrow/mia (public)\nImplement this"
     assert texts["Jobs"] == "\u2714 mia#4: waiting\nmia#3 \u2192 draft PR ready"
 
 

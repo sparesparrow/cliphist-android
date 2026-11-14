@@ -258,31 +258,41 @@ def test_dictate_no_speech_keeps_the_draft(rtrig):
     assert status(rtrig)["draft"]["transcript"] == "keep me"
 
 
-def test_dispatch_routes_then_posts(rtrig, monkeypatch):
+def test_dispatch_runs_the_local_agent_and_announces(rtrig, monkeypatch):
     import router
-    posted = []
-    monkeypatch.setattr(router, "route", lambda d: ("github-claude", "code work"))
-    monkeypatch.setattr(router, "dispatch_github",
-                        lambda d: posted.append(d) or {"id": "mia#3"})
+    ran, said = [], []
+    monkeypatch.setattr(router, "route", lambda d: ("coding-agent", "code work"))
+    def run_job(d, job):
+        ran.append(job["id"])
+        job.update(state="pr", url="https://github.com/sparesparrow/mia/pull/9", note="draft PR ready")
+        router.save_job(job)
+        return job
+    monkeypatch.setattr(router, "run_job", run_job)
+    monkeypatch.setattr(rtrig, "announce", lambda job: said.append(job["state"]))
     call(rtrig, "POST", "/draft", {"transcript": "x", "repo": "mia"})
     assert call(rtrig, "POST", "/dispatch") == (202, "started")
     assert wait_for(lambda: status(rtrig)["dispatch"]["state"] == "done")
-    assert status(rtrig)["dispatch"]["result"] == "mia#3: waiting for @claude (code work)"
-    assert posted[0]["repo"] == "mia"
+    s = status(rtrig)
+    assert s["dispatch"]["result"].endswith("\u2192 draft PR ready") and ran and said == ["pr"]
+    assert s["jobs"][-1]["line"] == ran[0] + " \u2192 draft PR ready"
 
 
-def test_dispatch_not_set_up_and_none(rtrig, monkeypatch):
+def test_dispatch_busy_and_none(rtrig, monkeypatch):
+    import router, threading as th
+    gate = th.Event()
+    monkeypatch.setattr(router, "route", lambda d: (gate.wait(5), ("none", "unclear"))[1])
+    assert call(rtrig, "POST", "/dispatch") == (202, "started")
+    assert call(rtrig, "POST", "/dispatch") == (503, "busy")
+    gate.set()
+    assert wait_for(lambda: status(rtrig)["dispatch"]["result"] == "not sent: unclear")
+
+
+def test_dispatch_without_a_draft_fails_cleanly(rtrig, monkeypatch):
     import router
-    def no(d):
-        raise router.DispatchError("@claude not set up in mia")
-    monkeypatch.setattr(router, "route", lambda d: ("github-claude", "r"))
-    monkeypatch.setattr(router, "dispatch_github", no)
+    monkeypatch.setattr(router, "route", lambda d: ("coding-agent", "r"))
     call(rtrig, "POST", "/dispatch")
     assert wait_for(lambda: status(rtrig)["dispatch"]["state"] == "failed")
-    assert status(rtrig)["dispatch"]["result"] == "@claude not set up in mia"
-    monkeypatch.setattr(router, "route", lambda d: ("none", "unclear"))
-    call(rtrig, "POST", "/dispatch")
-    assert wait_for(lambda: status(rtrig)["dispatch"]["result"] == "not sent: unclear")
+    assert status(rtrig)["dispatch"]["result"] == "pick a template and a repo first"
 
 
 def test_dispatch_phone_route_runs_a_spoken_turn(rtrig, monkeypatch):
@@ -296,20 +306,9 @@ def test_dispatch_phone_route_runs_a_spoken_turn(rtrig, monkeypatch):
     assert args.read_text().strip() == "--speak --text is it raining"
 
 
-def test_watch_once_saves_and_announces(rtrig, monkeypatch):
-    import router
-    router.save_jobs([{"id": "mia#1", "state": "waiting"}, {"id": "mia#2", "state": "pr"}])
-    def poll(j):
-        if j["state"] != "waiting":
-            return False
-        j.update(state="pr", repo="mia", issue=1, title="T", url="u", note="draft PR ready", issue_url="i")
-        return True
+def test_announce_notifies_then_speaks_under_the_lock(rtrig, monkeypatch):
     said = []
-    monkeypatch.setattr(router, "poll_job", poll)
     monkeypatch.setattr(rtrig, "notify", lambda t, x: said.append(("notify", t)))
-    monkeypatch.setattr(rtrig, "run_turn", lambda args, lock_timeout=None: said.append(("say", args[-1])) or (None, None))
-    changed = rtrig.watch_once()
-    assert [j["id"] for j in changed] == ["mia#1"]
-    assert [j["state"] for j in router.jobs()] == ["pr", "pr"]
-    assert said == [("notify", "Claude: draft PR ready (mia)"), ("say", "Draft PR ready in mia: T")]
-    assert status(rtrig)["jobs"][0]["line"] == "mia#1 → draft PR ready"
+    monkeypatch.setattr(rtrig, "run_turn", lambda args, lock_timeout=None: said.append(("say", args[-1], lock_timeout)) or (None, None))
+    rtrig.announce({"state": "pr", "repo": "mia", "title": "T", "url": "u", "note": ""})
+    assert said == [("notify", "Claude: draft PR ready (mia)"), ("say", "Draft PR ready in mia: T", 120)]
