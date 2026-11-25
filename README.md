@@ -297,7 +297,7 @@ cd cliphist-android
 ### Documentation
 - **✅ Cleaned Up Duplicates**: Removed duplicate API.md and build scripts
 - **✅ Single Source of Truth**: Comprehensive docs in appropriate locations
-- **✅ Improvements Guide**: New IMPROVEMENTS.md with refactoring recommendations
+- **✅ Improvements Guide**: New docs/archive/IMPROVEMENTS.md with refactoring recommendations
 - **✅ Updated Workflows**: CI/CD documentation reflects new unified pipeline
 
 ### Security & Performance
@@ -309,12 +309,18 @@ cd cliphist-android
 
 ## 📚 Documentation
 
-- **[CI/CD Guide](CI-CD.md)**: Complete pipeline documentation
-- **[Deployment Guide](DEPLOYMENT.md)**: Production deployment instructions
+- **[CI/CD Guide](docs/CI-CD.md)**: Complete pipeline documentation
+- **[Deployment Guide](docs/DEPLOYMENT.md)**: Production deployment instructions
 - **[API Documentation](docs/API.md)**: Technical API reference
-- **[Improvements Guide](IMPROVEMENTS.md)**: Refactoring recommendations and best practices
-- **[Fixes Applied](FIXES_APPLIED.md)**: Details of wildcard import fixes and quality checks
-- **[Quick Reference](QUICK_REFERENCE.md)**: Quick reference for common commands
+- **[Testing Instructions](docs/TESTING_INSTRUCTIONS.md)**: Running the unit and instrumented tests
+- **[Toolbelt](docs/toolbelt/README.md)**: The developer toolbelt feature
+- **[Archive](docs/archive/)**: Older implementation summaries, PR reviews and fix logs
+- **[Quick Reference](docs/QUICK_REFERENCE.md)**: Quick reference for common commands
+
+## 🔗 Related repositories
+
+- **[android-assistant](https://github.com/sparesparrow/android-assistant)**: phone control, AI-app agents, Tasker tooling and the voice pipeline for Claude Code on Android. It used to live here as `assistant/` and moved to its own repo with its history. It uses this app for clipboard history through the MCP server in `mcp-server/`.
+- **[mcp-prompts](https://github.com/sparesparrow/mcp-prompts)**: the prompt library, with the `android-automation` and `tasker-automation` profiles.
 
 ## 📄 License
 

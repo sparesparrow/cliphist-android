@@ -358,7 +358,7 @@ EXAMPLES:
   ./build-dev.sh ci             # Run full CI pipeline
   USE_DOCKER=true ./build-dev.sh docker-build
 
-For more information, see README.md or CI-CD.md
+For more information, see README.md or docs/CI-CD.md
 EOF
 }
 
