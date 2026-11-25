@@ -27,3 +27,6 @@ window_dump*.xml
 memory.json
 test-results/
 *.bak
+
+# android-assistant moved to its own repo; this is a local compatibility symlink
+/assistant

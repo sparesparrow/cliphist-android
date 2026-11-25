@@ -38,15 +38,15 @@ The ToolBelt is a customizable widget that provides quick access to common clipb
    - Complete test coverage
 
 ### Documentation
-1. **`TOOLBELT_README.md`** (this file)
+1. **`README.md`** (this file)
    - Quick reference
 
-2. **`TOOLBELT_IMPLEMENTATION_SUMMARY.md`**
+2. **`IMPLEMENTATION_SUMMARY.md`**
    - Delivery summary
    - Feature checklist
    - Code statistics
 
-3. **`TOOLBELT_FEATURE.md`**
+3. **`FEATURE.md`**
    - Complete architecture overview
    - Detailed integration guide
    - Usage examples
@@ -54,7 +54,7 @@ The ToolBelt is a customizable widget that provides quick access to common clipb
    - Testing guide
    - Future enhancements
 
-4. **`TOOLBELT_INTEGRATION_EXAMPLE.md`**
+4. **`INTEGRATION_EXAMPLE.md`**
    - Copy-paste ready code
    - Complete MainActivity example
    - Event handling patterns
@@ -98,7 +98,7 @@ toolBeltWidget.setOnBubbleClickListener { bubble ->
 }
 ```
 
-For complete code, see **TOOLBELT_INTEGRATION_EXAMPLE.md**
+For complete code, see **INTEGRATION_EXAMPLE.md**
 
 ## 📊 Features Implemented
 
@@ -150,10 +150,10 @@ Presentation Layer
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| TOOLBELT_README.md | Quick reference | Everyone |
-| TOOLBELT_IMPLEMENTATION_SUMMARY.md | Delivery summary | Project managers |
-| TOOLBELT_FEATURE.md | Complete guide | Developers |
-| TOOLBELT_INTEGRATION_EXAMPLE.md | Copy-paste code | Developers integrating |
+| README.md | Quick reference | Everyone |
+| IMPLEMENTATION_SUMMARY.md | Delivery summary | Project managers |
+| FEATURE.md | Complete guide | Developers |
+| INTEGRATION_EXAMPLE.md | Copy-paste code | Developers integrating |
 
 ## 🔧 Usage Examples
 
@@ -201,7 +201,7 @@ val visibilityToggles = toolBeltViewModel.getBubblesByType(
 )
 ```
 
-For more examples, see **TOOLBELT_FEATURE.md** or **TOOLBELT_INTEGRATION_EXAMPLE.md**
+For more examples, see **FEATURE.md** or **INTEGRATION_EXAMPLE.md**
 
 ## 🧪 Testing
 
@@ -333,8 +333,8 @@ A: Observe currentOperationMode LiveData or set OnOperationModeChangeListener.
 ## 📞 Support
 
 For questions or issues:
-1. Check **TOOLBELT_FEATURE.md** for detailed documentation
-2. Review **TOOLBELT_INTEGRATION_EXAMPLE.md** for code examples
+1. Check **FEATURE.md** for detailed documentation
+2. Review **INTEGRATION_EXAMPLE.md** for code examples
 3. Check unit tests in **ToolBeltViewModelTest.kt**
 4. Read inline KDoc comments in source files
 
@@ -354,11 +354,11 @@ Same as parent project (cliphist-android)
 
 ## Quick Links
 
-- **Complete Guide**: [TOOLBELT_FEATURE.md](TOOLBELT_FEATURE.md)
-- **Integration Example**: [TOOLBELT_INTEGRATION_EXAMPLE.md](TOOLBELT_INTEGRATION_EXAMPLE.md)
-- **Implementation Summary**: [TOOLBELT_IMPLEMENTATION_SUMMARY.md](TOOLBELT_IMPLEMENTATION_SUMMARY.md)
+- **Complete Guide**: [FEATURE.md](TOOLBELT_FEATURE.md)
+- **Integration Example**: [INTEGRATION_EXAMPLE.md](TOOLBELT_INTEGRATION_EXAMPLE.md)
+- **Implementation Summary**: [IMPLEMENTATION_SUMMARY.md](TOOLBELT_IMPLEMENTATION_SUMMARY.md)
 - **Unit Tests**: `app/src/test/java/.../ToolBeltViewModelTest.kt`
 
 ---
 
-**Ready to integrate? Start with TOOLBELT_INTEGRATION_EXAMPLE.md!**
+**Ready to integrate? Start with INTEGRATION_EXAMPLE.md!**
