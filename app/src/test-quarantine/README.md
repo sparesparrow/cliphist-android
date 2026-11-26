@@ -27,3 +27,9 @@ To bring one back:
 | `AdvancedBubbleTypesTest.kt` | Tests entries and methods that `AdvancedBubbleType` doesn't have |
 | `CollaborationBubbleTest.kt` | Voice-bubble API on a collaboration bubble; `Collaborator(position)` |
 | `TextSelectionManagerTest.kt` | `pasteText` doesn't exist |
+
+## Instrumented tests (`app/src/androidTest-quarantine/`)
+
+| File | Why it does not compile |
+|---|---|
+| `integration/ClipboardIntegrationTest.kt` | Old repository, database and view-model APIs: `ClipboardDatabase.create` arguments, `getItemsByContentType`, `toggleFavoriteStatus(id, Boolean)`, `contentType` as a `String` |
