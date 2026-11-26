@@ -1,5 +1,6 @@
 package com.clipboardhistory.presentation.services
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -18,5 +19,12 @@ class LocalApiManifestTest {
             "AndroidManifest.xml must request android.permission.INTERNET for LocalApiService",
             Regex("""<uses-permission\s+android:name="android\.permission\.INTERNET"\s*/>""").containsMatchIn(manifest),
         )
+    }
+
+    @Test
+    fun localApiListensOnIpv4Loopback() {
+        // Clients (the MCP server, curl, agents) all use http://127.0.0.1:8765.
+        assertEquals("127.0.0.1", LocalApiService.BIND_ADDRESS.hostAddress)
+        assertTrue(LocalApiService.BIND_ADDRESS is java.net.Inet4Address)
     }
 }

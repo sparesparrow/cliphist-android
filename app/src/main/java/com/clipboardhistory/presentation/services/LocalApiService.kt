@@ -67,6 +67,12 @@ class LocalApiService : Service() {
 
     companion object {
         const val PORT = 8765
+
+        /**
+         * IPv4 loopback, exactly. InetAddress.getLoopbackAddress() is ::1 on Android, and a socket
+         * bound there refuses the clients' http://127.0.0.1:8765.
+         */
+        val BIND_ADDRESS: InetAddress = InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
         private const val TAG = "LocalApiService"
         private const val BACKLOG = 50
         private const val NOTIFICATION_ID = 3001
@@ -106,7 +112,7 @@ class LocalApiService : Service() {
 
     private suspend fun runServer() {
         try {
-            serverSocket = ServerSocket(PORT, BACKLOG, InetAddress.getLoopbackAddress())
+            serverSocket = ServerSocket(PORT, BACKLOG, BIND_ADDRESS)
             while (!serviceJob.isCancelled) {
                 val client = serverSocket!!.accept()
                 serviceScope.launch { handleClient(client) }
