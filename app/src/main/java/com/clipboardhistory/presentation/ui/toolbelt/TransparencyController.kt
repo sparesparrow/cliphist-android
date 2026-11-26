@@ -15,7 +15,8 @@ object TransparencyController {
 
     private val bubbleCallbacks = mutableListOf<(Float) -> Unit>()
 
-    fun setGlobalOpacity(context: Context, opacity: Float) {
+    fun setGlobalOpacity(context: Context, value: Float) {
+        val opacity = value.coerceIn(0f, 1f)
         // Save to preferences
         getPrefs(context).edit()
             .putFloat(KEY_OPACITY, opacity)

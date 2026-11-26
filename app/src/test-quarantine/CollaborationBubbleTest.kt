@@ -19,7 +19,7 @@ class CollaborationBubbleTest {
 
         assertTrue(bubble.isHost)
         assertEquals(ConnectionStatus.CONNECTED, bubble.connectionStatus)
-        assertEquals(sampleContent, bubble.content.text)
+        assertEquals(sampleContent, bubble.sharedContent.text)
         assertTrue(bubble.collaborators.isEmpty())
         assertTrue(bubble.pendingChanges.isEmpty())
         assertTrue(bubble.changeHistory.isEmpty())
@@ -33,7 +33,7 @@ class CollaborationBubbleTest {
         assertFalse(bubble.isHost)
         assertEquals(ConnectionStatus.CONNECTING, bubble.connectionStatus)
         assertEquals(sessionId, bubble.sessionId)
-        assertEquals("", bubble.content.text)
+        assertEquals("", bubble.sharedContent.text)
     }
 
     @Test
@@ -90,9 +90,9 @@ class CollaborationBubbleTest {
 
         val updated = bubble.applyContentChange(change)
 
-        assertEquals("Initial modified content", updated.content.text)
-        assertEquals(2, updated.content.version)
-        assertEquals("user1", updated.content.lastModifiedBy)
+        assertEquals("Initial modified content", updated.sharedContent.text)
+        assertEquals(2, updated.sharedContent.version)
+        assertEquals("user1", updated.sharedContent.lastModifiedBy)
         assertEquals(1, updated.changeHistory.size)
     }
 

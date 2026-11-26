@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.clipboardhistory.domain.model.BubbleType
 
 /**
  * Advanced bubble types with specialized functionalities and use cases.
@@ -343,6 +342,19 @@ enum class AdvancedBubbleType(
 }
 
 /**
+ * The base [BubbleType] whose keyboard policy matches this advanced type. Orchestration
+ * (visibility, keyboard handling, z-order) works on [BubbleSpec.type]; the advanced type keeps
+ * its own size and metadata.
+ */
+val AdvancedBubbleType.baseType: BubbleType
+    get() = when (keyboardPolicy) {
+        KeyboardPolicy.SHOW_WHEN_KEYBOARD_VISIBLE -> BubbleType.QUICK_ACTION
+        KeyboardPolicy.MINIMIZE_WHEN_KEYBOARD_VISIBLE -> BubbleType.TOOLBELT
+        KeyboardPolicy.REPOSITION_WHEN_KEYBOARD_VISIBLE -> BubbleType.PINNED_ITEM
+        else -> BubbleType.SYSTEM_NOTIFICATION
+    }
+
+/**
  * Categories for organizing bubble types.
  */
 enum class BubbleCategory {
@@ -381,9 +393,10 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
      */
     data class SearchBubble(
         override val id: String = generateId(),
-        override val type: BubbleType = BubbleType.CIRCLE,
+        val advancedType: AdvancedBubbleType = AdvancedBubbleType.SEARCH_BUBBLE,
+        override val type: BubbleType = advancedType.baseType,
         override val position: Offset = Offset.Zero,
-        override val size: Dp = type.defaultSize,
+        override val size: Dp = advancedType.defaultSize,
         override val isVisible: Boolean = true,
         override val isMinimized: Boolean = false,
         override val lastInteractionTime: Long = System.currentTimeMillis(),
@@ -413,9 +426,10 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
      */
     data class TemplateBubble(
         override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.TEMPLATE_BUBBLE,
+        val advancedType: AdvancedBubbleType = AdvancedBubbleType.TEMPLATE_BUBBLE,
+        override val type: BubbleType = advancedType.baseType,
         override val position: Offset = Offset.Zero,
-        override val size: Dp = type.defaultSize,
+        override val size: Dp = advancedType.defaultSize,
         override val isVisible: Boolean = true,
         override val isMinimized: Boolean = false,
         override val lastInteractionTime: Long = System.currentTimeMillis(),
@@ -445,9 +459,10 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
      */
     data class RegexAccumulator(
         override val id: String = generateId(),
-        override val type: BubbleType = AdvancedBubbleType.REGEX_ACCUMULATOR,
+        val advancedType: AdvancedBubbleType = AdvancedBubbleType.REGEX_ACCUMULATOR,
+        override val type: BubbleType = advancedType.baseType,
         override val position: Offset = Offset.Zero,
-        override val size: Dp = type.defaultSize,
+        override val size: Dp = advancedType.defaultSize,
         override val isVisible: Boolean = true,
         override val isMinimized: Boolean = false,
         override val lastInteractionTime: Long = System.currentTimeMillis(),
@@ -548,7 +563,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
          * Checks if the bubble should visually indicate new content.
          */
         fun hasNewContent(since: Long): Boolean {
-            return accumulatedItems.any { it.matchedAt > since }
+            return accumulatedItems.any { it.matchedAt >= since }
         }
     }
 
@@ -575,7 +590,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                     )
                 }
                 AdvancedBubbleType.TEMPLATE_BUBBLE -> {
-                    val templateData = content as? List<*> ?: emptyList()
+                    val templateData = content as? List<*> ?: emptyList<Any?>()
                     @Suppress("UNCHECKED_CAST")
                     TemplateBubble(
                         id = id,
@@ -620,7 +635,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
                         id = id,
                         position = position,
                         isHost = isHost,
-                        content = CollaborativeContent(text = initialText)
+                        sharedContent = CollaborativeContent(text = initialText)
                     )
                 }
                 else -> {

@@ -11,14 +11,15 @@ import com.clipboardhistory.utils.ContentAnalyzer
  */
 data class CollaborationBubble(
     override val id: String,
-    override val type: BubbleType = AdvancedBubbleType.COLLABORATION,
+    val advancedType: AdvancedBubbleType = AdvancedBubbleType.COLLABORATION,
+    override val type: BubbleType = advancedType.baseType,
     override val position: Offset = Offset.Zero,
-    override val size: Dp = type.defaultSize,
+    override val size: Dp = advancedType.defaultSize,
     override val isVisible: Boolean = true,
     override val isMinimized: Boolean = false,
     override val lastInteractionTime: Long = System.currentTimeMillis(),
     val sessionId: String = generateSessionId(),
-    val content: CollaborativeContent = CollaborativeContent(),
+    val sharedContent: CollaborativeContent = CollaborativeContent(),
     val collaborators: List<Collaborator> = emptyList(),
     val isHost: Boolean = true,
     val connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
@@ -76,9 +77,9 @@ data class CollaborationBubble(
      * Applies a content change from a collaborator.
      */
     fun applyContentChange(change: ContentChange): CollaborationBubble {
-        val updatedContent = content.applyChange(change)
+        val updatedContent = sharedContent.applyChange(change)
         return copy(
-            content = updatedContent,
+            sharedContent = updatedContent,
             changeHistory = changeHistory + change,
             lastInteractionTime = System.currentTimeMillis()
         )
@@ -152,9 +153,10 @@ data class CollaborationBubble(
          */
         fun createSession(initialContent: String = ""): CollaborationBubble {
             return CollaborationBubble(
+                id = "collab_${generateSessionId()}",
                 isHost = true,
                 connectionStatus = ConnectionStatus.CONNECTED,
-                content = CollaborativeContent(text = initialContent)
+                sharedContent = CollaborativeContent(text = initialContent)
             )
         }
 
@@ -163,6 +165,7 @@ data class CollaborationBubble(
          */
         fun joinSession(sessionId: String): CollaborationBubble {
             return CollaborationBubble(
+                id = "collab_${generateSessionId()}",
                 sessionId = sessionId,
                 isHost = false,
                 connectionStatus = ConnectionStatus.CONNECTING

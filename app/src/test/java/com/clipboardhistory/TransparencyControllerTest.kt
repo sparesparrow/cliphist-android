@@ -53,7 +53,7 @@ class TransparencyControllerTest {
         assertEquals(testOpacity, TransparencyController.getGlobalOpacity(context))
 
         // Simulate app restart by creating new context
-        val newContext = ApplicationProvider.getApplicationContext()
+        val newContext = ApplicationProvider.getApplicationContext<android.content.Context>()
 
         // Verify opacity is loaded from preferences
         assertEquals(testOpacity, TransparencyController.getGlobalOpacity(newContext))

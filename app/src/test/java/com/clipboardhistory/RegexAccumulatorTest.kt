@@ -1,5 +1,6 @@
 package com.clipboardhistory
 
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import com.clipboardhistory.presentation.ui.bubble.*
 import org.junit.Assert.*
@@ -10,12 +11,12 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RegexAccumulatorTest {
 
-    private val samplePattern = AdvancedBubbleSpec.RegexPattern(
+    private val samplePattern = RegexPattern(
         id = "test_pattern",
         name = "Test Pattern",
         pattern = "\\b\\d{3}-\\d{3}-\\d{4}\\b", // Phone number pattern
         description = "US phone numbers",
-        delimiter = AdvancedBubbleSpec.RegexPattern.Delimiter.NEWLINE
+        delimiter = RegexPattern.Delimiter.NEWLINE
     )
 
     @Test
@@ -96,7 +97,7 @@ class RegexAccumulatorTest {
 
     @Test
     fun `RegexAccumulator should export items with correct delimiter`() {
-        val newlinePattern = samplePattern.copy(delimiter = AdvancedBubbleSpec.RegexPattern.Delimiter.NEWLINE)
+        val newlinePattern = samplePattern.copy(delimiter = RegexPattern.Delimiter.NEWLINE)
         val accumulator = AdvancedBubbleSpec.RegexAccumulator(pattern = newlinePattern)
             .tryAccumulate("555-111-1111 and 555-222-2222")
 
@@ -106,7 +107,7 @@ class RegexAccumulatorTest {
 
     @Test
     fun `RegexAccumulator should export with space delimiter`() {
-        val spacePattern = samplePattern.copy(delimiter = AdvancedBubbleSpec.RegexPattern.Delimiter.SPACE)
+        val spacePattern = samplePattern.copy(delimiter = RegexPattern.Delimiter.SPACE)
         val accumulator = AdvancedBubbleSpec.RegexAccumulator(pattern = spacePattern)
             .tryAccumulate("555-111-1111 and 555-222-2222")
 
@@ -135,19 +136,19 @@ class RegexAccumulatorTest {
 
         // Few items
         val with5Items = accumulator.copy(accumulatedItems = List(5) {
-            AdvancedBubbleSpec.AccumulatedItem("item$it")
+            AccumulatedItem("item$it")
         })
         assertEquals(baseSize, with5Items.getDynamicSize(baseSize))
 
         // Medium count
         val with15Items = accumulator.copy(accumulatedItems = List(15) {
-            AdvancedBubbleSpec.AccumulatedItem("item$it")
+            AccumulatedItem("item$it")
         })
         assertEquals((baseSize.value * 1.4f).dp, with15Items.getDynamicSize(baseSize))
 
         // Large count
         val with100Items = accumulator.copy(accumulatedItems = List(100) {
-            AdvancedBubbleSpec.AccumulatedItem("item$it")
+            AccumulatedItem("item$it")
         })
         assertEquals((baseSize.value * 1.8f).dp, with100Items.getDynamicSize(baseSize))
     }
@@ -183,7 +184,7 @@ class RegexAccumulatorTest {
 
     @Test
     fun `RegexAccumulator should create with factory method`() {
-        val pattern = AdvancedBubbleSpec.RegexPattern(
+        val pattern = RegexPattern(
             id = "url_pattern",
             name = "URL Collector",
             pattern = "https?://\\S+",
@@ -204,10 +205,10 @@ class RegexAccumulatorTest {
 
     @Test
     fun `RegexPattern delimiter should provide correct separators`() {
-        assertEquals("\n", AdvancedBubbleSpec.RegexPattern.Delimiter.NEWLINE.getSeparator())
-        assertEquals(" ", AdvancedBubbleSpec.RegexPattern.Delimiter.SPACE.getSeparator())
-        assertEquals(", ", AdvancedBubbleSpec.RegexPattern.Delimiter.COMMA.getSeparator())
-        assertEquals("; ", AdvancedBubbleSpec.RegexPattern.Delimiter.SEMICOLON.getSeparator())
-        assertEquals("", AdvancedBubbleSpec.RegexPattern.Delimiter.CUSTOM.getSeparator())
+        assertEquals("\n", RegexPattern.Delimiter.NEWLINE.getSeparator())
+        assertEquals(" ", RegexPattern.Delimiter.SPACE.getSeparator())
+        assertEquals(", ", RegexPattern.Delimiter.COMMA.getSeparator())
+        assertEquals("; ", RegexPattern.Delimiter.SEMICOLON.getSeparator())
+        assertEquals("", RegexPattern.Delimiter.CUSTOM.getSeparator())
     }
 }
