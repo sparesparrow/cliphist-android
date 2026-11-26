@@ -306,6 +306,22 @@ jobs:
           echo "version-code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "📱 Version: $VERSION_NAME ($VERSION_CODE)"
 
+      - name: 🔑 Use the project's debug signing key
+        # Without it every runner makes its own ~/.android/debug.keystore, so each debug APK has a
+        # different signature and cannot update the previous one on a phone (uninstall, losing the
+        # app's data). The key is a repo secret, not a committed file: only CI builds can update it.
+        if: matrix.build_type == 'debug'
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p ~/.android
+            echo "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+            echo "Signing debug APKs with the project debug key"
+          else
+            echo "::warning::DEBUG_KEYSTORE_BASE64 is not set; this debug APK cannot update earlier ones"
+          fi
+
       - name: 🔧 Create Keystore for Release
         if: matrix.build_type == 'release'
         run: |
