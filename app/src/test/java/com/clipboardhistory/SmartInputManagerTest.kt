@@ -79,7 +79,8 @@ class SmartInputManagerTest {
 
     @Test
     fun `isDirectInputAvailable should return true when accessibility service exists`() {
-        // Given: Accessibility service is available
+        // Given: Accessibility service is available with an active window
+        `when`(mockAccessibilityService.rootInActiveWindow).thenReturn(mockRootNode)
         AccessibilityMonitorService.setInstanceForTesting(mockAccessibilityService)
 
         // When: Checking direct input availability
@@ -112,7 +113,8 @@ class SmartInputManagerTest {
         // Then: Should return correct information
         assertTrue(contextInfo.hasAccessibilityService)
         assertTrue(contextInfo.hasFocusedInput)
-        assertTrue(contextInfo.keyboardVisible)
+        // A service context is not an Activity, so keyboard visibility is reported as false
+        assertFalse(contextInfo.keyboardVisible)
         assertTrue(contextInfo.canSmartPaste)
     }
 
