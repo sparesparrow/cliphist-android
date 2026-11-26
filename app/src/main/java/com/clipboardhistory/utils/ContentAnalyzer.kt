@@ -72,11 +72,11 @@ class ContentAnalyzer(private val context: Context) {
      */
     private fun detectContentType(content: String): ContentType {
         // Check for structured data first
-        if (jsonPattern.matcher(content.trim()).matches()) {
+        if (jsonPattern.matches(content.trim())) {
             return ContentType.JSON
         }
 
-        if (xmlPattern.matcher(content.trim()).matches()) {
+        if (xmlPattern.matches(content.trim())) {
             return ContentType.XML
         }
 
@@ -427,6 +427,7 @@ class ContentAnalyzer(private val context: Context) {
                     priority = ActionPriority.MEDIUM
                 ))
             }
+            else -> Unit
         }
 
         // Add universal actions
@@ -535,7 +536,7 @@ data class ExtractedEntity(
     val confidence: Float = 1.0f,
     val startPosition: Int = -1,
     val endPosition: Int = -1,
-    val value: String? = null // Additional data for complex entities
+    val extra: String? = null // Additional data for complex entities
 )
 
 /**

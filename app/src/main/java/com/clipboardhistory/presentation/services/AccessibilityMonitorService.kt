@@ -17,6 +17,9 @@ class AccessibilityMonitorService : AccessibilityService() {
         // No-op
     }
 
+    /** The bubble orchestrator of the running UI, set by BubbleViewModel; null when none is shown. */
+    var bubbleOrchestrator: com.clipboardhistory.presentation.ui.bubble.BubbleOrchestrator? = null
+
     companion object {
         private var instance: AccessibilityMonitorService? = null
 

@@ -246,7 +246,7 @@ sealed class BubbleSpec {
                     TextPasteBubble(id = id, position = position, textContent = text)
                 }
                 BubbleType.TOOLBELT -> {
-                    val tools = content as? List<*> ?: emptyList()
+                    val tools = content as? List<*> ?: emptyList<Any?>()
                     @Suppress("UNCHECKED_CAST")
                     ToolbeltBubble(id = id, position = position, tools = tools as List<ToolbeltTool>)
                 }
@@ -263,11 +263,13 @@ sealed class BubbleSpec {
                     val notificationData = content as? Map<String, Any> ?: emptyMap()
                     SystemBubble(
                         id = id,
+                        type = BubbleType.SYSTEM_NOTIFICATION,
                         position = position,
                         notificationId = notificationData["notificationId"] as? Int ?: 0,
                         title = notificationData["title"] as? String ?: "",
-                        content = notificationData["content"] as? String ?: "",
-                        iconResId = notificationData["iconResId"] as? Int ?: 0
+                        textContent = notificationData["content"] as? String ?: "",
+                        iconResId = notificationData["iconResId"] as? Int ?: 0,
+                        customContent = {},
                     )
                 }
                 BubbleType.QUICK_ACTION -> {

@@ -12,9 +12,10 @@ import com.clipboardhistory.utils.VoiceRecognitionManager
  */
 data class VoiceBubble(
     override val id: String,
-    override val type: BubbleType = AdvancedBubbleType.VOICE_BUBBLE,
+    val advancedType: AdvancedBubbleType = AdvancedBubbleType.VOICE_BUBBLE,
+    override val type: BubbleType = advancedType.baseType,
     override val position: Offset = Offset.Zero,
-    override val size: Dp = type.defaultSize,
+    override val size: Dp = advancedType.defaultSize,
     override val isVisible: Boolean = true,
     override val isMinimized: Boolean = false,
     override val lastInteractionTime: Long = System.currentTimeMillis(),

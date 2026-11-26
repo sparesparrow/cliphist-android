@@ -46,7 +46,7 @@ class BubbleViewModel(
     private fun setupTextSelectionIntegration() {
         try {
             val accessibilityService = com.clipboardhistory.presentation.services.AccessibilityMonitorService.getInstance()
-            accessibilityService?.setBubbleOrchestrator(_orchestrator)
+            accessibilityService?.bubbleOrchestrator = _orchestrator
         } catch (e: Exception) {
             // Accessibility service not available or not properly initialized
             // This is expected and not an error
@@ -101,10 +101,12 @@ class BubbleViewModel(
         iconResId: Int
     ) {
         val bubble = BubbleSpec.SystemBubble(
+            type = BubbleType.SYSTEM_NOTIFICATION,
             notificationId = notificationId,
             title = title,
-            content = content,
-            iconResId = iconResId
+            textContent = content,
+            iconResId = iconResId,
+            customContent = {},
         )
         _orchestrator.addBubble(bubble)
     }
@@ -295,7 +297,7 @@ class BubbleViewModel(
      * Creates a new regex accumulator bubble with the given pattern.
      */
     fun createRegexAccumulator(
-        pattern: AdvancedBubbleSpec.RegexPattern,
+        pattern: RegexPattern,
         position: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero
     ): AdvancedBubbleSpec.RegexAccumulator {
         return AdvancedBubbleSpec.RegexAccumulator(
@@ -330,7 +332,7 @@ class BubbleViewModel(
     /**
      * Adds a regex accumulator bubble to the orchestrator.
      */
-    fun addRegexAccumulator(pattern: AdvancedBubbleSpec.RegexPattern) {
+    fun addRegexAccumulator(pattern: RegexPattern) {
         val bubble = createRegexAccumulator(pattern)
         _orchestrator.addBubble(bubble)
     }

@@ -13,9 +13,10 @@ import com.clipboardhistory.utils.SuggestedAction
  */
 data class AIAssistantBubble(
     override val id: String,
-    override val type: BubbleType = AdvancedBubbleType.SEARCH_BUBBLE,
+    val advancedType: AdvancedBubbleType = AdvancedBubbleType.SEARCH_BUBBLE,
+    override val type: BubbleType = advancedType.baseType,
     override val position: Offset = Offset.Zero,
-    override val size: Dp = type.defaultSize,
+    override val size: Dp = advancedType.defaultSize,
     override val isVisible: Boolean = true,
     override val isMinimized: Boolean = false,
     override val lastInteractionTime: Long = System.currentTimeMillis(),
