@@ -1,5 +1,6 @@
 package com.clipboardhistory
 
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import com.clipboardhistory.presentation.ui.bubble.*
 import org.junit.Assert.*
