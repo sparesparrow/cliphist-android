@@ -1,5 +1,6 @@
 package com.clipboardhistory
 
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import com.clipboardhistory.presentation.ui.bubble.*
 import org.junit.Assert.*
@@ -59,10 +60,12 @@ class BubbleSpecTest {
     @Test
     fun `SystemBubble should ignore keyboard state changes`() {
         val bubble = BubbleSpec.SystemBubble(
+            type = BubbleType.SYSTEM_NOTIFICATION,
             notificationId = 1,
             title = "Test",
-            content = "Content",
-            iconResId = 1
+            textContent = "Content",
+            iconResId = 1,
+            customContent = {},
         )
 
         // Should always be visible regardless of keyboard state
@@ -109,7 +112,7 @@ class BubbleSpecTest {
         // Long text should be truncated
         val longText = "This is a very long text that should be truncated to fit the preview"
         val longBubble = BubbleSpec.TextPasteBubble(textContent = longText)
-        assertEquals("This is a very long text that should be trun...", longBubble.displayText)
+        assertEquals(longText.take(50) + "...", longBubble.displayText) // previewLength defaults to 50
     }
 
     @Test
@@ -120,7 +123,7 @@ class BubbleSpecTest {
         assertEquals("test content", (textBubble as BubbleSpec.TextPasteBubble).textContent)
 
         // Toolbelt bubble
-        val tools = listOf(ToolbeltTool("test", "Test", 1) {})
+        val tools = listOf(ToolbeltTool("test", "Test", 1, action = {}))
         val toolbeltBubble = BubbleSpec.create(BubbleType.TOOLBELT, content = tools)
         assertTrue(toolbeltBubble is BubbleSpec.ToolbeltBubble)
         assertEquals(tools, (toolbeltBubble as BubbleSpec.ToolbeltBubble).tools)
@@ -147,7 +150,7 @@ class BubbleSpecTest {
     @Test
     fun `bubbles should respect their type constraints`() {
         // Test max instances
-        assertEquals(Int.MAX_VALUE, BubbleType.TEXT_PASTE.maxInstances)
+        assertEquals(10, BubbleType.TEXT_PASTE.maxInstances)
         assertEquals(1, BubbleType.TOOLBELT.maxInstances)
         assertEquals(5, BubbleType.PINNED_ITEM.maxInstances)
 

@@ -1,5 +1,9 @@
 package com.clipboardhistory.presentation.ui.bubble
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -49,12 +53,10 @@ fun VoiceBubbleContent(spec: VoiceBubble) {
     var showTranscriptionSuccess by remember { mutableStateOf(false) }
 
     // Managers (would be injected in real implementation)
-    val ttsManager = remember { TTSManager(androidx.compose.ui.platform.LocalContext.current) }
-    val voiceManager = remember {
-        VoiceRecognitionManager(
-            androidx.compose.ui.platform.LocalContext.current,
-            androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-        )
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val ttsManager = remember(context) { TTSManager(context) }
+    val voiceManager = remember(context) {
+        VoiceRecognitionManager(context, context as? android.app.Activity)
     }
 
     // Observe TTS state
@@ -138,6 +140,7 @@ fun VoiceBubbleContent(spec: VoiceBubble) {
                     spec = spec,
                     isSpeaking = isSpeaking,
                     isListening = isListening,
+                    showTranscriptionSuccess = showTranscriptionSuccess,
                     onExpand = { isExpanded = true },
                     onLongPress = {
                         // Long press triggers TTS
@@ -156,13 +159,15 @@ fun VoiceBubbleContent(spec: VoiceBubble) {
 /**
  * Collapsed view showing basic voice bubble state.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CollapsedVoiceBubble(
     spec: VoiceBubble,
     isSpeaking: Boolean,
     isListening: Boolean,
     onExpand: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    showTranscriptionSuccess: Boolean = false,
 ) {
     val content = spec.getAllContent()
     val hasContent = content.isNotEmpty()
@@ -185,7 +190,7 @@ private fun CollapsedVoiceBubble(
     Surface(
         modifier = Modifier
             .size(if (hasContent) 120.dp else 80.dp)
-            .clickable(onClick = onExpand, onLongClick = onLongPress),
+            .combinedClickable(onClick = onExpand, onLongClick = onLongPress),
         shape = CircleShape,
         color = animatedColor,
         shadowElevation = if (isSpeaking || isListening) 12.dp else 4.dp

@@ -186,7 +186,7 @@ private fun SearchFiltersChips(
 
         // Filter chips in rows
         val filters = SearchFilter.values()
-        val rows = filters.chunked(3) // 3 filters per row
+        val rows = filters.toList().chunked(3) // 3 filters per row
 
         rows.forEach { rowFilters ->
             Row(
@@ -231,7 +231,7 @@ private fun SearchResultsSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .weight(1f),
+            .heightIn(max = 320.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (searchQuery.isEmpty()) {

@@ -83,7 +83,7 @@ private fun CollapsedRegexAccumulator(
     hasNewContent: Boolean,
     onExpand: () -> Unit
 ) {
-    val dynamicSize = spec.getDynamicSize(spec.type.defaultSize)
+    val dynamicSize = spec.getDynamicSize(spec.advancedType.defaultSize)
     val animatedSize by animateDpAsState(
         targetValue = dynamicSize,
         animationSpec = spring(
@@ -331,15 +331,15 @@ private fun CollectionStatusIndicator(spec: RegexAccumulator) {
  * Scrollable list of accumulated items.
  */
 @Composable
-private fun AccumulatedItemsList(items: List<AdvancedBubbleSpec.AccumulatedItem>) {
+private fun AccumulatedItemsList(accumulated: List<AccumulatedItem>) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .weight(1f),
+            .heightIn(max = 240.dp),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface
     ) {
-        if (items.isEmpty()) {
+        if (accumulated.isEmpty()) {
             // Empty state
             Box(
                 modifier = Modifier
@@ -377,7 +377,7 @@ private fun AccumulatedItemsList(items: List<AdvancedBubbleSpec.AccumulatedItem>
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(items.reversed()) { item -> // Show newest first
+                items(accumulated.reversed()) { item -> // Show newest first
                     AccumulatedItemRow(item)
                 }
             }
@@ -389,7 +389,7 @@ private fun AccumulatedItemsList(items: List<AdvancedBubbleSpec.AccumulatedItem>
  * Individual accumulated item row.
  */
 @Composable
-private fun AccumulatedItemRow(item: AdvancedBubbleSpec.AccumulatedItem) {
+private fun AccumulatedItemRow(item: AccumulatedItem) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(6.dp),

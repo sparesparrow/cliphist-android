@@ -85,7 +85,7 @@ class TTSManager(
             setPitch(pitch)
 
             // Set audio attributes for better accessibility
-            val audioManager = context.getSystemService(Context.AUDIO_MANAGER) as AudioManager
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
             this@TTSManager.volume = currentVolume.toFloat() / maxVolume.toFloat()

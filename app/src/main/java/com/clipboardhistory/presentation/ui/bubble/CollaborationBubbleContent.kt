@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -368,7 +369,7 @@ private fun TabButton(tab: CollabTab, isSelected: Boolean, onClick: () -> Unit) 
  */
 @Composable
 private fun EditorTab(spec: CollaborationBubble) {
-    var textContent by remember(spec.content.text) { mutableStateOf(spec.content.text) }
+    var textContent by remember(spec.sharedContent.text) { mutableStateOf(spec.sharedContent.text) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -413,9 +414,9 @@ private fun EditorTab(spec: CollaborationBubble) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
         ) {
-            StatItem("Words", spec.content.getWordCount().toString())
-            StatItem("Chars", spec.content.getCharacterCount().toString())
-            StatItem("Version", spec.content.version.toString())
+            StatItem("Words", spec.sharedContent.getWordCount().toString())
+            StatItem("Chars", spec.sharedContent.getCharacterCount().toString())
+            StatItem("Version", spec.sharedContent.version.toString())
         }
     }
 }

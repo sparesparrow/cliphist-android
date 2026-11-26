@@ -202,8 +202,8 @@ jobs:
           java -version
 
       - name: 🏃‍♂️ Run Unit Tests
+        # No continue-on-error: a failing or non-compiling test must fail the job.
         run: ./gradlew testDebugUnitTest --stacktrace --continue
-        continue-on-error: true
 
       - name: 📊 Generate Test Coverage Report
         run: ./gradlew jacocoTestReport --continue || true
