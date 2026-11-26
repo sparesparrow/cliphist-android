@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.clipboardhistory.R
 import com.clipboardhistory.domain.repository.ClipboardRepository
@@ -66,6 +67,7 @@ class LocalApiService : Service() {
 
     companion object {
         const val PORT = 8765
+        private const val TAG = "LocalApiService"
         private const val BACKLOG = 50
         private const val NOTIFICATION_ID = 3001
         private const val CHANNEL_ID = "local_api_channel"
@@ -110,9 +112,15 @@ class LocalApiService : Service() {
                 serviceScope.launch { handleClient(client) }
             }
         } catch (e: SocketException) {
-            // Server was shut down cleanly
+            // close() in onDestroy ends accept() with a SocketException; anything else (a bind
+            // that fails, "Permission denied" without INTERNET) is a real failure, not a shutdown.
+            if (!serviceJob.isCancelled) {
+                Log.e(TAG, "Local API could not listen on 127.0.0.1:$PORT", e)
+                stopSelf()
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Local API stopped", e)
+            stopSelf()
         }
     }
 
