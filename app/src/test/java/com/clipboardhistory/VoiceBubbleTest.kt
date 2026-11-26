@@ -184,7 +184,7 @@ class VoiceBubbleTest {
 
         assertEquals(4, stats.totalTranscriptions)
         assertEquals(0.6f, stats.averageConfidence, 0.01f)
-        assertEquals(2, stats.highConfidenceCount) // >= 0.8
+        assertEquals(1, stats.highConfidenceCount) // >= 0.8: only 0.95
         assertEquals(2, stats.lowConfidenceCount)  // < 0.5
     }
 

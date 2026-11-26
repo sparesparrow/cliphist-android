@@ -39,10 +39,9 @@ class SmartInputManagerTest {
     fun setup() {
         MockitoAnnotations.openMocks(this)
 
-        context = ApplicationProvider.getApplicationContext()
-
-        // Mock the clipboard manager
-        `when`(context.getSystemService(Context.CLIPBOARD_SERVICE)).thenReturn(mockClipboardManager)
+        // A spy, so the clipboard service can be stubbed on a real context
+        context = org.mockito.Mockito.spy(ApplicationProvider.getApplicationContext<Context>())
+        org.mockito.Mockito.doReturn(mockClipboardManager).`when`(context).getSystemService(Context.CLIPBOARD_SERVICE)
 
         smartInputManager = SmartInputManager(context)
     }

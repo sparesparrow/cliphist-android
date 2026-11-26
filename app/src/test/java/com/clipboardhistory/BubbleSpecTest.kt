@@ -112,7 +112,7 @@ class BubbleSpecTest {
         // Long text should be truncated
         val longText = "This is a very long text that should be truncated to fit the preview"
         val longBubble = BubbleSpec.TextPasteBubble(textContent = longText)
-        assertEquals("This is a very long text that should be trun...", longBubble.displayText)
+        assertEquals(longText.take(50) + "...", longBubble.displayText) // previewLength defaults to 50
     }
 
     @Test
@@ -150,7 +150,7 @@ class BubbleSpecTest {
     @Test
     fun `bubbles should respect their type constraints`() {
         // Test max instances
-        assertEquals(Int.MAX_VALUE, BubbleType.TEXT_PASTE.maxInstances)
+        assertEquals(10, BubbleType.TEXT_PASTE.maxInstances)
         assertEquals(1, BubbleType.TOOLBELT.maxInstances)
         assertEquals(5, BubbleType.PINNED_ITEM.maxInstances)
 

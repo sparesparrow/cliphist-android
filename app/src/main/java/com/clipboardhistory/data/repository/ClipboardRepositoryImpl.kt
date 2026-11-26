@@ -67,7 +67,7 @@ class ClipboardRepositoryImpl
         override suspend fun deleteItemsOlderThan(hours: Int) {
             val threshold = System.currentTimeMillis() - (hours * 60 * 60 * 1000)
             // Delegate to DAO cleanup function using timestamp threshold
-            clipboardItemDao.cleanupOldItems(threshold)
+            clipboardItemDao.deleteItemsOlderThan(threshold)
         }
 
         override suspend fun getSettings(): ClipboardSettings {

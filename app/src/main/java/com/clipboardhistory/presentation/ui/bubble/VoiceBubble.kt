@@ -91,7 +91,7 @@ data class VoiceBubble(
      * Get recent transcription entries (last N entries).
      */
     fun getRecentTranscriptions(limit: Int = 5): List<TranscriptionEntry> =
-        transcriptionHistory.takeLast(limit)
+        transcriptionHistory.takeLast(limit).reversed() // newest first
 
     /**
      * Clear transcription history.

@@ -563,7 +563,7 @@ sealed class AdvancedBubbleSpec : BubbleSpec() {
          * Checks if the bubble should visually indicate new content.
          */
         fun hasNewContent(since: Long): Boolean {
-            return accumulatedItems.any { it.matchedAt > since }
+            return accumulatedItems.any { it.matchedAt >= since }
         }
     }
 
