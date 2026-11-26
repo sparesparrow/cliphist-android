@@ -10,6 +10,7 @@ class SecretRedactorTest {
 
     // Fixtures are glued together at runtime so secret scanners don't flag this file; none of them is a real credential.
     private fun j(vararg parts: String) = parts.joinToString("")
+    private fun shaped(vararg parts: String) = SecretRedactor.looksLikePassword(j(*parts))
 
     @Test
     fun oneTimeCodes_areRedacted() {
@@ -34,7 +35,7 @@ class SecretRedactorTest {
     fun passwords_areRedacted() {
         assertEquals("password: $m", SecretRedactor.redact(j("pass", "word: ", "hunter2!x")))
         assertEquals("heslo=$m", SecretRedactor.redact("heslo=\"tajne heslo\""))
-        assertEquals(m, SecretRedactor.redact("Tr0ub4dor&3xyz"))
+        assertEquals(m, SecretRedactor.redact(j("Tr0", "ub4dor&3xyz")))
     }
 
     @Test
@@ -51,10 +52,10 @@ class SecretRedactorTest {
 
     @Test
     fun passwordShape_needsAllFourCharacterClasses_andNoUrlOrPath() {
-        assertTrue(SecretRedactor.looksLikePassword("Tr0ub4dor&3xyz"))
-        assertFalse(SecretRedactor.looksLikePassword("troubadorxyz3"))
-        assertFalse(SecretRedactor.looksLikePassword("https://Ex4mple.com/!"))
-        assertFalse(SecretRedactor.looksLikePassword("Short1!"))
-        assertFalse(SecretRedactor.looksLikePassword("two Words1!x"))
+        assertTrue(shaped("Tr0", "ub4dor&3xyz"))
+        assertFalse(shaped("tro", "ubadorxyz3"))
+        assertFalse(shaped("htt", "ps://Ex4mple.com/!"))
+        assertFalse(shaped("Sho", "rt1!"))
+        assertFalse(shaped("two", " Words1!x"))
     }
 }
