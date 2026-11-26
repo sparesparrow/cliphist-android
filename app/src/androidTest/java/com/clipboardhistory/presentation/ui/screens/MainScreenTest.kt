@@ -1,5 +1,7 @@
 package com.clipboardhistory.presentation.ui.screens
 
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -29,7 +31,7 @@ class MainScreenTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `main screen displays correctly when service is stopped`() {
+    fun mainScreenDisplaysCorrectlyWhenServiceIsStopped() {
         val mockViewModel = mock(MainViewModel::class.java)
         val uiState =
             MainViewModel.MainUiState(
@@ -57,7 +59,7 @@ class MainScreenTest {
     }
 
     @Test
-    fun `main screen displays clipboard items correctly`() {
+    fun mainScreenDisplaysClipboardItemsCorrectly() {
         val mockViewModel = mock(MainViewModel::class.java)
         val testItems =
             listOf(
@@ -105,7 +107,7 @@ class MainScreenTest {
     }
 
     @Test
-    fun `floating action button toggles service state`() {
+    fun floatingActionButtonTogglesServiceState() {
         val mockViewModel = mock(MainViewModel::class.java)
         var startServicesCalled = false
         var stopServicesCalled = false
@@ -138,7 +140,7 @@ class MainScreenTest {
     }
 
     @Test
-    fun `settings button opens settings dialog`() {
+    fun settingsButtonOpensSettingsDialog() {
         val mockViewModel = mock(MainViewModel::class.java)
         val uiState =
             MainViewModel.MainUiState(
@@ -169,7 +171,7 @@ class MainScreenTest {
     }
 
     @Test
-    fun `add button opens add dialog`() {
+    fun addButtonOpensAddDialog() {
         val mockViewModel = mock(MainViewModel::class.java)
         val uiState =
             MainViewModel.MainUiState(

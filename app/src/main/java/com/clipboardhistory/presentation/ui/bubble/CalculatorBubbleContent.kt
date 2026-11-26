@@ -1,5 +1,6 @@
 package com.clipboardhistory.presentation.ui.bubble
 
+import kotlin.math.pow
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -330,7 +331,7 @@ private fun evaluateSimpleExpression(expression: String): Double {
         expr = powerRegex.replace(expr) { match ->
             val base = match.groupValues[1].toDouble()
             val exponent = match.groupValues[2].toDouble()
-            pow(base, exponent).toString()
+            base.pow(exponent).toString()
         }
     }
 

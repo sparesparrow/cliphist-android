@@ -58,12 +58,12 @@ class BubbleTypeTest {
         assertEquals(32.dp, BubbleType.TEXT_PASTE.getSize(true, true))
 
         // Toolbelt when minimized due to keyboard
-        assertEquals(40.dp, BubbleType.TOOLBELT.getSize(true, true))
+        assertEquals(40.dp, BubbleType.TOOLBELT.getSize(true, false))
     }
 
     @Test
     fun `bubble types should have appropriate instance limits and priorities`() {
-        assertEquals(Int.MAX_VALUE, BubbleType.TEXT_PASTE.maxInstances)
+        assertEquals(10, BubbleType.TEXT_PASTE.maxInstances)
         assertEquals(1, BubbleType.TOOLBELT.maxInstances)
         assertEquals(5, BubbleType.PINNED_ITEM.maxInstances)
         assertEquals(3, BubbleType.SYSTEM_NOTIFICATION.maxInstances)

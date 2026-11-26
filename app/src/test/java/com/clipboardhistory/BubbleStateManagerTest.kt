@@ -114,7 +114,7 @@ class BubbleStateManagerTest {
         BubbleStateManager.setOperationMode(context, OperationMode.APPEND)
 
         // Create new instance (simulate app restart)
-        val newContext = ApplicationProvider.getApplicationContext()
+        val newContext = ApplicationProvider.getApplicationContext<android.content.Context>()
 
         // Load from preferences
         BubbleStateManager.loadFromPreferences(newContext)
@@ -147,7 +147,7 @@ class BubbleStateManagerTest {
         BubbleStateManager.setOperationMode(context, OperationMode.PREPEND)
 
         // Simulate context change (app restart)
-        val newContext = ApplicationProvider.getApplicationContext()
+        val newContext = ApplicationProvider.getApplicationContext<android.content.Context>()
 
         // Load states
         BubbleStateManager.loadFromPreferences(newContext)

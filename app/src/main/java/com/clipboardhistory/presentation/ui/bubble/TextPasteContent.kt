@@ -34,7 +34,7 @@ fun TextPasteContent(
     onDismiss: () -> Unit = {}
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    val isInputAvailable by smartInputManager?.isDirectInputAvailable()?.collectAsState() ?: remember { mutableStateOf(false) }
+    val isInputAvailable = remember(smartInputManager) { smartInputManager?.isDirectInputAvailable() ?: false }
 
     val backgroundColor = when {
         isInputAvailable -> MaterialTheme.colorScheme.primaryContainer

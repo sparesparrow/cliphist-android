@@ -1,5 +1,6 @@
 package com.clipboardhistory.utils
 
+import kotlinx.coroutines.flow.map
 import android.app.Activity
 import android.graphics.Rect
 import android.view.ViewTreeObserver
@@ -109,6 +110,9 @@ class KeyboardVisibilityDetector(
     }
 
     companion object {
+        /** Creates a detector for [activity] without attaching it to a lifecycle. */
+        fun create(activity: Activity): KeyboardVisibilityDetector = KeyboardVisibilityDetector(activity)
+
         /**
          * Creates a KeyboardVisibilityDetector attached to an Activity's lifecycle.
          */
