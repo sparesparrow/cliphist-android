@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import com.clipboardhistory.presentation.services.ClipboardService
 import com.clipboardhistory.presentation.services.FloatingBubbleService
+import com.clipboardhistory.presentation.services.LocalApiControl
 import com.clipboardhistory.utils.PermissionUtils
 
 /**
@@ -17,6 +18,7 @@ class BootReceiver : BroadcastReceiver() {
         intent: Intent,
     ) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            LocalApiControl.startIfEnabled(context) // only when the user left the local API on
             if (PermissionUtils.hasAllRequiredPermissions(context)) {
                 val clipboardIntent = Intent(context, ClipboardService::class.java)
                 val bubbleIntent = Intent(context, FloatingBubbleService::class.java)

@@ -99,7 +99,8 @@ class ClipboardService : Service() {
         serviceScope.launch {
             try {
                 val clipData = clipboardManager.primaryClip
-                if (clipData != null && clipData.itemCount > 0) {
+                // Clips the copying app marked sensitive (password managers, our API token) are not stored.
+                if (clipData != null && clipData.itemCount > 0 && !LocalApiControl.isSensitive(clipData.description)) {
                     val clipText = clipData.getItemAt(0).text?.toString() ?: ""
 
                     // Only process if the text has changed and is not empty

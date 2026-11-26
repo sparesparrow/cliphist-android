@@ -46,7 +46,8 @@ import javax.inject.Inject
  * The server listens on the loopback interface only (reach it from a computer with
  * `adb forward tcp:8765 tcp:8765`). Authentication is mandatory: a shared Bearer token
  * passed in the Intent extra "api_token" when the service is started. Without a token
- * every request is rejected with 401.
+ * every request is rejected with 401. Settings → Agents → "Local API for agents" turns it on
+ * and issues the token ([LocalApiControl]).
  */
 @AndroidEntryPoint
 class LocalApiService : Service() {
@@ -76,7 +77,9 @@ class LocalApiService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A sticky restart brings no Intent: fall back to the token LocalApiControl stored.
         val token = intent?.getStringExtra(EXTRA_API_TOKEN)
+            ?: try { LocalApiControl.token(this) } catch (e: Exception) { null }
         if (!token.isNullOrBlank()) {
             apiToken = token
         }

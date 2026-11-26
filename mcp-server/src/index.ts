@@ -6,8 +6,10 @@
  * via the Model Context Protocol (MCP).
  *
  * Setup:
- *   1. Start LocalApiService on Android (enable in app Settings → Local API)
- *   2. Forward the port via ADB:  adb forward tcp:8765 tcp:8765
+ *   1. On Android, turn on Settings → Agents → "Local API for agents" and copy the token
+ *      (copied as sensitive, so the app does not keep it in history)
+ *   2. From a computer, forward the port via ADB:  adb forward tcp:8765 tcp:8765
+ *      (not needed for clients on the phone itself, such as Termux or a PRoot distro)
  *   3. Add this server to claude_desktop_config.json:
  *
  *      {
