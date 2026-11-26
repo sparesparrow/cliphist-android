@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.clipboardhistory.domain.model.BubbleType
+import com.clipboardhistory.presentation.services.LocalApiControl
 import com.clipboardhistory.presentation.viewmodels.MainViewModel
 import com.clipboardhistory.presentation.viewmodels.SettingsViewModel
 import com.clipboardhistory.utils.PermissionUtils
@@ -81,6 +82,9 @@ fun SettingsScreen(
     val permissionStatus by settingsViewModel.permissionStatus.collectAsState()
 
     var showClearDataDialog by remember { mutableStateOf(false) }
+    var localApiToken by remember {
+        mutableStateOf(try { LocalApiControl.token(context) } catch (e: Exception) { null })
+    }
     var showResetSettingsDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -190,6 +194,40 @@ fun SettingsScreen(
                         }
                     },
                 )
+            }
+
+            // Local API for agents (LocalApiService on 127.0.0.1:8765)
+            SettingsSection(title = "Agents") {
+                SwitchSetting(
+                    title = "Local API for agents",
+                    description = "Let MCP clients on this phone read clipboard history on 127.0.0.1:8765 " +
+                        "with a token. One-time codes, passwords and tokens are redacted.",
+                    checked = localApiToken != null,
+                    onCheckedChange = { enabled ->
+                        try {
+                            if (enabled) {
+                                localApiToken = LocalApiControl.enable(context)
+                            } else {
+                                LocalApiControl.disable(context)
+                                localApiToken = null
+                            }
+                        } catch (e: Exception) {
+                            scope.launch { snackbarHostState.showSnackbar("Could not change the local API") }
+                        }
+                    },
+                )
+                localApiToken?.let { token ->
+                    ButtonSetting(
+                        title = "API token",
+                        description = "Paste it into the agent's token file. Copied as sensitive: not kept in history.",
+                        buttonText = "Copy",
+                        isDestructive = false,
+                        onClick = {
+                            LocalApiControl.copyToken(context, token)
+                            scope.launch { snackbarHostState.showSnackbar("Token copied") }
+                        },
+                    )
+                }
             }
 
             // Appearance Settings
