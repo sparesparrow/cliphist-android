@@ -18,7 +18,7 @@
  *            "command": "node",
  *            "args": ["/path/to/mcp-server/dist/index.js"],
  *            "env": {
- *              "CLIPHIST_API_URL": "http://localhost:8765",
+ *              "CLIPHIST_API_URL": "http://127.0.0.1:8765",
  *              "CLIPHIST_API_TOKEN": "<your-token>"
  *            }
  *          }
@@ -36,7 +36,7 @@ import {
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
-const API_URL = process.env.CLIPHIST_API_URL ?? "http://localhost:8765";
+const API_URL = process.env.CLIPHIST_API_URL ?? "http://127.0.0.1:8765";
 const API_TOKEN = process.env.CLIPHIST_API_TOKEN ?? "";
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────

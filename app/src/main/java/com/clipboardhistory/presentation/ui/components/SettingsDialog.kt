@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,11 +36,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.clipboardhistory.domain.model.BubbleThemes
 import com.clipboardhistory.domain.model.BubbleType
 import com.clipboardhistory.domain.model.ClipboardSettings
+import com.clipboardhistory.presentation.services.LocalApiControl
 
 /**
  * Settings dialog composable.
@@ -74,7 +78,7 @@ fun SettingsDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 // Max history size setting
@@ -152,6 +156,8 @@ fun SettingsDialog(
                         onCheckedChange = { enableEncryption = it },
                     )
                 }
+
+                LocalApiSetting()
 
                 // Bubble type selection
                 Column {
@@ -401,5 +407,65 @@ fun SettingsSlider(
             valueRange = valueRange,
             steps = steps,
         )
+    }
+}
+
+/**
+ * The switch for the local API that agents on this phone use (LocalApiService on 127.0.0.1:8765),
+ * and the button that copies its token. It applies at once, not on Save: the token has to exist
+ * before it can be copied.
+ */
+@Composable
+private fun LocalApiSetting() {
+    val context = LocalContext.current
+    var token by remember {
+        mutableStateOf(runCatching { LocalApiControl.token(context) }.getOrNull())
+    }
+    var copied by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Local API for agents", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = "MCP clients on this phone read history on 127.0.0.1:8765 with a token. " +
+                        "One-time codes, passwords and tokens are redacted.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(
+                checked = token != null,
+                onCheckedChange = { enabled ->
+                    copied = false
+                    token = runCatching {
+                        if (enabled) {
+                            LocalApiControl.enable(context)
+                        } else {
+                            LocalApiControl.disable(context)
+                            null
+                        }
+                    }.getOrNull()
+                },
+            )
+        }
+        token?.let { t ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (copied) "Token copied (not kept in history)" else "API token",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                TextButton(onClick = {
+                    LocalApiControl.copyToken(context, t)
+                    copied = true
+                }) { Text("Copy token") }
+            }
+        }
     }
 }
