@@ -43,6 +43,9 @@ import javax.inject.Inject
  *   GET  /stats              - clipboard statistics
  *   GET  /health             - liveness probe
  *
+ * Item content goes through [SecretRedactor] first: one-time codes, passwords, tokens and keys come
+ * back as "[redacted]" and the item carries "redacted":true.
+ *
  * The server listens on the loopback interface only (reach it from a computer with
  * `adb forward tcp:8765 tcp:8765`). Authentication is mandatory: a shared Bearer token
  * passed in the Intent extra "api_token" when the service is started. Without a token
@@ -233,13 +236,15 @@ class LocalApiService : Service() {
     }
 
     private fun itemToJson(item: com.clipboardhistory.domain.model.ClipboardItem): String {
-        val escapedContent = item.content
+        // Agents read this API: secrets are removed before the text leaves the app.
+        val content = SecretRedactor.redact(item.content)
+        val escapedContent = content
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
             .replace("\n", "\\n")
             .replace("\r", "\\r")
             .replace("\t", "\\t")
-        return """{"id":"${item.id}","content":"$escapedContent","timestamp":${item.timestamp},"contentType":"${item.contentType}","size":${item.size},"isFavorite":${item.isFavorite}}"""
+        return """{"id":"${item.id}","content":"$escapedContent","timestamp":${item.timestamp},"contentType":"${item.contentType}","size":${item.size},"isFavorite":${item.isFavorite},"redacted":${content != item.content}}"""
     }
 
     private fun writeResponse(writer: PrintWriter, statusCode: Int, body: String) {
